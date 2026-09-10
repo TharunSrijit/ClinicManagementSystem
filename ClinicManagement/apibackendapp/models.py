@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
 from django.contrib.auth.models import AbstractUser
 
 
@@ -245,8 +246,8 @@ class Appointment(models.Model):
         related_name='appointments_created'
     )
 
-    appointment_date = models.DateField()
-    appointment_time = models.TimeField()
+    appointment_date = models.DateField(default=timezone.now)
+    appointment_time = models.TimeField(null=True)
 
     reason = models.TextField(
         blank=True
