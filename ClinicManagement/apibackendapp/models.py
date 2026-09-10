@@ -4,32 +4,20 @@ from django.contrib.auth.models import AbstractUser
 
 
 # ---------------------------------------------------------------------------
-# 1. USER & ROLE PROFILES
+# ADMIN
 # ---------------------------------------------------------------------------
 
 class User(AbstractUser):
     pass
 
 
+# ---------------------------------------------------------------------------
+# RECEPTIONIST
+# ---------------------------------------------------------------------------
+
 class ReceptionistProfile(models.Model):
     pass
 
-
-class DoctorProfile(models.Model):
-    pass
-
-
-class LabTechnicianProfile(models.Model):
-    pass
-
-
-class PharmacistProfile(models.Model):
-    pass
-
-
-# ---------------------------------------------------------------------------
-# 2. PATIENT
-# ---------------------------------------------------------------------------
 
 class Patient(models.Model):
     pass
@@ -39,17 +27,13 @@ class MedicalHistory(models.Model):
     pass
 
 
-# ---------------------------------------------------------------------------
-# 3. APPOINTMENTS
-# ---------------------------------------------------------------------------
-
 class Appointment(models.Model):
     pass
 
 
-# ---------------------------------------------------------------------------
-# 4. CONSULTATION BILLING
-# ---------------------------------------------------------------------------
+class Token(models.Model):
+    pass
+
 
 class ConsultationInvoice(models.Model):
     pass
@@ -58,82 +42,6 @@ class ConsultationInvoice(models.Model):
 class ConsultationPayment(models.Model):
     pass
 
-
-class Token(models.Model):
-    pass
-
-
-class Consultation(models.Model):
-    pass
-
-
-# ---------------------------------------------------------------------------
-# 5. PRESCRIPTION
-# ---------------------------------------------------------------------------
-
-class MasterDosage(models.Model):
-    pass
-
-
-class MasterMedicine(models.Model):
-    pass
-
-
-class Prescription(models.Model):
-    pass
-
-
-class PrescriptionItem(models.Model):
-    pass
-
-
-# ---------------------------------------------------------------------------
-# 6. LAB MODULE
-# ---------------------------------------------------------------------------
-
-class MasterLabTest(models.Model):
-    pass
-
-
-class LabTestOrder(models.Model):
-    pass
-
-
-class LabTestResult(models.Model):
-    pass
-
-
-# ---------------------------------------------------------------------------
-# 7. PHARMACY - DISPENSE
-# ---------------------------------------------------------------------------
-
-class Dispense(models.Model):
-    pass
-
-
-class DispenseItem(models.Model):
-    pass
-
-
-# ---------------------------------------------------------------------------
-# 8. STOCK / PRICE MASTER
-# ---------------------------------------------------------------------------
-
-class StockMaster(models.Model):
-    pass
-
-
-class StockTransaction(models.Model):
-    pass
-
-
-class PriceList(models.Model):
-    pass
-
-
-# ---------------------------------------------------------------------------
-# 9. LAB & PHARMACY BILLING
-# ---------------------------------------------------------------------------
 
 class LabInvoice(models.Model):
     pass
@@ -148,4 +56,80 @@ class PharmacyInvoice(models.Model):
 
 
 class PharmacyPayment(models.Model):
+    pass
+
+
+# ---------------------------------------------------------------------------
+# DOCTOR
+# ---------------------------------------------------------------------------
+
+class DoctorProfile(models.Model):
+    pass
+
+
+class Consultation(models.Model):
+    pass
+
+
+class Prescription(models.Model):
+    pass
+
+
+class PrescriptionItem(models.Model):
+    pass
+
+
+# ---------------------------------------------------------------------------
+# PHARMACY
+# ---------------------------------------------------------------------------
+
+class PharmacistProfile(models.Model):
+    pass
+
+
+class MasterDosage(models.Model):
+    pass
+
+
+class MasterMedicine(models.Model):
+    pass
+
+
+class Dispense(models.Model):
+    pass
+
+
+class DispenseItem(models.Model):
+    pass
+
+
+class StockMaster(models.Model):
+    pass
+
+
+class StockTransaction(models.Model):
+    pass
+
+
+class PriceList(models.Model):
+    pass
+
+
+# ---------------------------------------------------------------------------
+# LAB TECH
+# ---------------------------------------------------------------------------
+
+class LabTechnicianProfile(models.Model):
+    pass
+
+
+class MasterLabTest(models.Model):
+    pass
+
+
+class LabTestOrder(models.Model):
+    pass
+
+
+class LabTestResult(models.Model):
     pass
