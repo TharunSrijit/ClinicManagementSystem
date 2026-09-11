@@ -18,7 +18,7 @@ from apibackendapp.models import (
     MedicalHistory,
 )
 
-from apibackendapp.serializers import (
+from .serializers import (
     DoctorProfileSerializer,
     AppointmentSerializer,
     ConsultationSerializer,
@@ -32,6 +32,7 @@ from apibackendapp.serializers import (
     PatientSerializer,
     MedicalHistorySerializer,
 )
+
 
 
 # ---------------------------------------------------------------------------
