@@ -83,10 +83,10 @@ WSGI_APPLICATION = 'ClinicManagement.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'ClinicDB',
+        'NAME': 'clinicdb',
         'USER':'root',
         'HOST':'localhost',
-        'PASSWORD':'Reeba@123',
+        'PASSWORD':'2003',
         'PORT':3306
     }
 }
