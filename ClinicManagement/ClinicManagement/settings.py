@@ -86,7 +86,7 @@ DATABASES = {
         'NAME': 'ClinicDB',
         'USER':'root',
         'HOST':'localhost',
-        'PASSWORD':'12345678',
+        'PASSWORD':'Reeba@123',
         'PORT':3306
     }
 }
