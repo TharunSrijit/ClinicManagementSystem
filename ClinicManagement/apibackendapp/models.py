@@ -24,7 +24,8 @@ class User(AbstractUser):
     )
 
     phone = models.CharField(max_length=15, blank=True)
-    email = models.EmailField(unique=True)
+    email = models.EmailField(unique=True, blank=True, null=True)
+    REQUIRED_FIELDS = []  # removes email from createsuperuser prompt
 
     def __str__(self):
         return self.username

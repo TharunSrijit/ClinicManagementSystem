@@ -83,7 +83,7 @@ WSGI_APPLICATION = 'ClinicManagement.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'ClinicDb',
+        'NAME': 'ClinicDB',
         'USER':'root',
         'HOST':'localhost',
         'PASSWORD':'12345678',
@@ -140,3 +140,26 @@ MAILERS = {
 
 AUTH_USER_MODEL = 'apibackendapp.User'
 
+# ---------------------------------------------------------------------------
+# Django REST Framework
+# ---------------------------------------------------------------------------
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+}
+
+# ---------------------------------------------------------------------------
+# Simple JWT
+# ---------------------------------------------------------------------------
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME':  timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ROTATE_REFRESH_TOKENS':  False,
+    'AUTH_HEADER_TYPES':      ('Bearer',),
+}
