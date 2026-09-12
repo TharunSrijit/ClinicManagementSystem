@@ -21,5 +21,9 @@ urlpatterns = [
     # ------------------------------------------------------------------
     # Role-based app routes
     # ------------------------------------------------------------------
-    path('api/doctor/',  include('doctor.urls')),
+    path('api/admin/',        include('adminapp.urls')),
+    path('api/receptionist/', include('receptionist.urls')),
+    path('api/doctor/',       include('doctor.urls')),
+    path('api/lab/',          include('lab_tech.urls')),
+    path('api/pharmacy/',     include('pharmacy.urls')),
 ]
