@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -20,12 +21,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-vd+8@+!rmgv*4yk!4=g5c9x85xca6_lgl54_3^ft4l+n%e58#w'
+SECRET_KEY = os.environ.get(
+    'SECRET_KEY',
+    'django-insecure-vd+8@+!rmgv*4yk!4=g5c9x85xca6_lgl54_3^ft4l+n%e58#w'
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'True').lower() in ('true', '1', 'yes')
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get('ALLOWED_HOSTS', '*').split(',') if h.strip()]
 
 
 # Application definition
@@ -37,6 +41,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    # Third-party apps
+    'corsheaders',
+    'rest_framework',
+    'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     # Core app
     'apibackendapp',
     # Role-based apps
@@ -48,6 +57,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -82,12 +92,12 @@ WSGI_APPLICATION = 'ClinicManagement.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'ClinicDB',
-        'USER':'root',
-        'HOST':'localhost',
-        'PASSWORD':'12345678',
-        'PORT':3306
+        'ENGINE': os.environ.get('DB_ENGINE', 'django.db.backends.mysql'),
+        'NAME': os.environ.get('DB_NAME', 'ClinicDB'),
+        'USER': os.environ.get('DB_USER', 'root'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', '12345678'),
+        'HOST': os.environ.get('DB_HOST', 'localhost'),
+        'PORT': int(os.environ.get('DB_PORT', '3306')),
     }
 }
 
@@ -116,11 +126,18 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Kolkata'
 
 USE_I18N = True
 
 USE_TZ = True
+
+APPOINTMENT_BOOKING_ADVANCE_DAYS = 7
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
 
 
 # Static files (CSS, JavaScript, Images)

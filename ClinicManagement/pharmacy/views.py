@@ -5,6 +5,8 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from apibackendapp.permissions import IsPharmacist
+
 from apibackendapp.models import (
     PharmacistProfile,
     Patient,
@@ -63,7 +65,7 @@ class PharmacistProfileView(viewsets.ModelViewSet):
     Pharmacist can view and update their own profile only.
     """
     serializer_class = PharmacistProfileSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsPharmacist]
 
     def get_queryset(self):
         return PharmacistProfile.objects.filter(user=self.request.user)
@@ -80,7 +82,7 @@ class PharmacyPrescriptionViewSet(viewsets.ReadOnlyModelViewSet):
     only prescriptions that have not yet been fully dispensed.
     """
     serializer_class = PrescriptionSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsPharmacist]
 
     def get_queryset(self):
         queryset = Prescription.objects.all().select_related(
@@ -115,7 +117,7 @@ class PharmacyDispenseViewSet(viewsets.ModelViewSet):
       POST /dispenses/{id}/cancel/   — PENDING → CANCELLED
     """
     serializer_class = DispenseSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsPharmacist]
 
     def get_queryset(self):
         queryset = Dispense.objects.all().select_related(
@@ -209,7 +211,7 @@ class PharmacyDispenseItemViewSet(viewsets.ModelViewSet):
     Calculates total_price automatically from quantity × unit_price.
     """
     serializer_class = DispenseItemSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsPharmacist]
 
     def get_queryset(self):
         queryset = DispenseItem.objects.all().select_related('dispense', 'medicine')
@@ -239,7 +241,7 @@ class PharmacyInvoiceViewSet(viewsets.ModelViewSet):
     Supports filtering by ?patient=<id> and ?status=.
     """
     serializer_class = PharmacyInvoiceSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsPharmacist]
 
     def get_queryset(self):
         queryset = PharmacyInvoice.objects.all().select_related('patient', 'dispense')
@@ -278,7 +280,7 @@ class PharmacyPaymentViewSet(viewsets.ModelViewSet):
     Supports filtering by ?invoice=<id>.
     """
     serializer_class = PharmacyPaymentSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsPharmacist]
 
     def get_queryset(self):
         queryset = PharmacyPayment.objects.all().select_related('invoice')
@@ -313,7 +315,7 @@ class PharmacyStockViewSet(viewsets.ReadOnlyModelViewSet):
     Supports filtering by ?medicine=<id>.
     """
     serializer_class = StockMasterSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsPharmacist]
 
     def get_queryset(self):
         queryset = StockMaster.objects.all().select_related('medicine')
@@ -333,7 +335,7 @@ class PharmacyMasterMedicineViewSet(viewsets.ReadOnlyModelViewSet):
     Supports filtering by ?name=<search> and ?category=<search>.
     """
     serializer_class = MasterMedicineSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsPharmacist]
 
     def get_queryset(self):
         queryset = MasterMedicine.objects.filter(is_active=True)
@@ -356,7 +358,7 @@ class PharmacyPatientViewSet(viewsets.ReadOnlyModelViewSet):
     Supports filtering by ?name=<search>.
     """
     serializer_class = PatientSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsPharmacist]
 
     def get_queryset(self):
         queryset = Patient.objects.filter(prescriptions__isnull=False).distinct()

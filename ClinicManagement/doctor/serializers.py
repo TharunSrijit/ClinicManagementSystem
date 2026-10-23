@@ -68,7 +68,7 @@ class DoctorProfileSerializer(serializers.ModelSerializer):
             'id', 'doctor_id', 'full_name', 'email',
             'specialization', 'qualification',
             'registration_number', 'consultation_fee',
-            'available_from', 'available_to',
+            'available_from', 'available_to', 'slot_minutes',
         ]
         read_only_fields = ['doctor_id']
 
@@ -78,6 +78,8 @@ class DoctorProfileSerializer(serializers.ModelSerializer):
 # ---------------------------------------------------------------------------
 
 class PatientSerializer(serializers.ModelSerializer):
+    appointments = serializers.SerializerMethodField()
+
     class Meta:
         model  = Patient
         fields = [
@@ -85,9 +87,19 @@ class PatientSerializer(serializers.ModelSerializer):
             'date_of_birth', 'gender', 'blood_group',
             'phone', 'email', 'address',
             'emergency_contact_name', 'emergency_contact_phone',
+            'appointments',
             'created_at',
         ]
         read_only_fields = fields
+
+    def get_appointments(self, obj):
+        request = self.context.get('request')
+        doctor = getattr(request.user, 'doctor_profile', None) if request and request.user.is_authenticated else None
+        if doctor:
+            qs = obj.appointments.filter(doctor=doctor)
+        else:
+            qs = obj.appointments.all()
+        return AppointmentSerializer(qs, many=True, context=self.context).data
 
 
 class MedicalHistorySerializer(serializers.ModelSerializer):
@@ -113,7 +125,7 @@ class MedicalHistorySerializer(serializers.ModelSerializer):
 class AppointmentSerializer(serializers.ModelSerializer):
     """
     On READ  → shows patient name, doctor name as readable strings.
-    On WRITE → accepts patient and doctor by their primary key (id).
+    Read-only for doctors.
     """
     patient_name = serializers.CharField(
         source='patient.__str__', read_only=True
@@ -127,10 +139,11 @@ class AppointmentSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'patient', 'patient_name',
             'doctor', 'doctor_name',
+            'appointment_type',
             'appointment_date', 'appointment_time',
             'reason', 'status', 'created_at',
         ]
-        read_only_fields = ['created_at']
+        read_only_fields = fields
 
 
 # ---------------------------------------------------------------------------

@@ -1,3 +1,4 @@
+import datetime
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
@@ -66,6 +67,7 @@ class DoctorProfile(models.Model):
     )
     available_from = models.TimeField(null=True, blank=True)
     available_to = models.TimeField(null=True, blank=True)
+    slot_minutes = models.IntegerField(default=15)
 
     def __str__(self):
         return f"Dr. {self.user.get_full_name()}"
@@ -227,6 +229,11 @@ class Appointment(models.Model):
         ('NO_SHOW', 'No Show'),
     ]
 
+    APPOINTMENT_TYPE_CHOICES = [
+        ('WALK_IN', 'Walk In'),
+        ('BOOKED', 'Booked'),
+    ]
+
     patient = models.ForeignKey(
         Patient,
         on_delete=models.CASCADE,
@@ -247,8 +254,14 @@ class Appointment(models.Model):
         related_name='appointments_created'
     )
 
+    appointment_type = models.CharField(
+        max_length=20,
+        choices=APPOINTMENT_TYPE_CHOICES,
+        default='BOOKED'
+    )
+
     appointment_date = models.DateField(default=timezone.now)
-    appointment_time = models.TimeField(null=True)
+    appointment_time = models.TimeField(default=datetime.time(9, 0))
 
     reason = models.TextField(
         blank=True

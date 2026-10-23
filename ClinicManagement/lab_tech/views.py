@@ -6,6 +6,8 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from apibackendapp.permissions import IsLabTechnician
+
 from apibackendapp.models import (
     LabTechnicianProfile,
     Patient,
@@ -53,7 +55,7 @@ class LabTechProfileView(viewsets.ModelViewSet):
     Lab technician can view and update their own profile only.
     """
     serializer_class = LabTechnicianProfileSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsLabTechnician]
 
     def get_queryset(self):
         return LabTechnicianProfile.objects.filter(user=self.request.user)
@@ -75,7 +77,7 @@ class LabTechLabTestOrderViewSet(viewsets.ModelViewSet):
       POST /lab-orders/{id}/complete/         — PROCESSING → COMPLETED
     """
     serializer_class = LabTestOrderSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsLabTechnician]
 
     def get_queryset(self):
         queryset = LabTestOrder.objects.all().select_related(
@@ -143,7 +145,7 @@ class LabTechLabTestResultViewSet(viewsets.ModelViewSet):
     Supports filtering by ?order=<id>.
     """
     serializer_class = LabTestResultSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsLabTechnician]
 
     def get_queryset(self):
         queryset = LabTestResult.objects.all().select_related(
@@ -169,7 +171,7 @@ class LabTechPatientViewSet(viewsets.ReadOnlyModelViewSet):
     Supports filtering by ?name=<search>.
     """
     serializer_class = PatientSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsLabTechnician]
 
     def get_queryset(self):
         queryset = Patient.objects.filter(
@@ -193,7 +195,7 @@ class LabTechMasterLabTestViewSet(viewsets.ReadOnlyModelViewSet):
     Supports filtering by ?name=<search>.
     """
     serializer_class = MasterLabTestSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsLabTechnician]
 
     def get_queryset(self):
         queryset = MasterLabTest.objects.filter(is_active=True)
@@ -213,7 +215,7 @@ class LabTechLabInvoiceViewSet(viewsets.ModelViewSet):
     Supports filtering by ?patient=<id> and ?status=.
     """
     serializer_class = LabInvoiceSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsLabTechnician]
 
     def get_queryset(self):
         queryset = LabInvoice.objects.all().select_related('patient', 'lab_order')
@@ -249,7 +251,7 @@ class LabTechLabPaymentViewSet(viewsets.ModelViewSet):
     Supports filtering by ?invoice=<id>.
     """
     serializer_class = LabPaymentSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsLabTechnician]
 
     def get_queryset(self):
         queryset = LabPayment.objects.all().select_related('invoice')

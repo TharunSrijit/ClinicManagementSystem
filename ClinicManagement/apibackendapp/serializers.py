@@ -32,13 +32,13 @@ class SignupSerializer(serializers.ModelSerializer):
     """
     Handles new user registration.
     - password is write-only (never returned in responses)
-    - role must be one of: ADMIN, RECEPTIONIST, DOCTOR, LAB_TECHNICIAN, PHARMACIST
+    - role is forced to RECEPTIONIST; only an admin can assign roles.
     """
     password = serializers.CharField(write_only=True, min_length=8)
 
     class Meta:
         model  = User
-        fields = ['id', 'username', 'email', 'password', 'role', 'phone',
+        fields = ['id', 'username', 'email', 'password', 'phone',
                   'first_name', 'last_name']
 
     def create(self, validated_data):
@@ -46,7 +46,7 @@ class SignupSerializer(serializers.ModelSerializer):
             username   = validated_data['username'],
             email      = validated_data['email'],
             password   = validated_data['password'],
-            role       = validated_data.get('role', 'RECEPTIONIST'),
+            role       = 'RECEPTIONIST',
             phone      = validated_data.get('phone', ''),
             first_name = validated_data.get('first_name', ''),
             last_name  = validated_data.get('last_name', ''),
@@ -120,7 +120,7 @@ class DoctorProfileSerializer(serializers.ModelSerializer):
             'id', 'doctor_id', 'full_name', 'email',
             'specialization', 'qualification',
             'registration_number', 'consultation_fee',
-            'available_from', 'available_to',
+            'available_from', 'available_to', 'slot_minutes',
         ]
         read_only_fields = ['doctor_id']
 
@@ -199,16 +199,36 @@ class AppointmentSerializer(serializers.ModelSerializer):
     doctor_name = serializers.CharField(
         source='doctor.__str__', read_only=True
     )
+    appointment_time = serializers.TimeField(required=True)
 
     class Meta:
         model  = Appointment
         fields = [
             'id', 'patient', 'patient_name',
             'doctor', 'doctor_name',
+            'appointment_type',
             'appointment_date', 'appointment_time',
             'reason', 'status', 'created_at',
         ]
         read_only_fields = ['created_at']
+
+    def validate(self, attrs):
+        doctor = attrs.get('doctor') or (self.instance.doctor if self.instance else None)
+        patient = attrs.get('patient') or (self.instance.patient if self.instance else None)
+        appointment_type = attrs.get('appointment_type') or (getattr(self.instance, 'appointment_type', 'BOOKED') if self.instance else 'BOOKED')
+        appointment_date = attrs.get('appointment_date') or (self.instance.appointment_date if self.instance else None)
+        appointment_time = attrs.get('appointment_time') or (self.instance.appointment_time if self.instance else None)
+
+        from apibackendapp.scheduling import validate_appointment_booking
+        validate_appointment_booking(
+            doctor=doctor,
+            patient=patient,
+            appointment_type=appointment_type,
+            appointment_date=appointment_date,
+            appointment_time=appointment_time,
+            appointment_id=self.instance.id if self.instance else None,
+        )
+        return attrs
 
 
 class TokenSerializer(serializers.ModelSerializer):

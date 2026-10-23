@@ -2,10 +2,12 @@ from datetime import date as date_cls
 
 from django.db import transaction
 from django.db.models import Q
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, serializers
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+
+from apibackendapp.permissions import IsReceptionist
 
 from apibackendapp.models import (
     ReceptionistProfile,
@@ -64,7 +66,7 @@ class ReceptionistProfileView(viewsets.ModelViewSet):
     Allows the logged-in receptionist to view and update their own profile only.
     """
     serializer_class = ReceptionistProfileSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsReceptionist]
 
     def get_queryset(self):
         return ReceptionistProfile.objects.filter(user=self.request.user)
@@ -80,7 +82,7 @@ class ReceptionistPatientViewSet(viewsets.ModelViewSet):
     Supports filtering by ?search=<name/phone/patient_id>.
     """
     serializer_class = PatientSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsReceptionist]
 
     def get_queryset(self):
         queryset = Patient.objects.all().order_by('-created_at')
@@ -106,7 +108,7 @@ class ReceptionistMedicalHistoryViewSet(viewsets.ModelViewSet):
     (e.g. known allergies) filtered by ?patient=<id>.
     """
     serializer_class = MedicalHistorySerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsReceptionist]
 
     def get_queryset(self):
         queryset = MedicalHistory.objects.all().select_related('patient')
@@ -128,7 +130,7 @@ class ReceptionistDoctorViewSet(viewsets.ReadOnlyModelViewSet):
     appointments. Supports filtering by ?specialization=<search>.
     """
     serializer_class = DoctorProfileSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsReceptionist]
     queryset = DoctorProfile.objects.all().select_related('user')
 
     def get_queryset(self):
@@ -142,6 +144,50 @@ class ReceptionistDoctorViewSet(viewsets.ReadOnlyModelViewSet):
 
         return queryset
 
+    @action(detail=True, methods=['get'])
+    def slots(self, request, pk=None):
+        doctor = self.get_object()
+        appt_type = request.query_params.get('type')
+        date_str = request.query_params.get('date')
+
+        if not appt_type:
+            return Response(
+                {'detail': "Query parameter 'type' is required (WALK_IN or BOOKED)."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        appt_type = appt_type.upper()
+        if appt_type not in ('WALK_IN', 'BOOKED'):
+            return Response(
+                {'detail': "Query parameter 'type' must be 'WALK_IN' or 'BOOKED'."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not date_str:
+            return Response(
+                {'detail': "Query parameter 'date' is required (YYYY-MM-DD)."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        from datetime import datetime
+        try:
+            target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response(
+                {'detail': "Invalid date format. Expected YYYY-MM-DD."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        from apibackendapp.scheduling import get_doctor_slots_availability, SchedulingValidationError
+        try:
+            slot_data = get_doctor_slots_availability(
+                doctor=doctor,
+                appointment_type=appt_type,
+                date=target_date,
+            )
+            return Response(slot_data, status=status.HTTP_200_OK)
+        except SchedulingValidationError as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 
 # ============================================================================
 # APPOINTMENTS
@@ -154,7 +200,7 @@ class ReceptionistAppointmentViewSet(viewsets.ModelViewSet):
     ?date=YYYY-MM-DD.
     """
     serializer_class = AppointmentSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsReceptionist]
 
     def get_queryset(self):
         queryset = Appointment.objects.all().select_related(
@@ -182,11 +228,33 @@ class ReceptionistAppointmentViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         receptionist = get_receptionist_profile(self.request)
-        serializer.save(receptionist=receptionist)
+        if not receptionist:
+            raise serializers.ValidationError(
+                {'detail': 'A ReceptionistProfile is required to create an appointment.'}
+            )
+
+        doctor = serializer.validated_data['doctor']
+        with transaction.atomic():
+            DoctorProfile.objects.select_for_update().get(id=doctor.id)
+            serializer.save(receptionist=receptionist)
+
+    def perform_update(self, serializer):
+        receptionist = get_receptionist_profile(self.request)
+        if not receptionist:
+            raise serializers.ValidationError(
+                {'detail': 'A ReceptionistProfile is required to update an appointment.'}
+            )
+        serializer.save()
 
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None):
         """POST /appointments/{id}/cancel/ — mark an appointment as cancelled."""
+        receptionist = get_receptionist_profile(request)
+        if not receptionist:
+            return Response(
+                {'detail': 'A ReceptionistProfile is required.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
         appointment = self.get_object()
         appointment.status = 'CANCELLED'
         appointment.save(update_fields=['status'])
@@ -198,6 +266,12 @@ class ReceptionistAppointmentViewSet(viewsets.ModelViewSet):
         POST /appointments/{id}/check_in/ — confirm the patient has arrived
         and issue them the next queue token for the day.
         """
+        receptionist = get_receptionist_profile(request)
+        if not receptionist:
+            return Response(
+                {'detail': 'A ReceptionistProfile is required.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
         appointment = self.get_object()
         appointment.status = 'CONFIRMED'
         appointment.save(update_fields=['status'])
@@ -236,7 +310,7 @@ class ReceptionistTokenViewSet(viewsets.ModelViewSet):
     Supports filtering by ?date=YYYY-MM-DD (defaults to today) and ?status=.
     """
     serializer_class = TokenSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsReceptionist]
 
     def get_queryset(self):
         queryset = Token.objects.all().select_related(
@@ -295,7 +369,7 @@ class ReceptionistConsultationInvoiceViewSet(viewsets.ModelViewSet):
     Supports filtering by ?patient=<id> and ?status=.
     """
     serializer_class = ConsultationInvoiceSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsReceptionist]
 
     def get_queryset(self):
         queryset = ConsultationInvoice.objects.all().select_related(
@@ -335,7 +409,7 @@ class ReceptionistConsultationPaymentViewSet(viewsets.ModelViewSet):
     Supports filtering by ?invoice=<id>.
     """
     serializer_class = ConsultationPaymentSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsReceptionist]
 
     def get_queryset(self):
         queryset = ConsultationPayment.objects.all().select_related('invoice')

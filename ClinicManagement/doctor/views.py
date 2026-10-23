@@ -1,7 +1,9 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, serializers
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+
+from apibackendapp.permissions import IsDoctor
 
 from apibackendapp.models import (
     DoctorProfile,
@@ -56,7 +58,7 @@ class DoctorProfileView(viewsets.ModelViewSet):
     Allows the logged-in doctor to view and update their own profile only.
     """
     serializer_class = DoctorProfileSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsDoctor]
 
     def get_queryset(self):
         return DoctorProfile.objects.filter(user=self.request.user)
@@ -66,13 +68,15 @@ class DoctorProfileView(viewsets.ModelViewSet):
 # APPOINTMENTS
 # ============================================================================
 
-class DoctorAppointmentViewSet(viewsets.ModelViewSet):
+class DoctorAppointmentViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    Doctor can view and manage only their own appointments.
-    Supports filtering by ?status=BOOKED and ?date=YYYY-MM-DD.
+    Doctor can view only their own appointments (read-only).
+    Explicit actions: complete (only from CONFIRMED) and no-show.
+    Doctor cannot create or edit appointments directly.
+    Supports filtering by ?status= and ?date=YYYY-MM-DD.
     """
     serializer_class = AppointmentSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsDoctor]
 
     def get_queryset(self):
         doctor = get_doctor_profile(self.request)
@@ -83,16 +87,41 @@ class DoctorAppointmentViewSet(viewsets.ModelViewSet):
             'patient', 'doctor', 'receptionist'
         )
 
-        status = self.request.query_params.get('status')
-        date   = self.request.query_params.get('date')
+        status_param = self.request.query_params.get('status')
+        date_param = self.request.query_params.get('date')
 
-        if status:
-            queryset = queryset.filter(status=status)
+        if status_param:
+            queryset = queryset.filter(status=status_param)
 
-        if date:
-            queryset = queryset.filter(appointment_date=date)
+        if date_param:
+            queryset = queryset.filter(appointment_date=date_param)
 
         return queryset
+
+    @action(detail=True, methods=['post'])
+    def complete(self, request, pk=None):
+        """POST /appointments/{id}/complete/ — complete appointment from CONFIRMED."""
+        appointment = self.get_object()
+        if appointment.status != 'CONFIRMED':
+            return Response(
+                {'detail': 'Only CONFIRMED appointments can be marked as COMPLETED.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        appointment.status = 'COMPLETED'
+        appointment.save(update_fields=['status'])
+        return Response(self.get_serializer(appointment).data)
+
+    @action(detail=True, methods=['post'], url_path='no-show')
+    def no_show(self, request, pk=None):
+        """POST /appointments/{id}/no-show/ — mark appointment as NO_SHOW."""
+        appointment = self.get_object()
+        appointment.status = 'NO_SHOW'
+        appointment.save(update_fields=['status'])
+        return Response(self.get_serializer(appointment).data)
+
+    @action(detail=True, methods=['post'], url_path='no_show')
+    def no_show_underscore(self, request, pk=None):
+        return self.no_show(request, pk)
 
 
 # ============================================================================
@@ -105,7 +134,7 @@ class DoctorConsultationViewSet(viewsets.ModelViewSet):
     Supports filtering by ?patient=<id>.
     """
     serializer_class = ConsultationSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsDoctor]
 
     def get_queryset(self):
         doctor = get_doctor_profile(self.request)
@@ -122,6 +151,22 @@ class DoctorConsultationViewSet(viewsets.ModelViewSet):
 
         return queryset
 
+    def perform_create(self, serializer):
+        doctor = get_doctor_profile(self.request)
+        if not doctor:
+            raise serializers.ValidationError({"detail": "Doctor profile required."})
+        appointment = serializer.validated_data.get('appointment')
+        patient = serializer.validated_data.get('patient')
+        if not appointment:
+            raise serializers.ValidationError({"appointment": "Appointment is required."})
+        if appointment.doctor != doctor:
+            raise serializers.ValidationError({"appointment": "This appointment does not belong to you."})
+        if appointment.status == 'CANCELLED':
+            raise serializers.ValidationError({"appointment": "Cannot create consultation for a cancelled appointment."})
+        if patient and appointment.patient != patient:
+            raise serializers.ValidationError({"patient": "Patient does not match the appointment patient."})
+        serializer.save(doctor=doctor, patient=appointment.patient)
+
 
 # ============================================================================
 # PRESCRIPTION
@@ -133,7 +178,7 @@ class DoctorPrescriptionViewSet(viewsets.ModelViewSet):
     Supports filtering by ?patient=<id>.
     """
     serializer_class = PrescriptionSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsDoctor]
 
     def get_queryset(self):
         doctor = get_doctor_profile(self.request)
@@ -150,6 +195,29 @@ class DoctorPrescriptionViewSet(viewsets.ModelViewSet):
 
         return queryset
 
+    def perform_create(self, serializer):
+        doctor = get_doctor_profile(self.request)
+        if not doctor:
+            raise serializers.ValidationError({"detail": "Doctor profile required."})
+        consultation = serializer.validated_data.get('consultation')
+        patient = serializer.validated_data.get('patient')
+        if consultation:
+            if consultation.doctor != doctor:
+                raise serializers.ValidationError({"consultation": "This consultation does not belong to you."})
+            if consultation.appointment and consultation.appointment.status == 'CANCELLED':
+                raise serializers.ValidationError({"consultation": "Cannot create prescription for a cancelled appointment."})
+            if patient and consultation.patient != patient:
+                raise serializers.ValidationError({"patient": "Patient does not match consultation patient."})
+            patient = consultation.patient
+        if not patient:
+            raise serializers.ValidationError({"patient": "Patient is required."})
+        has_active = Appointment.objects.filter(
+            patient=patient, doctor=doctor
+        ).exclude(status='CANCELLED').exists()
+        if not has_active:
+            raise serializers.ValidationError({"patient": "You do not have an active appointment with this patient."})
+        serializer.save(doctor=doctor, patient=patient)
+
 
 class DoctorPrescriptionItemViewSet(viewsets.ModelViewSet):
     """
@@ -157,7 +225,7 @@ class DoctorPrescriptionItemViewSet(viewsets.ModelViewSet):
     Supports filtering by ?prescription=<id>.
     """
     serializer_class = PrescriptionItemSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsDoctor]
 
     def get_queryset(self):
         doctor = get_doctor_profile(self.request)
@@ -174,6 +242,15 @@ class DoctorPrescriptionItemViewSet(viewsets.ModelViewSet):
 
         return queryset
 
+    def perform_create(self, serializer):
+        doctor = get_doctor_profile(self.request)
+        if not doctor:
+            raise serializers.ValidationError({"detail": "Doctor profile required."})
+        prescription = serializer.validated_data.get('prescription')
+        if not prescription or prescription.doctor != doctor:
+            raise serializers.ValidationError({"prescription": "This prescription does not belong to you."})
+        serializer.save()
+
 
 # ============================================================================
 # LAB TEST ORDERS
@@ -185,7 +262,7 @@ class DoctorLabTestOrderViewSet(viewsets.ModelViewSet):
     Supports filtering by ?patient=<id> and ?status=ORDERED.
     """
     serializer_class = LabTestOrderSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsDoctor]
 
     def get_queryset(self):
         doctor = get_doctor_profile(self.request)
@@ -207,6 +284,29 @@ class DoctorLabTestOrderViewSet(viewsets.ModelViewSet):
 
         return queryset
 
+    def perform_create(self, serializer):
+        doctor = get_doctor_profile(self.request)
+        if not doctor:
+            raise serializers.ValidationError({"detail": "Doctor profile required."})
+        consultation = serializer.validated_data.get('consultation')
+        patient = serializer.validated_data.get('patient')
+        if consultation:
+            if consultation.doctor != doctor:
+                raise serializers.ValidationError({"consultation": "This consultation does not belong to you."})
+            if consultation.appointment and consultation.appointment.status == 'CANCELLED':
+                raise serializers.ValidationError({"consultation": "Cannot order lab test for a cancelled appointment."})
+            if patient and consultation.patient != patient:
+                raise serializers.ValidationError({"patient": "Patient does not match consultation patient."})
+            patient = consultation.patient
+        if not patient:
+            raise serializers.ValidationError({"patient": "Patient is required."})
+        has_active = Appointment.objects.filter(
+            patient=patient, doctor=doctor
+        ).exclude(status='CANCELLED').exists()
+        if not has_active:
+            raise serializers.ValidationError({"patient": "You do not have an active appointment with this patient."})
+        serializer.save(doctor=doctor, patient=patient)
+
 
 class DoctorLabTestResultViewSet(viewsets.ReadOnlyModelViewSet):
     """
@@ -214,7 +314,7 @@ class DoctorLabTestResultViewSet(viewsets.ReadOnlyModelViewSet):
     Supports filtering by ?order=<id>.
     """
     serializer_class = LabTestResultSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsDoctor]
 
     def get_queryset(self):
         doctor = get_doctor_profile(self.request)
@@ -242,16 +342,17 @@ class DoctorPatientViewSet(viewsets.ReadOnlyModelViewSet):
     Supports filtering by ?name=<search>.
     """
     serializer_class = PatientSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsDoctor]
 
     def get_queryset(self):
         doctor = get_doctor_profile(self.request)
         if not doctor:
             return Patient.objects.none()
 
-        # Patients who have at least one appointment with this doctor
+        # One filter() call so doctor and status conditions apply to the same appointment row
         queryset = Patient.objects.filter(
-            appointments__doctor=doctor
+            appointments__doctor=doctor,
+            appointments__status__in=['BOOKED', 'CONFIRMED', 'COMPLETED', 'NO_SHOW']
         ).distinct()
 
         name = self.request.query_params.get('name')
@@ -267,15 +368,17 @@ class DoctorMedicalHistoryViewSet(viewsets.ReadOnlyModelViewSet):
     Supports filtering by ?patient=<id>.
     """
     serializer_class = MedicalHistorySerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsDoctor]
 
     def get_queryset(self):
         doctor = get_doctor_profile(self.request)
         if not doctor:
             return MedicalHistory.objects.none()
 
+        # One filter() call so doctor and status conditions apply to the same appointment row
         queryset = MedicalHistory.objects.filter(
-            patient__appointments__doctor=doctor
+            patient__appointments__doctor=doctor,
+            patient__appointments__status__in=['BOOKED', 'CONFIRMED', 'COMPLETED', 'NO_SHOW']
         ).distinct().select_related('patient')
 
         patient = self.request.query_params.get('patient')
@@ -295,7 +398,7 @@ class DoctorMasterMedicineViewSet(viewsets.ReadOnlyModelViewSet):
     Supports filtering by ?name=<search> and ?category=<search>.
     """
     serializer_class = MasterMedicineSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsDoctor]
 
     def get_queryset(self):
         queryset = MasterMedicine.objects.filter(is_active=True)
@@ -315,7 +418,7 @@ class DoctorMasterMedicineViewSet(viewsets.ReadOnlyModelViewSet):
 class DoctorMasterDosageViewSet(viewsets.ReadOnlyModelViewSet):
     """Doctor can browse available dosage options (read-only)."""
     serializer_class = MasterDosageSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsDoctor]
     queryset = MasterDosage.objects.all()
 
 
@@ -325,7 +428,7 @@ class DoctorMasterLabTestViewSet(viewsets.ReadOnlyModelViewSet):
     Supports filtering by ?name=<search>.
     """
     serializer_class = MasterLabTestSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsDoctor]
 
     def get_queryset(self):
         queryset = MasterLabTest.objects.filter(is_active=True)
