@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Billing | Receptionist — CMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/forms.css" />
+  <link rel="stylesheet" href="../css/dashboard.css" />
+  <link rel="stylesheet" href="../css/tables.css" />
+  <style>
+    @media print {
+      body * { visibility: hidden; }
+      #printArea, #printArea * { visibility: visible; }
+      #printArea {
+        position: absolute; left: 0; top: 0; width: 100%;
+        padding: 20px;
+        font-family: 'Courier New', monospace;
+        font-size: 13px;
+        color: #000;
+      }
+      #printArea .print-header { text-align: center; font-weight: bold; font-size: 16px; margin-bottom: 4px; }
+      #printArea .print-subheader { text-align: center; font-size: 13px; margin-bottom: 12px; }
+      #printArea .print-divider { border-top: 1px dashed #333; margin: 8px 0; }
+      #printArea .print-row { display: flex; justify-content: space-between; padding: 2px 0; }
+      #printArea .print-total-row { display: flex; justify-content: space-between; padding: 4px 0; font-weight: bold; font-size: 15px; }
+      #printArea table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+      #printArea th, #printArea td { text-align: left; padding: 4px 8px; border-bottom: 1px dashed #ccc; font-size: 13px; }
+      #printArea th { font-weight: 600; }
+    }
+
+    .bill-type-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+    }
+    .bill-type-registration { background: #e8f5e9; color: #2e7d32; }
+    .bill-type-consultation { background: #e3f2fd; color: #1565c0; }
+    .bill-type-pharmacy { background: #fff3e0; color: #e65100; }
+    .bill-type-lab { background: #f3e5f5; color: #7b1fa2; }
+    .bill-type-other { background: #f5f5f5; color: #616161; }
+
+    .filter-pills {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .filter-pill {
+      padding: 5px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border-light);
+      background: #fff;
+      font-size: var(--text-xs);
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s ease;
+    }
+    .filter-pill:hover { background: var(--clr-blush); }
+    .filter-pill.active {
+      background: var(--clr-espresso);
+      color: #fff;
+      border-color: var(--clr-espresso);
+    }
+
+    /* Modal max-height scrollable */
+    .modal-body-scroll {
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+
+    /* Responsive table improvements */
+    @media (max-width: 768px) {
+      .stats-grid { grid-template-columns: 1fr 1fr !important; }
+      .filter-pills { margin-bottom: 8px; }
+      .table-header { flex-direction: column; gap: 8px; }
+      .table-header-right { width: 100%; }
+      .td-actions-group { flex-direction: column; gap: 4px; }
+      .td-actions-group .action-btn { font-size: 11px; padding: 4px 8px; }
+    }
+    @media (max-width: 480px) {
+      .stats-grid { grid-template-columns: 1fr !important; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Mobile overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<div class="sidebar" id="sidebar">
+  <a class="sidebar-brand" href="dashboard.html">
+    <div class="sidebar-brand-icon">🏥</div>
+    <div class="sidebar-brand-text">
+      <span class="sidebar-brand-name">MediCare CMS</span>
+      <span class="sidebar-brand-sub">Reception Desk</span>
+    </div>
+  </a>
+  <nav class="sidebar-nav">
+    <span class="nav-section-label">Main</span>
+    <a class="nav-item" href="dashboard.html" id="nav-dashboard">
+      <span class="nav-item-icon">📊</span>
+      <span class="nav-item-label">Dashboard</span>
+    </a>
+    <a class="nav-item" href="register-patient.html" id="nav-register">
+      <span class="nav-item-icon">➕</span>
+      <span class="nav-item-label">Register Patient</span>
+    </a>
+    <a class="nav-item" href="search-patient.html" id="nav-search">
+      <span class="nav-item-icon">🔍</span>
+      <span class="nav-item-label">Search Patient</span>
+    </a>
+    <a class="nav-item" href="appointments.html" id="nav-today">
+      <span class="nav-item-icon">📅</span>
+      <span class="nav-item-label">Today's Appointments</span>
+    </a>
+    <a class="nav-item" href="token-queue.html" id="nav-queue">
+      <span class="nav-item-icon">🎫</span>
+      <span class="nav-item-label">Token Queue</span>
+    </a>
+    <a class="nav-item active" href="billing.html" id="nav-billing">
+      <span class="nav-item-icon">💰</span>
+      <span class="nav-item-label">Billing</span>
+    </a>
+  </nav>
+  <div class="sidebar-user">
+    <div class="sidebar-avatar" id="sidebarAvatar">RC</div>
+    <div class="sidebar-user-info">
+      <div class="sidebar-user-name" id="sidebarName">Loading…</div>
+      <div class="sidebar-user-role">Receptionist</div>
+    </div>
+    <button class="sidebar-logout-btn" onclick="logout()" title="Logout">⏏</button>
+  </div>
+</div>
+<div class="main-content">
+
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="topbar-toggle" onclick="openSidebar()">☰</button>
+      <div>
+        <div class="topbar-page-title">Billing</div>
+        <div class="topbar-breadcrumb">
+          <span>Receptionist</span>
+          <span class="topbar-breadcrumb-sep">›</span>
+          <span>Billing</span>
+        </div>
+      </div>
+    </div>
+    <div class="topbar-search">
+      <span class="search-icon">🔍</span>
+      <input type="text" placeholder="Search patient…" id="topbarSearch" oninput="searchBills(this.value)" />
+    </div>
+    <div class="topbar-right">
+      <div style="font-size:var(--text-xs);color:var(--text-muted);font-weight:600;" id="topbarDate"></div>
+      <div class="user-chip">
+        <div class="user-chip-avatar" id="topbarAvatar">RC</div>
+        <span class="user-chip-name" id="topbarName">Receptionist</span>
+        <span class="user-chip-caret">▾</span>
+      </div>
+    </div>
+  </header>
+  <main class="page-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1 class="page-title">Billing</h1>
+        <p class="page-subtitle">Manage registration & consultation bills, record payments, and print receipts.</p>
+      </div>
+      <div class="page-actions"></div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid" style="margin-bottom:24px;">
+      <div class="stat-card terra"><div class="stat-card-top"><div><div class="stat-card-label">Total Invoices</div><div class="stat-card-value" id="bTotal">0</div></div><div class="stat-card-icon">🧾</div></div></div>
+      <div class="stat-card danger"><div class="stat-card-top"><div><div class="stat-card-label">Unpaid</div><div class="stat-card-value" id="bUnpaid">0</div></div><div class="stat-card-icon">💸</div></div></div>
+      <div class="stat-card success"><div class="stat-card-top"><div><div class="stat-card-label">Paid Today</div><div class="stat-card-value" id="bPaid">0</div></div><div class="stat-card-icon">✅</div></div></div>
+      <div class="stat-card warning"><div class="stat-card-top"><div><div class="stat-card-label">Total Revenue</div><div class="stat-card-value" id="bRevenue">₹0</div></div><div class="stat-card-icon">📈</div></div></div>
+    </div>
+
+    <div class="table-container">
+      <div class="table-header">
+        <div class="table-header-left">
+          <span class="table-title">Invoices</span>
+          <span class="table-count" id="billCount">0</span>
+        </div>
+        <div class="table-header-right" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <div class="filter-pills" id="typeFilters">
+            <button class="filter-pill active" data-type="" onclick="setTypeFilter(this, '')">All</button>
+            <button class="filter-pill" data-type="Registration" onclick="setTypeFilter(this, 'Registration')">Registration</button>
+            <button class="filter-pill" data-type="Consultation" onclick="setTypeFilter(this, 'Consultation')">Consultation</button>
+          </div>
+          <div class="search-input-wrap" style="position:relative;">
+            <input type="text" class="table-search-input" id="searchBilling" placeholder="🔍 Search patient, ID..." oninput="searchBills(this.value)" style="padding:6px 12px;border:1px solid var(--border-light);border-radius:var(--radius-md);font-size:var(--text-xs);width:190px;" />
+          </div>
+          <select class="table-filter-select" id="billFilter" onchange="renderBills()">
+            <option value="">All Status</option>
+            <option value="Unpaid">Unpaid</option>
+            <option value="Paid">Paid</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Bill ID</th>
+              <th>Type</th>
+              <th>Patient</th>
+              <th>Doctor</th>
+              <th class="col-w-120">Amount</th>
+              <th class="col-w-100">Date</th>
+              <th class="col-w-100">Status</th>
+              <th class="td-actions" style="min-width:200px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="billBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- New Invoice Modal -->
+<div id="billModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(61,42,37,.45);
+     backdrop-filter:blur(3px);z-index:2000;" onclick="closeBillModal()"></div>
+<div id="billModal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+     width:460px;max-width:95vw;max-height:90vh;overflow-y:auto;background:#fff;border-radius:var(--radius-lg);
+     box-shadow:var(--shadow-xl);z-index:2001;">
+  <div style="padding:20px 24px;background:var(--clr-blush);border-bottom:1px solid var(--border-light);">
+    <div style="font-size:var(--text-lg);font-weight:700;">New Invoice</div>
+  </div>
+  <div style="padding:24px;">
+    <form id="billForm">
+      <div class="form-group" style="margin-bottom:14px;">
+        <label class="form-label required" for="billType">Bill Type</label>
+        <select class="form-input form-select" id="billType" required>
+          <option value="">Select bill type</option>
+          <option value="Registration">Registration</option>
+          <option value="Consultation">Consultation</option>
+          <option value="Pharmacy">Pharmacy</option>
+          <option value="Lab">Lab</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:14px;">
+        <label class="form-label required" for="billPatient">Patient</label>
+        <select class="form-input form-select" id="billPatient" required></select>
+      </div>
+      <div class="form-group" style="margin-bottom:14px;" id="billDoctorGroup" style="display:none;">
+        <label class="form-label" for="billDoctor">Doctor</label>
+        <input class="form-input" type="text" id="billDoctor" placeholder="e.g. Dr. John" />
+      </div>
+      <div class="form-group" style="margin-bottom:14px;">
+        <label class="form-label required" for="billAmt">Amount (₹)</label>
+        <input class="form-input" type="number" id="billAmt" min="0.01" step="0.01" required placeholder="e.g. 500" />
+      </div>
+      <div class="form-group" style="margin-bottom:20px;">
+        <label class="form-label" for="billNotes">Notes</label>
+        <input class="form-input" type="text" id="billNotes" placeholder="Optional notes — reason for the charge…" />
+      </div>
+      <div id="billFormErr" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:var(--radius-sm);background:var(--danger-light);color:var(--danger);font-size:var(--text-sm);"></div>
+      <div style="display:flex;gap:12px;justify-content:flex-end;">
+        <button type="button" class="btn btn-ghost" onclick="closeBillModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Create Invoice</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Record Payment Modal -->
+<div id="payModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(61,42,37,.45);
+     backdrop-filter:blur(3px);z-index:2000;" onclick="closePayModal()"></div>
+<div id="payModal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+     width:460px;max-width:95vw;max-height:90vh;overflow-y:auto;background:#fff;border-radius:var(--radius-lg);
+     box-shadow:var(--shadow-xl);z-index:2001;">
+  <div style="padding:20px 24px;background:var(--clr-blush);border-bottom:1px solid var(--border-light);">
+    <div style="font-size:var(--text-lg);font-weight:700;">Record Payment</div>
+  </div>
+  <div style="padding:24px;">
+    <div id="payInvoiceSummary" style="margin-bottom:16px;padding:12px 14px;border-radius:var(--radius-sm);background:var(--bg-soft,#f6f7f2);font-size:var(--text-sm);"></div>
+    <form id="payForm">
+      <input type="hidden" id="payInvoiceId" />
+      <div class="form-group" style="margin-bottom:16px;">
+        <label class="form-label required" for="payMethod">Mode of Payment</label>
+        <select class="form-input form-select" id="payMethod" required>
+          <option value="">Select mode of payment</option>
+          <option>Cash</option>
+          <option>Card</option>
+          <option>UPI</option>
+          <option>Online</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:16px;">
+        <label class="form-label" for="payRef">Reference / Transaction ID</label>
+        <input class="form-input" type="text" id="payRef" placeholder="Optional — required for Card/UPI/Online" />
+      </div>
+      <div id="payFormErr" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:var(--radius-sm);background:var(--danger-light);color:var(--danger);font-size:var(--text-sm);"></div>
+      <div style="display:flex;gap:12px;justify-content:flex-end;">
+        <button type="button" class="btn btn-ghost" onclick="closePayModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Confirm Payment</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- View Bill Modal -->
+<div id="viewBillModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(61,42,37,.45);
+     backdrop-filter:blur(3px);z-index:2000;" onclick="closeViewBillModal()"></div>
+<div id="viewBillModal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+     width:480px;max-width:95vw;max-height:90vh;overflow-y:auto;background:#fff;border-radius:var(--radius-lg);
+     box-shadow:var(--shadow-xl);z-index:2001;">
+  <div style="padding:20px 24px;background:var(--clr-blush);border-bottom:1px solid var(--border-light);">
+    <div style="font-size:var(--text-lg);font-weight:700;">📋 Bill Details</div>
+  </div>
+  <div style="padding:24px;" class="modal-body-scroll">
+    <div id="viewBillContent"></div>
+    <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:16px;">
+      <button type="button" class="btn btn-ghost" onclick="closeViewBillModal()">Close</button>
+      <button type="button" class="btn btn-primary" id="viewBillPrintBtn" onclick="printCurrentBill()">🖨 Print Bill</button>
+    </div>
+  </div>
+</div>
+
+<!-- Receipt Modal -->
+<div id="receiptModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(61,42,37,.45);
+     backdrop-filter:blur(3px);z-index:2000;" onclick="closeReceiptModal()"></div>
+<div id="receiptModal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+     width:420px;max-width:95vw;max-height:90vh;overflow-y:auto;background:#fff;border-radius:var(--radius-lg);
+     box-shadow:var(--shadow-xl);z-index:2001;">
+  <div style="padding:20px 24px;background:var(--success-light);border-bottom:1px solid var(--border-light);">
+    <div style="font-size:var(--text-lg);font-weight:700;color:var(--success);">✅ Payment Receipt</div>
+  </div>
+  <div style="padding:24px;" class="modal-body-scroll">
+    <div id="receiptContent"></div>
+    <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:16px;">
+      <button type="button" class="btn btn-ghost" onclick="closeReceiptModal()">Close</button>
+      <button type="button" class="btn btn-primary" onclick="printCurrentReceipt()">🖨 Print Receipt</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden print area -->
+<div id="printArea" style="display:none;"></div>
+
+<div class="toast-container" id="toastContainer"></div>
+<script>
+
+/* ── AUTH GUARD ── */
+const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
+const AUTHORISED = !!loggedInUser && (loggedInUser.role === 'receptionist' || loggedInUser.role === 'admin');
+if (!AUTHORISED) {
+  window.location.href = '../index.html';
+}
+
+/* ── HELPERS ── */
+function esc(v) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ── SIDEBAR / TOPBAR INIT ── */
+document.addEventListener('DOMContentLoaded', () => {
+  if (!AUTHORISED) return;
+  const name = loggedInUser.name || loggedInUser.username || 'Receptionist';
+  const ini  = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2);
+  ['sidebarAvatar','topbarAvatar'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.textContent = ini;
+  });
+  ['sidebarName','topbarName'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.textContent = name;
+  });
+  const dateEl = document.getElementById('topbarDate');
+  if (dateEl) dateEl.textContent = new Date().toLocaleDateString('en-IN',
+    {weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  pageInit();
+});
+
+function openSidebar()  { document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('open'); }
+function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('open'); }
+function logout() {
+  if (!confirm('Are you sure you want to logout?')) return;
+  localStorage.removeItem('loggedInUser');
+  window.location.href = '../index.html';
+}
+function showToast(msg, type='info') {
+  const icons = {success:'✅',danger:'⚠️',warning:'⚠️',info:'ℹ️'};
+  const c = document.getElementById('toastContainer');
+  if (!c) return;
+  const el = document.createElement('div');
+  el.className = 'toast toast-' + type;
+  el.innerHTML = '<span>' + (icons[type]||'ℹ️') + '</span><span>' + esc(msg) + '</span>';
+  c.appendChild(el);
+  setTimeout(() => { el.style.opacity='0'; el.style.transform='translateX(24px)';
+    el.style.transition='all .3s ease'; setTimeout(()=>el.remove(),300); }, 3200);
+}
+
+function getToday() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+const TODAY = getToday();
+const AVATAR_COLOURS = ['#9C6B5D','#7e5249','#5c3a32','#2980b9','#27ae60','#d68910','#8e44ad','#c0392b','#16a085','#2c3e50'];
+function avatarColor(id) { const n=(id||'').replace(/\D/g,''); return AVATAR_COLOURS[parseInt(n||'0')%AVATAR_COLOURS.length]; }
+function initials_(name) { return (name||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2); }
+
+const REGISTRATION_FEE = 100;
+const CONSULTATION_FEE = 500;
+
+function pageInit() {
+  const params = new URLSearchParams(window.location.search);
+  const q = params.get('search') || params.get('patient') || params.get('id') || '';
+  if (q) {
+    const searchInput = document.getElementById('searchBilling');
+    if (searchInput) searchInput.value = q;
+    currentSearchQuery = q.toLowerCase();
+  }
+  renderBills();
+  const payId = params.get('pay');
+  if (payId) {
+    openPayModal(payId);
+  }
+}
+
+/* ── STATE ── */
+let currentTypeFilter = '';
+let currentSearchQuery = '';
+
+/* ── DATA ── */
+function getBills() {
+  try { return JSON.parse(localStorage.getItem('cms_billing') || '[]'); }
+  catch(e) { console.error('Error reading billing data:', e); return []; }
+}
+function saveBills(bills) { localStorage.setItem('cms_billing', JSON.stringify(bills)); }
+function getReceipts() {
+  try { return JSON.parse(localStorage.getItem('cms_receipts') || '[]'); }
+  catch(e) { console.error('Error reading receipts:', e); return []; }
+}
+function saveReceipts(receipts) { localStorage.setItem('cms_receipts', JSON.stringify(receipts)); }
+
+/* Safe accessor for bill fields - backward compatibility */
+function billType(b) { return b.type || 'Other'; }
+function billDoctor(b) { return b.doctor || ''; }
+function billMethod(b) { return b.method || ''; }
+function billRef(b) { return b.reference || ''; }
+
+function billTypeClass(type) {
+  const t = (type || 'other').toLowerCase();
+  return 'bill-type-' + t;
+}
+
+function generateBillId() {
+  return 'BILL' + String(Date.now()).slice(-6) + String(Math.floor(Math.random() * 900 + 100));
+}
+
+/* ── TYPE FILTER ── */
+function setTypeFilter(btn, type) {
+  currentTypeFilter = type;
+  document.querySelectorAll('#typeFilters .filter-pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  renderBills();
+}
+
+/* ── SEARCH ── */
+function searchBills(val) {
+  currentSearchQuery = val.trim().toLowerCase();
+  renderBills();
+}
+
+/* ── RENDER ── */
+function renderBills() {
+  const allStored = getBills();
+  // Receptionist module displays and manages only Registration and Consultation bills
+  const recepBills = allStored.filter(b => {
+    const t = billType(b);
+    return t === 'Registration' || t === 'Consultation';
+  });
+
+  let bills = recepBills;
+  const statusFilter = document.getElementById('billFilter').value;
+
+  // Apply type filter
+  if (currentTypeFilter) bills = bills.filter(b => billType(b) === currentTypeFilter);
+  // Apply status filter
+  if (statusFilter) bills = bills.filter(b => b.status === statusFilter);
+  // Apply search filter
+  if (currentSearchQuery) {
+    bills = bills.filter(b =>
+      (b.patientName || '').toLowerCase().includes(currentSearchQuery) ||
+      (b.patientId || '').toLowerCase().includes(currentSearchQuery) ||
+      (b.appointmentId || '').toLowerCase().includes(currentSearchQuery) ||
+      (b.id || '').toLowerCase().includes(currentSearchQuery)
+    );
+  }
+
+  // Show newest invoices first
+  bills = bills.slice().reverse();
+
+  const paidToday = recepBills.filter(b => b.status === 'Paid' && b.paidDate === TODAY);
+  const totalRevenue = paidToday.reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
+
+  document.getElementById('bTotal').textContent  = recepBills.length;
+  document.getElementById('bUnpaid').textContent = recepBills.filter(b => b.status === 'Unpaid').length;
+  document.getElementById('bPaid').textContent   = paidToday.length;
+  document.getElementById('bRevenue').textContent = '₹' + totalRevenue.toLocaleString('en-IN');
+  document.getElementById('billCount').textContent = bills.length + ' invoices';
+
+  const tbody = document.getElementById('billBody');
+  if (!bills.length) {
+    tbody.innerHTML = '<tr><td colspan="8"><div class="table-empty"><div class="table-empty-icon">🧾</div><div class="table-empty-title">No invoices found</div><div class="table-empty-desc">No registration or consultation invoices matching your filters.</div></div></td></tr>';
+    return;
+  }
+
+  const sc = { Unpaid:'badge-danger', Paid:'badge-success' };
+  tbody.innerHTML = bills.map(b => {
+    const type = billType(b);
+    const doctor = billDoctor(b);
+    const method = billMethod(b);
+    const isPaid = b.status === 'Paid';
+
+    return `<tr>
+    <td><span class="badge badge-neutral" style="font-size:11px;">${esc(b.id)}</span></td>
+    <td><span class="bill-type-badge ${billTypeClass(type)}">${esc(type)}</span></td>
+    <td><div style="display:flex;align-items:center;gap:8px;"><div class="avatar avatar-sm" style="background:${avatarColor(b.patientId)}">${esc(initials_(b.patientName))}</div><div><div class="td-primary">${esc(b.patientName)}</div><div style="font-size:var(--text-xs);color:var(--text-muted);">${esc(b.patientId)}</div></div></div></td>
+    <td style="font-size:var(--text-xs);color:var(--text-secondary);">${doctor ? esc(doctor) : '<span style="color:var(--text-muted);">—</span>'}</td>
+    <td style="font-weight:700;color:var(--text-primary);">₹${Number(b.amount).toFixed(2)}</td>
+    <td style="font-size:var(--text-xs);">${esc(b.date)}</td>
+    <td><span class="badge ${sc[b.status]||'badge-neutral'}">${esc(b.status)}</span>${isPaid && method ? `<div style="font-size:var(--text-xs);color:var(--text-muted);margin-top:2px;">${esc(method)}</div>`:''}</td>
+    <td class="td-actions"><div class="td-actions-group">
+      <button class="action-btn view" title="View Bill" onclick="viewBill('${b.id}')">👁</button>
+      <button class="action-btn view" title="Print Bill" onclick="printBill('${b.id}')">🖨</button>
+      ${!isPaid ? `<button class="action-btn approve" title="Record Payment" onclick="openPayModal('${b.id}')">₹ Pay</button>` : ''}
+      ${isPaid ? `<button class="action-btn view" title="View Receipt" onclick="viewReceipt('${b.id}')">🧾</button>` : ''}
+      ${!isPaid ? `<button class="action-btn delete" title="Delete" onclick="deleteBill('${b.id}')">🗑</button>` : ''}
+    </div></td>
+  </tr>`;
+  }).join('');
+}
+
+/* ── NEW INVOICE ── */
+function openNewBill() {
+  const patients = JSON.parse(localStorage.getItem('cms_patients') || '[]');
+  const sel = document.getElementById('billPatient');
+  sel.innerHTML = '<option value="">Select patient</option>' +
+    patients.map(p => `<option value="${esc(p.id)}" data-name="${esc(p.name)}">${esc(p.name)} (${esc(p.id)})</option>`).join('');
+  document.getElementById('billForm').reset();
+  document.getElementById('billFormErr').style.display = 'none';
+  document.getElementById('billModal').style.display='block';
+  document.getElementById('billModalOverlay').style.display='block';
+}
+
+function closeBillModal() {
+  document.getElementById('billModal').style.display='none';
+  document.getElementById('billModalOverlay').style.display='none';
+  document.getElementById('billForm').reset();
+}
+
+function showBillErr(msg) {
+  const el = document.getElementById('billFormErr');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+document.getElementById('billForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const typeVal = document.getElementById('billType').value;
+  const sel = document.getElementById('billPatient');
+  const amtInput = document.getElementById('billAmt');
+  const amt = parseFloat(amtInput.value);
+  const doctorVal = document.getElementById('billDoctor').value.trim();
+
+  if (!typeVal) { showBillErr('Please select a bill type.'); return; }
+  if (!sel.value) { showBillErr('Please select a patient.'); return; }
+  if (!amtInput.value || isNaN(amt) || amt <= 0) { showBillErr('Enter a valid amount greater than 0.'); return; }
+
+  // Warn about duplicate auto-generated bills
+  if (typeVal === 'Registration' || typeVal === 'Consultation') {
+    const existingBills = getBills();
+    const hasDupe = existingBills.some(b => b.patientId === sel.value && billType(b) === typeVal && b.status === 'Unpaid');
+    if (hasDupe) {
+      if (!confirm('An unpaid ' + typeVal + ' bill already exists for this patient. Create another?')) return;
+    }
+  }
+
+  const bills = getBills();
+  const patientName = sel.options[sel.selectedIndex].dataset.name;
+  const newInvoice = {
+    id: generateBillId(),
+    type: typeVal,
+    patientId: sel.value,
+    patientName: patientName,
+    doctor: doctorVal,
+    amount: amt,
+    status: 'Unpaid',
+    method: '',
+    reference: '',
+    notes: document.getElementById('billNotes').value.trim(),
+    date: TODAY,
+    paidDate: '',
+    paidAt: ''
+  };
+  bills.push(newInvoice);
+  saveBills(bills);
+  closeBillModal();
+  showToast('Invoice ' + newInvoice.id + ' created for ' + patientName, 'success');
+  renderBills();
+});
+
+/* ── VIEW BILL ── */
+let currentViewBillId = null;
+
+function viewBill(id) {
+  const bill = getBills().find(b => b.id === id);
+  if (!bill) { showToast('Bill not found.', 'danger'); return; }
+  currentViewBillId = id;
+
+  const type = billType(bill);
+  const doctor = billDoctor(bill);
+  const method = billMethod(bill);
+  const ref = billRef(bill);
+
+  let html = `
+    <div style="text-align:center;margin-bottom:14px;">
+      <div style="font-size:var(--text-lg);font-weight:700;">MediCare CMS</div>
+      <div style="font-size:var(--text-xs);color:var(--text-muted);">CLINIC BILL</div>
+    </div>
+    <div style="font-size:var(--text-sm);line-height:1.8;">
+      <div style="display:flex;justify-content:space-between;"><span>Bill No.</span><strong>${esc(bill.id)}</strong></div>
+      <div style="display:flex;justify-content:space-between;"><span>Bill Type</span><strong><span class="bill-type-badge ${billTypeClass(type)}">${esc(type)}</span></strong></div>
+      <div style="display:flex;justify-content:space-between;"><span>Date</span><strong>${esc(bill.date)}</strong></div>
+      <div style="border-top:1px dashed var(--border-light);margin:8px 0;"></div>
+      <div style="display:flex;justify-content:space-between;"><span>Patient ID</span><strong>${esc(bill.patientId)}</strong></div>
+      <div style="display:flex;justify-content:space-between;"><span>Patient Name</span><strong>${esc(bill.patientName)}</strong></div>
+      ${doctor ? `<div style="display:flex;justify-content:space-between;"><span>Doctor</span><strong>${esc(doctor)}</strong></div>` : ''}
+      <div style="border-top:1px dashed var(--border-light);margin:8px 0;"></div>
+      <div style="display:flex;justify-content:space-between;padding:2px 0;"><span>${esc(getDescriptionForType(type))}</span><span>₹${Number(bill.amount).toFixed(2)}</span></div>
+      <div style="border-top:1px dashed var(--border-light);margin:8px 0;"></div>
+      <div style="display:flex;justify-content:space-between;font-size:var(--text-lg);font-weight:700;"><span>TOTAL</span><span>₹${Number(bill.amount).toFixed(2)}</span></div>
+      <div style="border-top:1px dashed var(--border-light);margin:8px 0;"></div>
+      <div style="display:flex;justify-content:space-between;"><span>Payment Status</span><strong><span class="badge ${bill.status === 'Paid' ? 'badge-success' : 'badge-danger'}">${esc(bill.status)}</span></strong></div>
+      ${bill.status === 'Paid' ? `
+        <div style="display:flex;justify-content:space-between;"><span>Payment Method</span><strong>${esc(method)}</strong></div>
+        ${ref ? `<div style="display:flex;justify-content:space-between;"><span>Reference</span><strong>${esc(ref)}</strong></div>` : ''}
+        <div style="display:flex;justify-content:space-between;"><span>Paid Date</span><strong>${esc(bill.paidDate || '')}</strong></div>
+      ` : ''}
+      ${bill.notes ? `<div style="display:flex;justify-content:space-between;"><span>Notes</span><strong>${esc(bill.notes)}</strong></div>` : ''}
+    </div>`;
+
+  document.getElementById('viewBillContent').innerHTML = html;
+  document.getElementById('viewBillModal').style.display='block';
+  document.getElementById('viewBillModalOverlay').style.display='block';
+}
+
+function closeViewBillModal() {
+  document.getElementById('viewBillModal').style.display='none';
+  document.getElementById('viewBillModalOverlay').style.display='none';
+  currentViewBillId = null;
+}
+
+function getDescriptionForType(type) {
+  switch(type) {
+    case 'Registration': return 'Patient Registration Fee';
+    case 'Consultation': return 'Consultation Fee';
+    case 'Pharmacy': return 'Pharmacy Charges';
+    case 'Lab': return 'Lab Test Charges';
+    default: return 'Charges';
+  }
+}
+
+/* ── PRINT BILL ── */
+function printBill(id) {
+  const bill = getBills().find(b => b.id === id);
+  if (!bill) { showToast('Bill not found.', 'danger'); return; }
+  const type = billType(bill);
+  const doctor = billDoctor(bill);
+
+  const printContent = `
+    <div class="print-header">MEDICARE CMS</div>
+    <div class="print-subheader">CLINIC BILL</div>
+    <div class="print-divider"></div>
+    <div class="print-row"><span>Bill No:</span><strong>${esc(bill.id)}</strong></div>
+    <div class="print-row"><span>Bill Type:</span><strong>${esc(type)}</strong></div>
+    <div class="print-row"><span>Date:</span><strong>${esc(bill.date)}</strong></div>
+    <div class="print-divider"></div>
+    <div class="print-row"><span>Patient ID:</span><strong>${esc(bill.patientId)}</strong></div>
+    <div class="print-row"><span>Patient Name:</span><strong>${esc(bill.patientName)}</strong></div>
+    ${doctor ? `<div class="print-row"><span>Doctor:</span><strong>${esc(doctor)}</strong></div>` : ''}
+    <div class="print-divider"></div>
+    <table>
+      <thead><tr><th>Description</th><th style="text-align:right;">Amount</th></tr></thead>
+      <tbody><tr><td>${esc(getDescriptionForType(type))}</td><td style="text-align:right;">₹${Number(bill.amount).toFixed(2)}</td></tr></tbody>
+    </table>
+    <div class="print-divider"></div>
+    <div class="print-total-row"><span>TOTAL</span><span>₹${Number(bill.amount).toFixed(2)}</span></div>
+    <div class="print-divider"></div>
+    <div class="print-row"><span>Payment Status:</span><strong>${esc(bill.status)}</strong></div>
+    ${bill.notes ? `<div class="print-row"><span>Notes:</span><strong>${esc(bill.notes)}</strong></div>` : ''}
+    <div class="print-divider"></div>
+  `;
+
+  const printArea = document.getElementById('printArea');
+  printArea.innerHTML = printContent;
+  printArea.style.display = 'block';
+  window.print();
+  setTimeout(() => { printArea.style.display = 'none'; }, 500);
+}
+
+function printCurrentBill() {
+  if (currentViewBillId) printBill(currentViewBillId);
+}
+
+/* ── RECORD PAYMENT ── */
+let payingBillId = null;
+
+function openPayModal(id) {
+  const bill = getBills().find(b => b.id === id);
+  if (!bill) { showToast('Invoice not found.', 'danger'); return; }
+  payingBillId = id;
+  document.getElementById('payInvoiceId').value = id;
+  const type = billType(bill);
+  const doctor = billDoctor(bill);
+  document.getElementById('payInvoiceSummary').innerHTML =
+    '<strong>' + esc(bill.id) + '</strong> — ' + esc(bill.patientName) +
+    '<br>Type: <strong>' + esc(type) + '</strong>' +
+    (doctor ? ' · Doctor: <strong>' + esc(doctor) + '</strong>' : '') +
+    '<br>Amount due: <strong>₹' + Number(bill.amount).toFixed(2) + '</strong>';
+  document.getElementById('payMethod').value = '';
+  document.getElementById('payRef').value = '';
+  document.getElementById('payFormErr').style.display = 'none';
+  document.getElementById('payModal').style.display='block';
+  document.getElementById('payModalOverlay').style.display='block';
+}
+
+function closePayModal() {
+  document.getElementById('payModal').style.display='none';
+  document.getElementById('payModalOverlay').style.display='none';
+  document.getElementById('payForm').reset();
+  payingBillId = null;
+}
+
+function showPayErr(msg) {
+  const el = document.getElementById('payFormErr');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+document.getElementById('payForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const id = document.getElementById('payInvoiceId').value;
+  const method = document.getElementById('payMethod').value;
+  const ref = document.getElementById('payRef').value.trim();
+
+  if (!method) { showPayErr('Please select the mode of payment.'); return; }
+  if (method !== 'Cash' && !ref) { showPayErr('Enter a reference / transaction ID for ' + method + ' payments.'); return; }
+
+  const bills = getBills();
+  const idx = bills.findIndex(b => b.id === id);
+  if (idx === -1) { showPayErr('Invoice not found.'); return; }
+  const bill = bills[idx];
+
+  const confirmMsg = 'Confirm payment of ₹' + Number(bill.amount).toFixed(2) +
+    ' for ' + bill.patientName + ' via ' + method + '?';
+  if (!confirm(confirmMsg)) return;
+
+  const now = new Date();
+  bill.status = 'Paid';
+  bill.method = method;
+  bill.reference = ref;
+  bill.paidDate = TODAY;
+  bill.paidAt = now.toISOString();
+  bills[idx] = bill;
+  saveBills(bills);
+
+  const type = billType(bill);
+  const doctor = billDoctor(bill);
+  const receipt = {
+    receiptNo: 'RCT' + String(Date.now()).slice(-8),
+    invoiceId: bill.id,
+    billType: type,
+    patientId: bill.patientId,
+    patientName: bill.patientName,
+    doctor: doctor,
+    amount: bill.amount,
+    method: method,
+    reference: ref,
+    notes: bill.notes || '',
+    cashier: (loggedInUser && (loggedInUser.name || loggedInUser.username)) || 'Receptionist',
+    issuedAt: now.toISOString(),
+    issuedDate: TODAY,
+  };
+  const receipts = getReceipts();
+  receipts.push(receipt);
+  saveReceipts(receipts);
+
+  closePayModal();
+  showToast('Payment recorded — receipt ' + receipt.receiptNo + ' generated ✅', 'success');
+  renderBills();
+  showReceipt(receipt);
+});
+
+/* ── RECEIPT VIEW ── */
+let currentReceiptData = null;
+
+function receiptHtml(r) {
+  const when = new Date(r.issuedAt);
+  const type = r.billType || 'Other';
+  const doctor = r.doctor || '';
+  return `
+    <div style="text-align:center;margin-bottom:14px;">
+      <div style="font-size:var(--text-lg);font-weight:700;">MediCare CMS</div>
+      <div style="font-size:var(--text-xs);color:var(--text-muted);">PAYMENT RECEIPT</div>
+    </div>
+    <div style="font-size:var(--text-sm);line-height:1.8;">
+      <div style="display:flex;justify-content:space-between;"><span>Receipt No.</span><strong>${esc(r.receiptNo)}</strong></div>
+      <div style="display:flex;justify-content:space-between;"><span>Bill No.</span><strong>${esc(r.invoiceId)}</strong></div>
+      <div style="border-top:1px dashed var(--border-light);margin:8px 0;"></div>
+      <div style="display:flex;justify-content:space-between;"><span>Patient</span><strong>${esc(r.patientName)}</strong></div>
+      <div style="display:flex;justify-content:space-between;"><span>Patient ID</span><strong>${esc(r.patientId)}</strong></div>
+      <div style="border-top:1px dashed var(--border-light);margin:8px 0;"></div>
+      <div style="display:flex;justify-content:space-between;"><span>Bill Type</span><strong><span class="bill-type-badge ${billTypeClass(type)}">${esc(type)}</span></strong></div>
+      ${doctor ? `<div style="display:flex;justify-content:space-between;"><span>Doctor</span><strong>${esc(doctor)}</strong></div>` : ''}
+      <div style="display:flex;justify-content:space-between;"><span>Date</span><strong>${when.toLocaleDateString('en-IN')}</strong></div>
+      <div style="border-top:1px dashed var(--border-light);margin:8px 0;"></div>
+      <div style="display:flex;justify-content:space-between;"><span>Mode of Payment</span><strong>${esc(r.method)}</strong></div>
+      ${r.reference?`<div style="display:flex;justify-content:space-between;"><span>Reference</span><strong>${esc(r.reference)}</strong></div>`:''}
+      ${r.notes?`<div style="display:flex;justify-content:space-between;"><span>Notes</span><strong>${esc(r.notes)}</strong></div>`:''}
+      <div style="display:flex;justify-content:space-between;border-top:1px dashed var(--border-light);margin-top:8px;padding-top:8px;">
+        <span>Amount Paid</span><strong style="font-size:var(--text-lg);">₹${Number(r.amount).toFixed(2)}</strong>
+      </div>
+      <div style="display:flex;justify-content:space-between;"><span>Collected By</span><strong>${esc(r.cashier)}</strong></div>
+    </div>`;
+}
+
+function showReceipt(r) {
+  currentReceiptData = r;
+  document.getElementById('receiptContent').innerHTML = receiptHtml(r);
+  document.getElementById('receiptModal').style.display='block';
+  document.getElementById('receiptModalOverlay').style.display='block';
+}
+
+function viewReceipt(invoiceId) {
+  const r = getReceipts().slice().reverse().find(x => x.invoiceId === invoiceId);
+  if (!r) { showToast('No receipt found for this invoice.', 'warning'); return; }
+  showReceipt(r);
+}
+
+function closeReceiptModal() {
+  document.getElementById('receiptModal').style.display='none';
+  document.getElementById('receiptModalOverlay').style.display='none';
+  currentReceiptData = null;
+}
+
+/* ── PRINT RECEIPT ── */
+function printCurrentReceipt() {
+  if (!currentReceiptData) return;
+  const r = currentReceiptData;
+  const when = new Date(r.issuedAt);
+  const type = r.billType || 'Other';
+  const doctor = r.doctor || '';
+
+  const printContent = `
+    <div class="print-header">MEDICARE CMS</div>
+    <div class="print-subheader">PAYMENT RECEIPT</div>
+    <div class="print-divider"></div>
+    <div class="print-row"><span>Receipt No:</span><strong>${esc(r.receiptNo)}</strong></div>
+    <div class="print-row"><span>Bill No:</span><strong>${esc(r.invoiceId)}</strong></div>
+    <div class="print-divider"></div>
+    <div class="print-row"><span>Patient:</span><strong>${esc(r.patientName)}</strong></div>
+    <div class="print-row"><span>Patient ID:</span><strong>${esc(r.patientId)}</strong></div>
+    <div class="print-divider"></div>
+    <div class="print-row"><span>Bill Type:</span><strong>${esc(type)}</strong></div>
+    ${doctor ? `<div class="print-row"><span>Doctor:</span><strong>${esc(doctor)}</strong></div>` : ''}
+    <div class="print-divider"></div>
+    <div class="print-total-row"><span>Amount Paid:</span><span>₹${Number(r.amount).toFixed(2)}</span></div>
+    <div class="print-row"><span>Payment Method:</span><strong>${esc(r.method)}</strong></div>
+    ${r.reference ? `<div class="print-row"><span>Reference:</span><strong>${esc(r.reference)}</strong></div>` : ''}
+    <div class="print-divider"></div>
+    <div class="print-row"><span>Collected By:</span><strong>${esc(r.cashier)}</strong></div>
+    <div class="print-row"><span>Date:</span><strong>${when.toLocaleDateString('en-IN')}</strong></div>
+    <div class="print-divider"></div>
+  `;
+
+  const printArea = document.getElementById('printArea');
+  printArea.innerHTML = printContent;
+  printArea.style.display = 'block';
+  window.print();
+  setTimeout(() => { printArea.style.display = 'none'; }, 500);
+}
+
+/* ── DELETE ── */
+function deleteBill(id) {
+  const bill = getBills().find(b => b.id === id);
+  if (!bill) return;
+  if (bill.status === 'Paid') {
+    showToast('Cannot delete a paid bill. It has an associated payment record.', 'warning');
+    return;
+  }
+  if (!confirm('Delete invoice ' + id + ' for ' + (bill.patientName || 'this patient') + '? This cannot be undone.')) return;
+  let bills = getBills().filter(b => b.id !== id);
+  saveBills(bills);
+  showToast('Invoice deleted', 'danger');
+  renderBills();
+}
+</script>
+  <script src="../js/validation.js"></script>
+</body>
+</html>

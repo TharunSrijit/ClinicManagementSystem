@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Search Patient | Receptionist — CMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/dashboard.css" />
+  <link rel="stylesheet" href="../css/tables.css" />
+</head>
+<body>
+
+<!-- Mobile overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<div class="sidebar" id="sidebar">
+  <a class="sidebar-brand" href="dashboard.html">
+    <div class="sidebar-brand-icon">🏥</div>
+    <div class="sidebar-brand-text">
+      <span class="sidebar-brand-name">MediCare CMS</span>
+      <span class="sidebar-brand-sub">Reception Desk</span>
+    </div>
+  </a>
+  <nav class="sidebar-nav">
+    <span class="nav-section-label">Main</span>
+    <a class="nav-item" href="dashboard.html" id="nav-dashboard">
+      <span class="nav-item-icon">📊</span>
+      <span class="nav-item-label">Dashboard</span>
+    </a>
+    <a class="nav-item" href="register-patient.html" id="nav-register">
+      <span class="nav-item-icon">➕</span>
+      <span class="nav-item-label">Register Patient</span>
+    </a>
+    <a class="nav-item active" href="search-patient.html" id="nav-search">
+      <span class="nav-item-icon">🔍</span>
+      <span class="nav-item-label">Search Patient</span>
+    </a>
+    <a class="nav-item" href="appointments.html" id="nav-today">
+      <span class="nav-item-icon">📅</span>
+      <span class="nav-item-label">Today's Appointments</span>
+    </a>
+    <a class="nav-item" href="token-queue.html" id="nav-queue">
+      <span class="nav-item-icon">🎫</span>
+      <span class="nav-item-label">Token Queue</span>
+    </a>
+    <a class="nav-item" href="billing.html" id="nav-billing">
+      <span class="nav-item-icon">💰</span>
+      <span class="nav-item-label">Billing</span>
+    </a>
+  </nav>
+  <div class="sidebar-user">
+    <div class="sidebar-avatar" id="sidebarAvatar">RC</div>
+    <div class="sidebar-user-info">
+      <div class="sidebar-user-name" id="sidebarName">Loading…</div>
+      <div class="sidebar-user-role">Receptionist</div>
+    </div>
+    <button class="sidebar-logout-btn" onclick="logout()" title="Logout">⏏</button>
+  </div>
+</div>
+<div class="main-content">
+
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="topbar-toggle" onclick="openSidebar()">☰</button>
+      <div>
+        <div class="topbar-page-title">Search Patient</div>
+        <div class="topbar-breadcrumb">
+          <span>Receptionist</span>
+          <span class="topbar-breadcrumb-sep">›</span>
+          <span>Search Patient</span>
+        </div>
+      </div>
+    </div>
+    <div class="topbar-search">
+      <span class="search-icon">🔍</span>
+      <input type="text" placeholder="Search by name, phone or ID…" id="mainSearch" />
+    </div>
+    <div class="topbar-right">
+      <div style="font-size:var(--text-xs);color:var(--text-muted);font-weight:600;" id="topbarDate"></div>
+      <div class="user-chip">
+        <div class="user-chip-avatar" id="topbarAvatar">RC</div>
+        <span class="user-chip-name" id="topbarName">Receptionist</span>
+        <span class="user-chip-caret">▾</span>
+      </div>
+    </div>
+  </header>
+  <main class="page-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1 class="page-title">Search Patient</h1>
+        <p class="page-subtitle">Find patients by name, phone number or patient ID.</p>
+      </div>
+      <div class="page-actions">
+        <a href="register-patient.html" class="btn btn-primary btn-sm">➕ Register New</a>
+      </div>
+    </div>
+
+    <!-- Search bar -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="search-bar-wrap">
+        <div class="table-search" style="flex:1;max-width:500px;min-width:220px;">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="searchInput" placeholder="Type name, phone number, or patient ID…"
+                 oninput="runSearch(this.value)" autofocus />
+        </div>
+        <select class="table-filter-select" id="genderFilter" onchange="runSearch(document.getElementById('searchInput').value)">
+          <option value="">All Genders</option>
+          <option>Male</option><option>Female</option><option>Other</option>
+        </select>
+        <select class="table-filter-select" id="bloodFilter" onchange="runSearch(document.getElementById('searchInput').value)">
+          <option value="">All Blood Groups</option>
+          <option>A+</option><option>A-</option><option>B+</option><option>B-</option>
+          <option>AB+</option><option>AB-</option><option>O+</option><option>O-</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div class="table-container">
+      <div class="table-header">
+        <div class="table-header-left">
+          <span class="table-title">Patients</span>
+          <span class="table-count" id="resultCount">0 records</span>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Patient ID</th>
+              <th>Name</th>
+              <th class="col-w-100">Gender</th>
+              <th class="col-w-80">Age</th>
+              <th class="col-w-80">Blood</th>
+              <th class="col-w-140">Phone</th>
+              <th class="col-w-120">Registered</th>
+              <th class="td-actions col-w-120">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="searchResults">
+            <tr><td colspan="8">
+              <div class="table-empty">
+                <div class="table-empty-icon">🔍</div>
+                <div class="table-empty-title">Start typing to search</div>
+                <div class="table-empty-desc">Results will appear here.</div>
+              </div>
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="table-footer">
+        <div class="table-info" id="searchInfo">—</div>
+      </div>
+    </div>
+  </main>
+</div>
+<div class="toast-container" id="toastContainer"></div>
+<script>
+
+/* ── AUTH GUARD ── */
+const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
+if (!loggedInUser || (loggedInUser.role !== 'receptionist' && loggedInUser.role !== 'admin')) {
+  window.location.href = '../index.html';
+}
+
+/* ── SIDEBAR / TOPBAR INIT ── */
+document.addEventListener('DOMContentLoaded', () => {
+  const name = loggedInUser.name || loggedInUser.username || 'Receptionist';
+  const ini  = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2);
+  ['sidebarAvatar','topbarAvatar'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.textContent = ini;
+  });
+  ['sidebarName','topbarName'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.textContent = name;
+  });
+  const dateEl = document.getElementById('topbarDate');
+  if (dateEl) dateEl.textContent = new Date().toLocaleDateString('en-IN',
+    {weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  if (typeof pageInit === 'function') pageInit();
+});
+
+function openSidebar()  { document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('open'); }
+function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('open'); }
+function logout() {
+  if (!confirm('Are you sure you want to logout?')) return;
+  localStorage.removeItem('loggedInUser');
+  window.location.href = '../index.html';
+}
+function showToast(msg, type='info') {
+  const icons = {success:'✅',danger:'⚠️',warning:'⚠️',info:'ℹ️'};
+  const c = document.getElementById('toastContainer');
+  if (!c) return;
+  const el = document.createElement('div');
+  el.className = 'toast toast-' + type;
+  el.innerHTML = '<span>' + (icons[type]||'ℹ️') + '</span><span>' + msg + '</span>';
+  c.appendChild(el);
+  setTimeout(() => { el.style.opacity='0'; el.style.transform='translateX(24px)';
+    el.style.transition='all .3s ease'; setTimeout(()=>el.remove(),300); }, 3200);
+}
+
+function getToday() {
+  const now = new Date();
+
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}
+
+const TODAY = getToday();
+const AVATAR_COLOURS = ['#9C6B5D','#7e5249','#5c3a32','#2980b9','#27ae60','#d68910','#8e44ad','#c0392b','#16a085','#2c3e50'];
+function avatarColor(id) { const n=(id||'').replace(/\D/g,''); return AVATAR_COLOURS[parseInt(n||'0')%AVATAR_COLOURS.length]; }
+function initials_(name) { return (name||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2); }
+
+function pageInit() { runSearch(''); }
+
+document.getElementById('mainSearch').addEventListener('input', function() {
+  document.getElementById('searchInput').value = this.value;
+  runSearch(this.value);
+});
+
+function runSearch(query) {
+  const q      = query.trim().toLowerCase();
+  const gender = document.getElementById('genderFilter').value;
+  const blood  = document.getElementById('bloodFilter').value;
+  let patients = JSON.parse(localStorage.getItem('cms_patients') || '[]');
+
+  if (q) patients = patients.filter(p =>
+    p.name.toLowerCase().includes(q) ||
+    (p.phone && p.phone.includes(q)) ||
+    p.id.toLowerCase().includes(q)
+  );
+  if (gender) patients = patients.filter(p => p.gender === gender);
+  if (blood)  patients = patients.filter(p => p.blood  === blood);
+
+  document.getElementById('resultCount').textContent = patients.length + ' record' + (patients.length !== 1 ? 's' : '');
+  document.getElementById('searchInfo').textContent  = patients.length + ' patient' + (patients.length !== 1 ? 's' : '') + ' found';
+
+  const tbody = document.getElementById('searchResults');
+  if (patients.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8"><div class="table-empty"><div class="table-empty-icon">📭</div><div class="table-empty-title">No patients found</div><div class="table-empty-desc">Try a different search term or <a href=\"register-patient.html\">register a new patient</a>.</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = patients.map(p => `
+    <tr>
+      <td><span class="badge badge-neutral">${p.id}</span></td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="avatar avatar-sm" style="background:${avatarColor(p.id)}">${initials_(p.name)}</div>
+          <div>
+            <div class="td-primary">${p.name}</div>
+            <div style="font-size:var(--text-xs);color:var(--text-muted);">${p.phone || '—'}</div>
+          </div>
+        </div>
+      </td>
+      <td>${p.gender || '—'}</td>
+      <td>${p.age || '—'}</td>
+      <td>${p.blood || '—'}</td>
+      <td>${p.phone || '—'}</td>
+      <td style="font-size:var(--text-xs);">${p.registeredOn || '—'}</td>
+      <td class="td-actions">
+        <div class="td-actions-group">
+          <a class="action-btn view" title="View Details" href="patient-details.html?id=${p.id}">👁</a>
+          <a class="action-btn approve" title="Book Appointment" href="book-appointment.html?patient=${p.id}">📅</a>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+</script>
+  <script src="../js/validation.js"></script>
+</body>
+</html>

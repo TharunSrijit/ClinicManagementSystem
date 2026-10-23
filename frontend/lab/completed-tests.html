@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Completed Lab Tests — Clinic Management System" />
+  <title>Completed Tests | Laboratory — CMS</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Shared CSS -->
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/tables.css" />
+  <link rel="stylesheet" href="../css/forms.css" />
+</head>
+
+<body>
+<!-- Mobile sidebar overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<!-- ═══════════════════════════════════════
+     SIDEBAR
+═══════════════════════════════════════ -->
+<div class="sidebar" id="sidebar">
+
+  <a class="sidebar-brand" href="dashboard.html">
+    <div class="sidebar-brand-icon">🧪</div>
+    <div class="sidebar-brand-text">
+      <span class="sidebar-brand-name">MediCare CMS</span>
+      <span class="sidebar-brand-sub">Laboratory Portal</span>
+    </div>
+  </a>
+
+  <nav class="sidebar-nav">
+    <span class="nav-section-label">Main</span>
+
+    <a class="nav-item" href="dashboard.html" id="nav-dashboard">
+      <span class="nav-item-icon">📊</span>
+      <span class="nav-item-label">Dashboard</span>
+    </a>
+
+    <div class="sidebar-divider"></div>
+    <span class="nav-section-label">Orders & Testing</span>
+
+    <a class="nav-item" href="pending-lab-orders.html" id="nav-pending">
+      <span class="nav-item-icon">🕒</span>
+      <span class="nav-item-label">Pending Orders</span>
+      <span class="nav-badge" id="pendingSidebarCount">0</span>
+    </a>
+
+    <a class="nav-item active" href="completed-tests.html" id="nav-completed">
+      <span class="nav-item-icon">✅</span>
+      <span class="nav-item-label">Completed Tests</span>
+    </a>
+
+    <div class="sidebar-divider"></div>
+    <span class="nav-section-label">Billing</span>
+
+    <a class="nav-item" href="lab-billing.html" id="nav-billing">
+      <span class="nav-item-icon">💰</span>
+      <span class="nav-item-label">Lab Billing</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-user">
+    <div class="sidebar-avatar" id="sidebarAvatar">LT</div>
+    <div class="sidebar-user-info">
+      <div class="sidebar-user-name" id="sidebarName">Lab Technician</div>
+      <div class="sidebar-user-role">Laboratory Staff</div>
+    </div>
+    <button class="sidebar-logout-btn" onclick="logout()" title="Logout">⏏</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     MAIN CONTENT
+═══════════════════════════════════════ -->
+<div class="main-content">
+
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="topbar-toggle" onclick="openSidebar()" aria-label="Open menu">☰</button>
+      <div>
+        <div class="topbar-page-title">Completed Tests</div>
+        <div class="topbar-breadcrumb">
+          <span>Laboratory</span>
+          <span class="topbar-breadcrumb-sep">›</span>
+          <span>Completed Tests</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="topbar-right">
+      <div style="font-size:var(--text-xs);color:var(--text-muted);font-weight:600;white-space:nowrap;" id="topbarDate"></div>
+      <div class="user-chip">
+        <div class="user-chip-avatar" id="topbarAvatar">LT</div>
+        <span class="user-chip-name" id="topbarName">Lab Technician</span>
+        <span class="user-chip-role">Laboratory</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- PAGE CONTENT -->
+  <main class="page-content">
+
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1 class="page-title">Completed Laboratory Tests</h1>
+        <p class="page-subtitle">View validated laboratory test reports, results, reference ranges, and billing readiness</p>
+      </div>
+      <div class="page-actions">
+        <a href="pending-lab-orders.html" class="btn btn-outline">
+          🕒 Pending Orders
+        </a>
+      </div>
+    </div>
+
+    <!-- COMPLETED TESTS TABLE CONTAINER -->
+    <div class="table-container">
+
+      <div class="table-header">
+        <div class="table-header-left">
+          <div class="table-title">Completed Test Results</div>
+          <span class="table-count" id="completedCount">0</span>
+        </div>
+      </div>
+
+      <div class="table-scroll">
+        <table id="completedTestsTable" class="data-table">
+          <thead>
+            <tr>
+              <th>Test ID</th>
+              <th>Patient</th>
+              <th>Test</th>
+              <th>Result</th>
+              <th>Normal Range</th>
+              <th>Unit</th>
+              <th>Date</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="completedTestsBody">
+            <!-- Populated dynamically by js/lab.js -->
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+
+    <div class="page-actions mt-20" style="display:flex;gap:12px;">
+      <a href="pending-lab-orders.html" class="btn btn-secondary">
+        ← Pending Orders
+      </a>
+      <a href="dashboard.html" class="btn btn-outline">
+        Dashboard
+      </a>
+    </div>
+
+  </main>
+</div>
+
+<!-- Mobile Sidebar & Logout Helpers -->
+<script>
+function openSidebar()  { const sb = document.getElementById('sidebar') || document.getElementById('menu'); const sbo = document.getElementById('sidebarOverlay'); if(sb) sb.classList.add('open'); if(sbo) sbo.classList.add('open'); }
+function closeSidebar() { const sb = document.getElementById('sidebar') || document.getElementById('menu'); const sbo = document.getElementById('sidebarOverlay'); if(sb) sb.classList.remove('open'); if(sbo) sbo.classList.remove('open'); }
+function logout() {
+  if (typeof confirm === "function" && !confirm("Are you sure you want to logout?")) {
+    return;
+  }
+  localStorage.removeItem("loggedInUser");
+  localStorage.removeItem("fd_access");
+  localStorage.removeItem("fd_refresh");
+  localStorage.removeItem("fd_name");
+  window.location.href = "../index.html";
+}
+</script>
+
+<!-- Scripts -->
+<script src="../js/lab.js"></script>
+<script src="../js/validation.js"></script>
+</body>
+</html>

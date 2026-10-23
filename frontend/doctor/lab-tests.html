@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Doctor Lab Tests & Diagnostic Investigations — Clinic Management System" />
+  <title>Lab Investigations | Doctor — CMS</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Shared CSS -->
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/dashboard.css" />
+  <link rel="stylesheet" href="../css/tables.css" />
+
+  <style>
+    .priority-urgent {
+      background: var(--danger-light);
+      color: var(--danger);
+      font-weight: 700;
+    }
+    .priority-normal {
+      background: var(--surface-secondary);
+      color: var(--text-secondary);
+    }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(4px);
+      align-items: center; justify-content: center;
+      z-index: 2000;
+      padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: #fff;
+      border-radius: 12px;
+      width: 100%;
+      max-width: min(95vw, 600px);
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow-lg);
+      padding: 24px;
+      box-sizing: border-box;
+    }
+    @media (max-width: 480px) {
+      .modal-box { padding: 16px; }
+    }
+  </style>
+</head>
+
+<body>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<!-- ═══════════════════════════════════════
+     SIDEBAR
+═══════════════════════════════════════ -->
+<div class="sidebar" id="sidebar">
+  <a class="sidebar-brand" href="dashboard.html">
+    <div class="sidebar-brand-icon">🏥</div>
+    <div class="sidebar-brand-text">
+      <span class="sidebar-brand-name">MediCare CMS</span>
+      <span class="sidebar-brand-sub">Doctor Portal</span>
+    </div>
+  </a>
+
+  <nav class="sidebar-nav">
+    <span class="nav-section-label">Main</span>
+    <a class="nav-item" href="dashboard.html" id="nav-dashboard">
+      <span class="nav-item-icon">📊</span>
+      <span class="nav-item-label">Dashboard</span>
+    </a>
+    <a class="nav-item" href="appointments.html" id="nav-appointments">
+      <span class="nav-item-icon">📅</span>
+      <span class="nav-item-label">Appointments</span>
+      <span class="nav-badge" id="sidebarApptBadge">0</span>
+    </a>
+    <a class="nav-item" href="patients.html" id="nav-patients">
+      <span class="nav-item-icon">👤</span>
+      <span class="nav-item-label">Patients</span>
+    </a>
+
+    <div class="sidebar-divider"></div>
+    <span class="nav-section-label">Clinical</span>
+    <a class="nav-item" href="consultation.html" id="nav-consultation">
+      <span class="nav-item-icon">🩺</span>
+      <span class="nav-item-label">Consultation</span>
+    </a>
+    <a class="nav-item" href="prescriptions.html" id="nav-prescriptions">
+      <span class="nav-item-icon">💊</span>
+      <span class="nav-item-label">Prescriptions</span>
+    </a>
+    <a class="nav-item active" href="lab-tests.html" id="nav-lab">
+      <span class="nav-item-icon">🧪</span>
+      <span class="nav-item-label">Lab Tests</span>
+    </a>
+
+    <div class="sidebar-divider"></div>
+    <span class="nav-section-label">History</span>
+    <a class="nav-item" href="patient-details.html" id="nav-history">
+      <span class="nav-item-icon">📋</span>
+      <span class="nav-item-label">Past Consultations</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-user">
+    <div class="sidebar-avatar" id="sidebarAvatar">DR</div>
+    <div class="sidebar-user-info">
+      <div class="sidebar-user-name" id="sidebarName">Dr. Arun Kumar</div>
+      <div class="sidebar-user-role">Doctor</div>
+    </div>
+    <button class="sidebar-logout-btn" onclick="logout()" title="Logout">⏏</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     MAIN CONTENT
+═══════════════════════════════════════ -->
+<div class="main-content">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="topbar-menu-btn" onclick="toggleSidebar()" aria-label="Toggle menu">☰</button>
+      <div>
+        <div class="topbar-title">Laboratory Investigations</div>
+        <div class="topbar-subtitle">Diagnostic orders, pathology tests, and lab result reports</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button class="btn btn-primary btn-sm" onclick="openOrderModal()">+ Order New Test</button>
+      <div class="user-chip">
+        <div class="user-chip-avatar" id="topbarAvatar">DR</div>
+        <div class="user-chip-info">
+          <div class="user-chip-name" id="topbarName">Dr. Arun Kumar</div>
+          <div class="user-chip-role">Cardiologist / Physician</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-body">
+
+    <!-- STATS CARDS -->
+    <div class="stat-cards-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px; margin-bottom:20px;">
+      <div class="stat-card">
+        <div class="stat-card-label">Total Tests Ordered</div>
+        <div class="stat-card-value" id="statTotalTests">0</div>
+        <div class="stat-card-footer">All records</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-label">Pending Sample / Results</div>
+        <div class="stat-card-value" id="statPendingTests">0</div>
+        <div class="stat-card-footer">In laboratory queue</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-label">Results Ready</div>
+        <div class="stat-card-value" id="statCompletedTests">0</div>
+        <div class="stat-card-footer">Reports available</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-label">Urgent / STAT Orders</div>
+        <div class="stat-card-value" id="statUrgentTests">0</div>
+        <div class="stat-card-footer">High priority investigations</div>
+      </div>
+    </div>
+
+    <!-- TOOLBAR & TABLE -->
+    <div class="table-card">
+      <div class="table-toolbar" style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; padding:16px;">
+        <div style="display:flex; gap:12px; align-items:center; flex:1; min-width:280px;">
+          <input type="text" id="labSearch" placeholder="🔍 Search test by patient name, test name, ID..." oninput="filterLabs()" style="flex:1; padding:8px 14px; border:1px solid var(--border); border-radius:6px; font-size:13px;" />
+          <select id="labStatusFilter" onchange="filterLabs()" style="padding:8px 12px; border:1px solid var(--border); border-radius:6px; font-size:13px; background:var(--surface);">
+            <option value="">All Statuses</option>
+            <option value="Pending">Pending</option>
+            <option value="Completed">Completed</option>
+          </select>
+          <select id="labPriorityFilter" onchange="filterLabs()" style="padding:8px 12px; border:1px solid var(--border); border-radius:6px; font-size:13px; background:var(--surface);">
+            <option value="">All Priorities</option>
+            <option value="Normal">Normal</option>
+            <option value="Urgent">Urgent</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Test ID</th>
+              <th>Order Date</th>
+              <th>Patient</th>
+              <th>Test Name</th>
+              <th>Category</th>
+              <th>Priority</th>
+              <th>Status</th>
+              <th>Result / Summary</th>
+              <th style="text-align:right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="labTableBody">
+            <!-- Dynamically populated -->
+          </tbody>
+        </table>
+      </div>
+
+      <div class="table-footer" style="padding:14px 16px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border-light); font-size:13px; color:var(--text-secondary);">
+        <span id="labCountLabel">Showing 0 tests</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ORDER NEW TEST MODAL -->
+<div class="modal-overlay" id="orderModal">
+  <div class="modal-box">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <h3 style="margin:0; font-size:16px;">Order Laboratory Investigation</h3>
+      <button class="btn btn-outline btn-sm" onclick="closeOrderModal()">✕</button>
+    </div>
+
+    <form onsubmit="submitNewLabOrder(event)">
+      <div style="margin-bottom:12px;">
+        <label class="form-label" style="font-size:12px; font-weight:600;">Select Patient *</label>
+        <select id="mPatientSelect" required style="width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:6px; font-size:13px; background:var(--surface);">
+          <!-- Populated from patients -->
+        </select>
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <label class="form-label" style="font-size:12px; font-weight:600;">Investigation / Test Name *</label>
+        <select id="mTestSelect" required style="width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:6px; font-size:13px; background:var(--surface);">
+          <!-- Populated dynamically from cms_lab_tests -->
+        </select>
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <label class="form-label" style="font-size:12px; font-weight:600;">Priority</label>
+        <select id="mPriority" style="width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:6px; font-size:13px; background:var(--surface);">
+          <option value="Normal">Normal</option>
+          <option value="Urgent">Urgent (STAT)</option>
+        </select>
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <label class="form-label" style="font-size:12px; font-weight:600;">Clinical Indication / Reason</label>
+        <textarea id="mIndication" rows="3" placeholder="Symptoms, differential diagnosis, or specific notes for lab technician..." style="width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:6px; font-size:13px; box-sizing:border-box;"></textarea>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:8px;">
+        <button type="button" class="btn btn-outline" onclick="closeOrderModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Send Order to Lab</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- VIEW REPORT MODAL -->
+<div class="modal-overlay" id="reportModal">
+  <div class="modal-box">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <h3 style="margin:0; font-size:16px;">Diagnostic Report Details</h3>
+      <button class="btn btn-outline btn-sm" onclick="closeReportModal()">✕</button>
+    </div>
+
+    <div style="border:1px solid #e2d9d2; padding:18px; border-radius:8px; background:#fff; font-family:'Inter', sans-serif;">
+      <div style="border-bottom:2px solid #9c6b5d; padding-bottom:10px; margin-bottom:12px; display:flex; justify-content:space-between;">
+        <div>
+          <h4 style="margin:0; color:#3d2a25;" id="repTestTitle">Complete Blood Count (CBC)</h4>
+          <div style="font-size:11px; color:#7d6a63;" id="repSub">Report ID: LAB-1001</div>
+        </div>
+        <div style="text-align:right;">
+          <span class="badge badge-success" id="repBadge">Completed</span>
+        </div>
+      </div>
+
+      <div style="font-size:12px; margin-bottom:12px; display:grid; grid-template-columns:1fr 1fr; gap:6px; background:#faf7f5; padding:8px 12px; border-radius:6px;">
+        <div><b>Patient:</b> <span id="repPatient">—</span></div>
+        <div><b>Order Date:</b> <span id="repDate">—</span></div>
+        <div><b>Doctor:</b> <span id="repDoc">Dr. Arun Kumar</span></div>
+        <div><b>Priority:</b> <span id="repPriority">Normal</span></div>
+      </div>
+
+      <div style="font-size:13px; margin-bottom:14px;">
+        <div style="font-weight:700; margin-bottom:6px; color:#3d2a25;">Investigation Findings & Values:</div>
+        <div id="repBody" style="background:#fcfbf9; border:1px solid #eee; padding:12px; border-radius:6px; font-size:13px; line-height:1.6; color:#333;">
+          <!-- Content -->
+        </div>
+      </div>
+
+      <div style="font-size:11px; color:#7d6a63; text-align:right;">
+        Verified by MediCare Central Diagnostic Laboratory
+      </div>
+    </div>
+
+    <div style="margin-top:16px; display:flex; justify-content:flex-end;">
+      <button class="btn btn-outline" onclick="closeReportModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="../js/doctor.js"></script>
+  <script src="../js/validation.js"></script>
+</body>
+</html>

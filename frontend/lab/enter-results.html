@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Enter Lab Result — Clinic Management System" />
+  <title>Enter Result | Laboratory — CMS</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Shared CSS -->
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/forms.css" />
+  <link rel="stylesheet" href="../css/tables.css" />
+</head>
+
+<body>
+<!-- Mobile sidebar overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<!-- ═══════════════════════════════════════
+     SIDEBAR
+═══════════════════════════════════════ -->
+<div class="sidebar" id="sidebar">
+
+  <a class="sidebar-brand" href="dashboard.html">
+    <div class="sidebar-brand-icon">🧪</div>
+    <div class="sidebar-brand-text">
+      <span class="sidebar-brand-name">MediCare CMS</span>
+      <span class="sidebar-brand-sub">Laboratory Portal</span>
+    </div>
+  </a>
+
+  <nav class="sidebar-nav">
+    <span class="nav-section-label">Main</span>
+
+    <a class="nav-item" href="dashboard.html" id="nav-dashboard">
+      <span class="nav-item-icon">📊</span>
+      <span class="nav-item-label">Dashboard</span>
+    </a>
+
+    <div class="sidebar-divider"></div>
+    <span class="nav-section-label">Orders & Testing</span>
+
+    <a class="nav-item active" href="pending-lab-orders.html" id="nav-pending">
+      <span class="nav-item-icon">🕒</span>
+      <span class="nav-item-label">Pending Orders</span>
+      <span class="nav-badge" id="pendingSidebarCount">0</span>
+    </a>
+
+    <a class="nav-item" href="completed-tests.html" id="nav-completed">
+      <span class="nav-item-icon">✅</span>
+      <span class="nav-item-label">Completed Tests</span>
+    </a>
+
+    <div class="sidebar-divider"></div>
+    <span class="nav-section-label">Billing</span>
+
+    <a class="nav-item" href="lab-billing.html" id="nav-billing">
+      <span class="nav-item-icon">💰</span>
+      <span class="nav-item-label">Lab Billing</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-user">
+    <div class="sidebar-avatar" id="sidebarAvatar">LT</div>
+    <div class="sidebar-user-info">
+      <div class="sidebar-user-name" id="sidebarName">Lab Technician</div>
+      <div class="sidebar-user-role">Laboratory Staff</div>
+    </div>
+    <button class="sidebar-logout-btn" onclick="logout()" title="Logout">⏏</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     MAIN CONTENT
+═══════════════════════════════════════ -->
+<div class="main-content">
+
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="topbar-toggle" onclick="openSidebar()" aria-label="Open menu">☰</button>
+      <div>
+        <div class="topbar-page-title">Enter Result</div>
+        <div class="topbar-breadcrumb">
+          <span>Laboratory</span>
+          <span class="topbar-breadcrumb-sep">›</span>
+          <span>Enter Result</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="topbar-right">
+      <div style="font-size:var(--text-xs);color:var(--text-muted);font-weight:600;white-space:nowrap;" id="topbarDate"></div>
+      <div class="user-chip">
+        <div class="user-chip-avatar" id="topbarAvatar">LT</div>
+        <span class="user-chip-name" id="topbarName">Lab Technician</span>
+        <span class="user-chip-role">Laboratory</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- PAGE CONTENT -->
+  <main class="page-content">
+
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1 class="page-title">Enter Laboratory Result</h1>
+        <p class="page-subtitle">Record clinical specimen findings with automatic reference range comparison</p>
+      </div>
+      <div class="page-actions">
+        <a href="pending-lab-orders.html" class="btn btn-outline">
+          ← Back to Orders
+        </a>
+      </div>
+    </div>
+
+    <!-- RESULT FORM -->
+    <form onsubmit="saveLabResult(event)">
+
+      <!-- SECTION 1: ORDER & PATIENT INFO -->
+      <div class="form-section mb-20">
+        <div class="form-section-header">
+          <div class="form-section-icon">📋</div>
+          <div>
+            <div class="form-section-title">Test Information</div>
+            <div class="form-section-subtitle">Doctor-prescribed test & patient details</div>
+          </div>
+        </div>
+
+        <div class="form-section-body">
+          <div class="form-grid form-grid-2">
+
+            <div class="form-group">
+              <label class="form-label" for="orderId">Order / Test ID</label>
+              <input type="text" id="orderId" class="form-control" readonly />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="patientName">Patient Name</label>
+              <input type="text" id="patientName" class="form-control" readonly />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="patientId">Patient ID</label>
+              <input type="text" id="patientId" class="form-control" readonly />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="doctorName">Doctor</label>
+              <input type="text" id="doctorName" class="form-control" readonly />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="testName">Test Name</label>
+              <input type="text" id="testName" class="form-control" readonly />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="testId">Master Test ID</label>
+              <input type="text" id="testId" class="form-control" readonly />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="normalRange">Normal Range (From Master)</label>
+              <input type="text" id="normalRange" class="form-control" readonly style="font-weight:600; color:var(--text-primary);" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="testUnit">Unit</label>
+              <input type="text" id="testUnit" class="form-control" readonly />
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 2: RESULT ENTRY -->
+      <div class="form-section mb-24">
+        <div class="form-section-header">
+          <div class="form-section-icon">🔬</div>
+          <div>
+            <div class="form-section-title">Result Entry</div>
+            <div class="form-section-subtitle">Enter measured laboratory test value and optional remarks</div>
+          </div>
+        </div>
+
+        <div class="form-section-body">
+
+          <div class="form-group mb-16">
+            <label class="form-label" for="testResult">
+              Test Result <span class="required" style="color:var(--danger);">*</span>
+            </label>
+            <input
+              type="text"
+              id="testResult"
+              class="form-control form-control-lg"
+              placeholder="Enter measured result value (e.g. 92, 13.5, Negative)"
+              required
+              autofocus
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="remarks">
+              Remarks <span style="font-weight:400; font-size:12px; color:var(--text-muted);">(Optional)</span>
+            </label>
+            <textarea
+              id="remarks"
+              class="form-control"
+              rows="3"
+              placeholder="Enter optional technician observations or clinical notes…"></textarea>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- FORM ACTIONS -->
+      <div class="form-actions" style="display:flex;gap:12px;align-items:center;">
+        <a href="pending-lab-orders.html" class="btn btn-secondary">
+          Cancel
+        </a>
+
+        <button type="submit" class="btn btn-success">
+          💾 Save Result
+        </button>
+      </div>
+
+    </form>
+
+    <div id="resultMessage" class="mt-20"></div>
+
+  </main>
+</div>
+
+<!-- Mobile Sidebar & Logout Helpers -->
+<script>
+function openSidebar()  { const sb = document.getElementById('sidebar') || document.getElementById('menu'); const sbo = document.getElementById('sidebarOverlay'); if(sb) sb.classList.add('open'); if(sbo) sbo.classList.add('open'); }
+function closeSidebar() { const sb = document.getElementById('sidebar') || document.getElementById('menu'); const sbo = document.getElementById('sidebarOverlay'); if(sb) sb.classList.remove('open'); if(sbo) sbo.classList.remove('open'); }
+function logout() {
+  if (typeof confirm === "function" && !confirm("Are you sure you want to logout?")) {
+    return;
+  }
+  localStorage.removeItem("loggedInUser");
+  localStorage.removeItem("fd_access");
+  localStorage.removeItem("fd_refresh");
+  localStorage.removeItem("fd_name");
+  window.location.href = "../index.html";
+}
+</script>
+
+<!-- Scripts -->
+<script src="../js/lab.js"></script>
+<script src="../js/validation.js"></script>
+</body>
+</html>

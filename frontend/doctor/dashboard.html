@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Doctor Dashboard — Clinic Management System" />
+  <title>Dashboard | Doctor — CMS</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/dashboard.css" />
+  <link rel="stylesheet" href="../css/tables.css" />
+
+  <style>
+    /* ── Dashboard page extras ────────────────────── */
+
+    /* Upcoming row hover */
+    .upcoming-row {
+      display: flex; align-items: center; gap: 14px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-light);
+      transition: background 150ms ease;
+      cursor: pointer;
+    }
+    .upcoming-row:last-child { border-bottom: none; }
+    .upcoming-row:hover { background: var(--clr-blush); }
+
+    .upcoming-token {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 34px; height: 34px; border-radius: var(--radius-xs);
+      background: var(--clr-blush); color: var(--accent);
+      font-weight: 700; font-size: var(--text-xs); flex-shrink: 0;
+    }
+    .upcoming-token.active {
+      background: var(--accent); color: #fff;
+    }
+
+    /* Current patient hero card */
+    .current-patient-hero {
+      background: linear-gradient(135deg, var(--clr-espresso) 0%, #6b3d33 100%);
+      border-radius: var(--radius-md);
+      padding: 28px 32px;
+      color: var(--clr-cream);
+      display: flex; align-items: center; gap: 24px;
+      position: relative; overflow: hidden;
+    }
+    .current-patient-hero::after {
+      content: '🩺';
+      position: absolute; right: 24px; bottom: -8px;
+      font-size: 6rem; opacity: 0.06;
+    }
+    .hero-token {
+      font-size: 3.5rem; font-weight: 800; line-height: 1;
+      color: #fff; min-width: 80px; text-align: center;
+      text-shadow: 0 2px 12px rgba(0,0,0,.25);
+    }
+    .hero-label {
+      font-size: var(--text-xs); text-transform: uppercase;
+      letter-spacing: .12em; color: var(--clr-mauve); margin-bottom: 4px;
+    }
+    .hero-name {
+      font-size: var(--text-xl); font-weight: 700; color: #fff; margin-bottom: 2px;
+    }
+    .hero-meta {
+      font-size: var(--text-sm); color: var(--clr-mauve);
+    }
+    .hero-actions {
+      margin-left: auto; display: flex; flex-direction: column; gap: 8px; z-index: 1;
+    }
+
+    /* Consultation summary progress ring */
+    .ring-wrap {
+      display: flex; align-items: center; gap: 20px;
+      padding: 14px 0;
+    }
+    .ring-container {
+      position: relative; width: 80px; height: 80px; flex-shrink: 0;
+    }
+    .ring-svg { transform: rotate(-90deg); }
+    .ring-bg { stroke: var(--border-light); }
+    .ring-fill {
+      stroke: var(--accent);
+      transition: stroke-dashoffset 1s ease;
+    }
+    .ring-text {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: var(--text-lg); font-weight: 800; color: var(--text-primary);
+    }
+
+    @media (max-width: 1100px) {
+      .dash-main-grid { grid-template-columns: 1fr !important; }
+    }
+    @media (max-width: 768px) {
+      .current-patient-hero { flex-direction: column; text-align: center; gap: 16px; }
+      .hero-actions { margin-left: 0; flex-direction: row; }
+    }
+  </style>
+</head>
+
+<body>
+<!-- Mobile overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<!-- ═══════════════════════════════════════
+     SIDEBAR
+═══════════════════════════════════════ -->
+<div class="sidebar" id="sidebar">
+
+  <a class="sidebar-brand" href="dashboard.html">
+    <div class="sidebar-brand-icon">🏥</div>
+    <div class="sidebar-brand-text">
+      <span class="sidebar-brand-name">MediCare CMS</span>
+      <span class="sidebar-brand-sub">Doctor Portal</span>
+    </div>
+  </a>
+
+  <nav class="sidebar-nav">
+    <span class="nav-section-label">Main</span>
+
+    <a class="nav-item active" href="dashboard.html" id="nav-dashboard">
+      <span class="nav-item-icon">📊</span>
+      <span class="nav-item-label">Dashboard</span>
+    </a>
+
+    <a class="nav-item" href="appointments.html" id="nav-appointments">
+      <span class="nav-item-icon">📅</span>
+      <span class="nav-item-label">Appointments</span>
+      <span class="nav-badge" id="sidebarApptBadge">0</span>
+    </a>
+
+    <a class="nav-item" href="patients.html" id="nav-patients">
+      <span class="nav-item-icon">👤</span>
+      <span class="nav-item-label">Patients</span>
+    </a>
+
+    <div class="sidebar-divider"></div>
+    <span class="nav-section-label">Clinical</span>
+
+    <a class="nav-item" href="consultation.html" id="nav-consultation">
+      <span class="nav-item-icon">🩺</span>
+      <span class="nav-item-label">Consultation</span>
+    </a>
+
+    <a class="nav-item" href="prescriptions.html" id="nav-prescriptions">
+      <span class="nav-item-icon">💊</span>
+      <span class="nav-item-label">Prescriptions</span>
+    </a>
+
+    <a class="nav-item" href="lab-tests.html" id="nav-lab">
+      <span class="nav-item-icon">🧪</span>
+      <span class="nav-item-label">Lab Tests</span>
+    </a>
+
+    <div class="sidebar-divider"></div>
+    <span class="nav-section-label">History</span>
+
+    <a class="nav-item" href="patient-details.html" id="nav-history">
+      <span class="nav-item-icon">📋</span>
+      <span class="nav-item-label">Past Consultations</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-user">
+    <div class="sidebar-avatar" id="sidebarAvatar">DR</div>
+    <div class="sidebar-user-info">
+      <div class="sidebar-user-name" id="sidebarName">Dr. Loading…</div>
+      <div class="sidebar-user-role">Doctor</div>
+    </div>
+    <button class="sidebar-logout-btn" onclick="logout()" title="Logout">⏏</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     MAIN CONTENT
+═══════════════════════════════════════ -->
+<div class="main-content">
+
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="topbar-toggle" onclick="openSidebar()">☰</button>
+      <div>
+        <div class="topbar-page-title">Dashboard</div>
+        <div class="topbar-breadcrumb">
+          <span>Doctor</span>
+          <span class="topbar-breadcrumb-sep">›</span>
+          <span>Dashboard</span>
+        </div>
+      </div>
+    </div>
+    <div class="topbar-search">
+      <span class="search-icon">🔍</span>
+      <input type="text" placeholder="Search patients…" id="topbarSearch" />
+    </div>
+    <div class="topbar-right">
+      <div style="font-size:var(--text-xs);color:var(--text-muted);font-weight:600;white-space:nowrap;"
+           id="topbarDate"></div>
+      <div class="user-chip">
+        <div class="user-chip-avatar" id="topbarAvatar">DR</div>
+        <span class="user-chip-name" id="topbarName">Doctor</span>
+        <span class="user-chip-caret">▾</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- PAGE CONTENT -->
+  <main class="page-content">
+
+    <!-- Welcome Banner -->
+    <div class="welcome-banner" style="margin-bottom:24px;">
+      <div style="z-index:1;">
+        <div class="welcome-banner-greeting">Good <span id="timeOfDay">day</span> 👋</div>
+        <div class="welcome-banner-name" id="welcomeName">Welcome back, Doctor!</div>
+        <div class="welcome-banner-desc">
+          Here's your clinical overview for today. You have
+          <strong><span id="bannerPending">0</span> patients</strong> still waiting.
+        </div>
+      </div>
+      <div class="welcome-banner-stat" style="z-index:1;">
+        <div class="welcome-banner-stat-item">
+          <div class="welcome-banner-stat-value" id="bannerTotal">0</div>
+          <div class="welcome-banner-stat-label">Appointments</div>
+        </div>
+        <div class="welcome-banner-stat-item">
+          <div class="welcome-banner-stat-value" id="bannerCompleted">0</div>
+          <div class="welcome-banner-stat-label">Completed</div>
+        </div>
+        <div class="welcome-banner-stat-item">
+          <div class="welcome-banner-stat-value" id="bannerWaiting">0</div>
+          <div class="welcome-banner-stat-label">Waiting</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STAT CARDS -->
+    <div class="stats-grid" style="margin-bottom:24px;">
+
+      <div class="stat-card terra" style="cursor:pointer;" onclick="location.href='appointments.html'">
+        <div class="stat-card-top">
+          <div>
+            <div class="stat-card-label">Today's Appointments</div>
+            <div class="stat-card-value" id="statTotal">0</div>
+          </div>
+          <div class="stat-card-icon">📅</div>
+        </div>
+        <div class="stat-card-footer"><span>Click to view full list</span></div>
+      </div>
+
+      <div class="stat-card warning">
+        <div class="stat-card-top">
+          <div>
+            <div class="stat-card-label">Waiting</div>
+            <div class="stat-card-value" id="statWaiting">0</div>
+          </div>
+          <div class="stat-card-icon">⏳</div>
+        </div>
+        <div class="stat-card-footer"><span>Patients in queue</span></div>
+      </div>
+
+      <div class="stat-card success">
+        <div class="stat-card-top">
+          <div>
+            <div class="stat-card-label">Consultations Done</div>
+            <div class="stat-card-value" id="statCompleted">0</div>
+          </div>
+          <div class="stat-card-icon">✅</div>
+        </div>
+        <div class="stat-card-footer"><span>Completed today</span></div>
+      </div>
+
+      <div class="stat-card info">
+        <div class="stat-card-top">
+          <div>
+            <div class="stat-card-label">Prescriptions</div>
+            <div class="stat-card-value" id="statRx">0</div>
+          </div>
+          <div class="stat-card-icon">💊</div>
+        </div>
+        <div class="stat-card-footer"><span>Written today</span></div>
+      </div>
+
+    </div>
+
+    <!-- MAIN GRID -->
+    <div class="dash-main-grid" style="display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start;">
+
+      <!-- LEFT COLUMN -->
+      <div style="display:flex;flex-direction:column;gap:20px;">
+
+        <!-- Current Patient Hero -->
+        <div id="currentPatientCard">
+          <div class="current-patient-hero" id="heroCard">
+            <div class="hero-token" id="heroToken">—</div>
+            <div>
+              <div class="hero-label">NOW CONSULTING</div>
+              <div class="hero-name" id="heroName">No Active Patient</div>
+              <div class="hero-meta" id="heroMeta">Click "Call Next" from Appointments to begin</div>
+            </div>
+            <div class="hero-actions">
+              <a href="appointments.html" class="btn btn-primary btn-sm" style="white-space:nowrap;">
+                📅 Appointments
+              </a>
+              <button class="btn btn-ghost btn-sm" id="heroConsultBtn"
+                      style="color:var(--clr-cream);border-color:rgba(255,255,255,.2);display:none;"
+                      onclick="goConsult()">
+                🩺 Continue Consultation
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">⚡ Quick Actions</div>
+          </div>
+          <div class="card-body">
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;">
+              <a class="quick-action-card" href="appointments.html">
+                <div class="quick-action-icon">📅</div>
+                <div class="quick-action-label">Appointments</div>
+              </a>
+              <a class="quick-action-card" href="consultation.html">
+                <div class="quick-action-icon">🩺</div>
+                <div class="quick-action-label">Consultation</div>
+              </a>
+              <a class="quick-action-card" href="prescriptions.html">
+                <div class="quick-action-icon">💊</div>
+                <div class="quick-action-label">Prescriptions</div>
+              </a>
+              <a class="quick-action-card" href="lab-tests.html">
+                <div class="quick-action-icon">🧪</div>
+                <div class="quick-action-label">Lab Tests</div>
+              </a>
+              <a class="quick-action-card" href="patients.html">
+                <div class="quick-action-icon">👤</div>
+                <div class="quick-action-label">Patient Records</div>
+              </a>
+              <a class="quick-action-card" href="patient-details.html">
+                <div class="quick-action-icon">📋</div>
+                <div class="quick-action-label">Past Visits</div>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Upcoming Appointments (next 6) -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">📅 Upcoming Appointments</div>
+              <div class="card-subtitle" id="upcomingSubtitle">Next patients in line</div>
+            </div>
+            <a href="appointments.html" class="btn btn-ghost btn-sm">View All →</a>
+          </div>
+          <div id="upcomingList">
+            <div style="padding:24px;text-align:center;color:var(--text-muted);font-size:var(--text-sm);">
+              Loading…
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Consultations (completed today) -->
+        <div class="table-container">
+          <div class="table-header">
+            <div class="table-header-left">
+              <span class="table-title">✅ Completed Today</span>
+              <span class="table-count" id="completedCount">0</span>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th class="col-w-48">Token</th>
+                  <th>Patient</th>
+                  <th class="col-w-100">Time</th>
+                  <th class="col-w-100">Type</th>
+                  <th class="col-w-120">Complaint</th>
+                </tr>
+              </thead>
+              <tbody id="completedBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /LEFT -->
+
+      <!-- RIGHT COLUMN -->
+      <div class="dashboard-col" style="display:flex;flex-direction:column;gap:20px;">
+
+        <!-- Progress Ring Card -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📊 Today's Progress</div>
+          </div>
+          <div class="card-body">
+            <div class="ring-wrap">
+              <div class="ring-container">
+                <svg class="ring-svg" width="80" height="80" viewBox="0 0 80 80">
+                  <circle class="ring-bg" cx="40" cy="40" r="34" fill="none" stroke-width="8"/>
+                  <circle class="ring-fill" id="progressRing" cx="40" cy="40" r="34" fill="none"
+                          stroke-width="8" stroke-linecap="round"
+                          stroke-dasharray="213.63" stroke-dashoffset="213.63"/>
+                </svg>
+                <div class="ring-text" id="progressPct">0%</div>
+              </div>
+              <div>
+                <div style="font-size:var(--text-sm);font-weight:700;color:var(--text-primary);margin-bottom:4px;">
+                  <span id="ringDone">0</span> of <span id="ringTotal">0</span> completed
+                </div>
+                <div style="font-size:var(--text-xs);color:var(--text-muted);" id="ringRemaining">
+                  0 remaining today
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Appointment Type Breakdown -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🩺 By Type</div>
+          </div>
+          <div class="card-body" style="padding-top:14px;">
+            <div class="progress-bar-list" id="typeBreakdown"></div>
+          </div>
+        </div>
+
+        <!-- Status Breakdown -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📋 By Status</div>
+          </div>
+          <div class="card-body" style="padding-top:14px;">
+            <div class="progress-bar-list" id="statusBreakdown"></div>
+          </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🕐 Activity</div>
+          </div>
+          <div class="activity-feed" id="activityFeed">
+            <div style="padding:24px;text-align:center;color:var(--text-muted);font-size:var(--text-sm);">
+              Loading…
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /RIGHT -->
+    </div><!-- /dash-main-grid -->
+
+  </main>
+</div>
+
+<!-- Toast -->
+<div class="toast-container" id="toastContainer"></div>
+
+
+<!-- ═══════════════════════════════════════
+     JAVASCRIPT
+═══════════════════════════════════════ -->
+<script src="../js/doctor.js"></script>
+
+  <script src="../js/validation.js"></script>
+</body>
+</html>

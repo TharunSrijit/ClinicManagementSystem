@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Doctor Clinical Consultation — Clinic Management System" />
+  <title>Consultation | Doctor — CMS</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Shared CSS -->
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/dashboard.css" />
+  <link rel="stylesheet" href="../css/tables.css" />
+
+  <style>
+    .consult-grid {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 20px;
+      align-items: start;
+    }
+    @media (max-width: 1024px) {
+      .consult-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Patient banner */
+    .patient-hero-card {
+      background: linear-gradient(135deg, var(--surface) 0%, #fdf8f5 100%);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      box-shadow: var(--shadow-sm);
+    }
+    .patient-hero-main {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .patient-token-badge {
+      width: 54px;
+      height: 54px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: var(--radius-md);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+    .patient-token-badge span { font-size: 10px; font-weight: 600; text-transform: uppercase; opacity: 0.85; }
+    .patient-token-badge b { font-size: 20px; line-height: 1; }
+
+    .patient-hero-info h2 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0 0 4px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .patient-hero-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+    .meta-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(0,0,0,0.04);
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .allergy-alert {
+      background: var(--danger-light);
+      color: var(--danger);
+      font-weight: 600;
+    }
+
+    /* Section Card */
+    .section-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Vitals grid */
+    .vitals-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 12px;
+    }
+    .vital-input-group {
+      background: var(--surface-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 10px 12px;
+    }
+    .vital-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .vital-control {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+    .vital-control input {
+      width: 100%;
+      border: none;
+      background: transparent;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+      padding: 0;
+      outline: none;
+    }
+    .vital-unit {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    /* Medicine entry table */
+    .rx-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 13px;
+    }
+    .rx-table th {
+      background: var(--surface-secondary);
+      padding: 8px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .rx-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border-light);
+      vertical-align: middle;
+    }
+    .rx-input {
+      width: 100%;
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      background: var(--surface);
+      color: var(--text-primary);
+      box-sizing: border-box;
+    }
+    .rx-delete-btn {
+      background: none;
+      border: none;
+      color: var(--danger);
+      cursor: pointer;
+      font-size: 16px;
+      padding: 4px;
+      border-radius: 4px;
+    }
+    .rx-delete-btn:hover { background: var(--danger-light); }
+
+    /* Lab checkboxes */
+    .lab-tags-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 8px;
+    }
+    .lab-check-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      background: var(--surface-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .lab-check-label:hover { border-color: var(--accent); }
+    .lab-check-label input:checked + span {
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    /* Action footer */
+    .action-footer {
+      position: sticky;
+      bottom: 0;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin: 20px -28px -28px -28px;
+      z-index: 100;
+      box-shadow: 0 -4px 12px rgba(0,0,0,0.04);
+    }
+
+    /* Patient selector dropdown */
+    .patient-select-bar {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    /* Prescription Print Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(4px);
+      align-items: center; justify-content: center;
+      z-index: 2000;
+      padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: #fff;
+      border-radius: 12px;
+      width: 100%;
+      max-width: min(95vw, 650px);
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow-lg);
+      padding: 24px;
+      box-sizing: border-box;
+    }
+    .diag-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 12px;
+    }
+    .rx-table {
+      min-width: 540px;
+    }
+    @media (max-width: 768px) {
+      .diag-grid { grid-template-columns: 1fr; }
+      .patient-hero-card { flex-direction: column; align-items: flex-start; gap: 14px; }
+      .patient-select-bar { flex-direction: column; align-items: stretch; gap: 10px; }
+      .patient-select-bar > div { width: 100%; flex-wrap: wrap; }
+      .patient-select-bar select { flex: 1; }
+      .action-footer {
+        flex-direction: column-reverse;
+        align-items: stretch;
+        gap: 10px;
+        margin: 20px -16px -16px -16px;
+        padding: 12px 16px;
+      }
+      .action-footer > div {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+      }
+      .action-footer .btn {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+    @media (max-width: 480px) {
+      .modal-box { padding: 16px; }
+    }
+    @media print {
+      body * { visibility: hidden; }
+      #printableRx, #printableRx * { visibility: visible; }
+      #printableRx { position: absolute; left: 0; top: 0; width: 100%; }
+    }
+  </style>
+</head>
+
+<body>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<!-- ═══════════════════════════════════════
+     SIDEBAR
+═══════════════════════════════════════ -->
+<div class="sidebar" id="sidebar">
+  <a class="sidebar-brand" href="dashboard.html">
+    <div class="sidebar-brand-icon">🏥</div>
+    <div class="sidebar-brand-text">
+      <span class="sidebar-brand-name">MediCare CMS</span>
+      <span class="sidebar-brand-sub">Doctor Portal</span>
+    </div>
+  </a>
+
+  <nav class="sidebar-nav">
+    <span class="nav-section-label">Main</span>
+    <a class="nav-item" href="dashboard.html" id="nav-dashboard">
+      <span class="nav-item-icon">📊</span>
+      <span class="nav-item-label">Dashboard</span>
+    </a>
+    <a class="nav-item" href="appointments.html" id="nav-appointments">
+      <span class="nav-item-icon">📅</span>
+      <span class="nav-item-label">Appointments</span>
+      <span class="nav-badge" id="sidebarApptBadge">0</span>
+    </a>
+    <a class="nav-item" href="patients.html" id="nav-patients">
+      <span class="nav-item-icon">👤</span>
+      <span class="nav-item-label">Patients</span>
+    </a>
+
+    <div class="sidebar-divider"></div>
+    <span class="nav-section-label">Clinical</span>
+    <a class="nav-item active" href="consultation.html" id="nav-consultation">
+      <span class="nav-item-icon">🩺</span>
+      <span class="nav-item-label">Consultation</span>
+    </a>
+    <a class="nav-item" href="prescriptions.html" id="nav-prescriptions">
+      <span class="nav-item-icon">💊</span>
+      <span class="nav-item-label">Prescriptions</span>
+    </a>
+    <a class="nav-item" href="lab-tests.html" id="nav-lab">
+      <span class="nav-item-icon">🧪</span>
+      <span class="nav-item-label">Lab Tests</span>
+    </a>
+
+    <div class="sidebar-divider"></div>
+    <span class="nav-section-label">History</span>
+    <a class="nav-item" href="patient-details.html" id="nav-history">
+      <span class="nav-item-icon">📋</span>
+      <span class="nav-item-label">Past Consultations</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-user">
+    <div class="sidebar-avatar" id="sidebarAvatar">DR</div>
+    <div class="sidebar-user-info">
+      <div class="sidebar-user-name" id="sidebarName">Dr. Arun Kumar</div>
+      <div class="sidebar-user-role">Doctor</div>
+    </div>
+    <button class="sidebar-logout-btn" onclick="logout()" title="Logout">⏏</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     MAIN CONTENT
+═══════════════════════════════════════ -->
+<div class="main-content">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="topbar-menu-btn" onclick="toggleSidebar()" aria-label="Toggle menu">☰</button>
+      <div>
+        <div class="topbar-title">Clinical Consultation</div>
+        <div class="topbar-subtitle" id="topbarDate">Today</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button class="btn btn-outline btn-sm" onclick="location.href='appointments.html'">
+        ← Return to Queue
+      </button>
+      <div class="user-chip">
+        <div class="user-chip-avatar" id="topbarAvatar">DR</div>
+        <div class="user-chip-info">
+          <div class="user-chip-name" id="topbarName">Dr. Arun Kumar</div>
+          <div class="user-chip-role">Cardiologist / Physician</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-body">
+
+    <!-- Active Patient Selector Bar -->
+    <div class="patient-select-bar">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="font-weight:600; font-size:13px; color:var(--text-secondary);">Select Patient in Queue:</span>
+        <select id="patientQueueSelect" onchange="onSelectPatientChange(this.value)" style="padding:6px 12px; border:1px solid var(--border); border-radius:6px; font-size:13px; background:var(--surface);">
+          <!-- populated dynamically -->
+        </select>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-secondary btn-sm" onclick="callNextPatient()">⏭ Call Next Patient</button>
+      </div>
+    </div>
+
+    <!-- Active Patient Banner -->
+    <div class="patient-hero-card" id="patientHero">
+      <div class="patient-hero-main">
+        <div class="patient-token-badge">
+          <span>TOKEN</span>
+          <b id="pToken">—</b>
+        </div>
+        <div class="patient-hero-info">
+          <h2>
+            <span id="pName">No Patient Selected</span>
+            <span id="pStatusBadge" class="badge badge-warning">Waiting</span>
+          </h2>
+          <div class="patient-hero-meta">
+            <span class="meta-tag">🆔 <span id="pId">—</span></span>
+            <span class="meta-tag">👤 <span id="pAgeGender">—</span></span>
+            <span class="meta-tag">🩸 Blood: <b id="pBlood">—</b></span>
+            <span class="meta-tag">📞 <span id="pPhone">—</span></span>
+            <span class="meta-tag allergy-alert">⚠️ Allergies: <span id="pAllergies">None</span></span>
+          </div>
+          <div style="margin-top:6px; font-size:13px; color:var(--text-secondary);">
+            <b>Chief Complaint:</b> <span id="pComplaint">N/A</span>
+          </div>
+        </div>
+      </div>
+      <div>
+        <a id="btnFullProfile" href="#" class="btn btn-outline btn-sm">Full Medical History ↗</a>
+      </div>
+    </div>
+
+    <!-- Consultation Workspace Grid -->
+    <div class="consult-grid">
+
+      <!-- LEFT COLUMN: Clinical Workspace -->
+      <div class="consult-main-col">
+
+        <!-- 1. Vitals Signs Card -->
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-title">🩺 Vital Signs</div>
+            <span style="font-size:11px; color:var(--text-muted);">Recorded at triage / check-in</span>
+          </div>
+          <div class="vitals-grid">
+            <div class="vital-input-group">
+              <div class="vital-label">Blood Pressure</div>
+              <div class="vital-control">
+                <input type="text" id="vitBP" placeholder="120/80" value="120/80" />
+                <span class="vital-unit">mmHg</span>
+              </div>
+            </div>
+            <div class="vital-input-group">
+              <div class="vital-label">Heart Rate</div>
+              <div class="vital-control">
+                <input type="number" id="vitPulse" placeholder="72" value="74" />
+                <span class="vital-unit">bpm</span>
+              </div>
+            </div>
+            <div class="vital-input-group">
+              <div class="vital-label">Temperature</div>
+              <div class="vital-control">
+                <input type="number" step="0.1" id="vitTemp" placeholder="98.6" value="98.4" />
+                <span class="vital-unit">°F</span>
+              </div>
+            </div>
+            <div class="vital-input-group">
+              <div class="vital-label">Oxygen (SpO2)</div>
+              <div class="vital-control">
+                <input type="number" id="vitSpo2" placeholder="99" value="98" />
+                <span class="vital-unit">%</span>
+              </div>
+            </div>
+            <div class="vital-input-group">
+              <div class="vital-label">Weight</div>
+              <div class="vital-control">
+                <input type="number" id="vitWeight" placeholder="68" value="68" />
+                <span class="vital-unit">kg</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Symptoms & Diagnosis -->
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-title">🔍 Clinical Assessment & Diagnosis</div>
+          </div>
+          <div class="diag-grid">
+            <div>
+              <label class="form-label" style="font-size:12px; font-weight:600;">Primary Diagnosis *</label>
+              <input type="text" id="diagPrimary" class="rx-input" placeholder="e.g. Acute Upper Respiratory Tract Infection" />
+            </div>
+            <div>
+              <label class="form-label" style="font-size:12px; font-weight:600;">Secondary Diagnosis / Comorbidities</label>
+              <input type="text" id="diagSecondary" class="rx-input" placeholder="e.g. Essential Hypertension" />
+            </div>
+          </div>
+          <div>
+            <label class="form-label" style="font-size:12px; font-weight:600;">Clinical Examination & Doctor's Notes</label>
+            <textarea id="diagNotes" class="rx-input" rows="3" placeholder="Describe physical findings, chest examination, symptoms duration..."></textarea>
+          </div>
+        </div>
+
+        <!-- 3. Prescription Builder (Rx) -->
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-title">💊 Medication & Prescription (Rx)</div>
+            <button type="button" class="btn btn-outline btn-sm" onclick="addMedicationRow()">+ Add Medicine</button>
+          </div>
+
+          <div class="table-responsive" style="overflow-x:auto;">
+            <table class="rx-table">
+              <thead>
+                <tr>
+                  <th style="width:28%;">Medicine *</th>
+                  <th style="width:16%;">Dosage *</th>
+                  <th style="width:18%;">Frequency *</th>
+                  <th style="width:14%;">Duration *</th>
+                  <th style="width:10%;">Qty *</th>
+                  <th style="width:14%;">Instructions</th>
+                  <th style="width:24px;"></th>
+                </tr>
+              </thead>
+              <tbody id="rxTableBody">
+                <!-- Dynamically added rows -->
+              </tbody>
+            </table>
+          </div>
+          <div style="margin-top:10px; display:flex; gap:6px; flex-wrap:wrap;" id="quickAddContainer">
+            <!-- Dynamically populated from active cms_medicines -->
+          </div>
+        </div>
+
+        <!-- 4. Lab Investigations Order -->
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-title">🧪 Laboratory & Diagnostic Tests</div>
+            <span style="font-size:11px; color:var(--text-muted);">Sent directly to Clinic Lab module</span>
+          </div>
+          <div class="lab-tags-grid" id="consultLabTestsGrid">
+            <!-- Dynamically populated from active cms_lab_tests -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN: Instructions, Advice & Follow-Up -->
+      <div class="consult-side-col">
+
+        <!-- Patient Medical Summary preview -->
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-title">📋 Patient History</div>
+          </div>
+          <div style="font-size:13px; line-height:1.6; color:var(--text-secondary);">
+            <div style="margin-bottom:8px;"><b>Past Visits:</b> <span id="histVisits">3 visits recorded</span></div>
+            <div style="margin-bottom:8px;"><b>Chronic Conditions:</b> <span id="histChronic">Hypertension (2022)</span></div>
+            <div><b>Last Consulted:</b> <span id="histLastDate">14 Feb 2026</span></div>
+          </div>
+        </div>
+
+        <!-- Advice & Instructions -->
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-title">🗣 Advice & Lifestyle</div>
+          </div>
+          <textarea id="adviceNotes" class="rx-input" rows="4" placeholder="Dietary restrictions, rest, hydration, warning signs to watch for..."></textarea>
+        </div>
+
+        <!-- Follow-Up Schedule -->
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-title">📅 Follow-Up</div>
+          </div>
+          <div style="margin-bottom:10px;">
+            <label class="form-label" style="font-size:12px; font-weight:600;">Return in</label>
+            <select id="followUpSelect" class="rx-input">
+              <option value="No follow-up required">No follow-up required</option>
+              <option value="3 Days">3 Days</option>
+              <option value="5 Days">5 Days</option>
+              <option value="1 Week" selected>1 Week</option>
+              <option value="2 Weeks">2 Weeks</option>
+              <option value="1 Month">1 Month</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label" style="font-size:12px; font-weight:600;">Referral to Specialist</label>
+            <input type="text" id="referralDoc" class="rx-input" placeholder="Optional specialist referral..." />
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- STICKY ACTION BAR -->
+    <div class="action-footer">
+      <div>
+        <button class="btn btn-outline" onclick="location.href='appointments.html'">Discard & Back to Queue</button>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button class="btn btn-secondary" onclick="openPrintModal()">🖨 Preview & Print Rx</button>
+        <button class="btn btn-primary" onclick="completeConsultation()">✓ Complete & Save Consultation</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     PRINTABLE RX MODAL
+═══════════════════════════════════════ -->
+<div class="modal-overlay" id="rxModal">
+  <div class="modal-box">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <h3 style="margin:0; font-size:16px;">Prescription Preview</h3>
+      <button class="btn btn-outline btn-sm" onclick="closeRxModal()">✕ Close</button>
+    </div>
+
+    <!-- Printable Slip -->
+    <div id="printableRx" style="border:1px solid #e2d9d2; padding:24px; border-radius:8px; background:#fff; font-family:'Inter', sans-serif;">
+      <!-- Clinic Header -->
+      <div style="display:flex; justify-content:space-between; border-bottom:2px solid #9c6b5d; padding-bottom:12px; margin-bottom:16px;">
+        <div>
+          <h2 style="margin:0; color:#3d2a25; font-size:20px;">MEDICARE CLINIC</h2>
+          <div style="font-size:11px; color:#7d6a63;">12/4 Healthcare Enclave, Cross Road, MG Road</div>
+          <div style="font-size:11px; color:#7d6a63;">Phone: +91 98765 43210 · Emergency: 108</div>
+        </div>
+        <div style="text-align:right;">
+          <h4 style="margin:0; color:#9c6b5d;" id="modalDocName">Dr. Arun Kumar</h4>
+          <div style="font-size:11px; color:#7d6a63;">MBBS, MD (General Medicine)</div>
+          <div style="font-size:11px; color:#7d6a63;">Reg No: KMC-58291</div>
+        </div>
+      </div>
+
+      <!-- Patient Info -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:12px; background:#faf7f5; padding:10px; border-radius:6px; margin-bottom:16px;">
+        <div><b>Patient:</b> <span id="mPatientName">—</span> (<span id="mAgeGender">—</span>)</div>
+        <div><b>Patient ID:</b> <span id="mPatientId">—</span></div>
+        <div><b>Date:</b> <span id="mDate">—</span></div>
+        <div><b>Blood Group:</b> <span id="mBlood">—</span></div>
+        <div style="grid-column:span 2;"><b>Diagnosis:</b> <span id="mDiagnosis">—</span></div>
+      </div>
+
+      <!-- Rx Section -->
+      <div style="font-size:18px; font-weight:800; color:#9c6b5d; margin-bottom:8px;">℞</div>
+      <table style="width:100%; border-collapse:collapse; font-size:12px; margin-bottom:16px;">
+        <thead>
+          <tr style="background:#f0e9e4; border-bottom:1px solid #d4c5bd;">
+            <th style="text-align:left; padding:6px 8px;">#</th>
+            <th style="text-align:left; padding:6px 8px;">Medicine</th>
+            <th style="text-align:left; padding:6px 8px;">Dosage</th>
+            <th style="text-align:left; padding:6px 8px;">Frequency</th>
+            <th style="text-align:left; padding:6px 8px;">Duration</th>
+            <th style="text-align:left; padding:6px 8px;">Qty</th>
+            <th style="text-align:left; padding:6px 8px;">Instructions</th>
+          </tr>
+        </thead>
+        <tbody id="mRxBody">
+          <!-- Rows -->
+        </tbody>
+      </table>
+
+      <!-- Lab tests ordered -->
+      <div id="mLabSection" style="font-size:12px; margin-bottom:12px; display:none;">
+        <b>Tests Ordered:</b> <span id="mLabTests">None</span>
+      </div>
+
+      <!-- Advice -->
+      <div style="font-size:12px; margin-bottom:20px;">
+        <b>Advice:</b> <span id="mAdvice">Take medicines on time. Follow-up as advised.</span>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:flex-end; border-top:1px solid #e2d9d2; padding-top:16px;">
+        <div style="font-size:11px; color:#7d6a63;">Follow-up: <b id="mFollowUp">1 Week</b></div>
+        <div style="text-align:center;">
+          <div style="font-size:14px; font-family:cursive; color:#3d2a25;">Dr. Arun Kumar</div>
+          <div style="border-top:1px solid #3d2a25; font-size:11px; font-weight:600; width:140px; margin-top:4px;">Doctor's Signature</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
+      <button class="btn btn-outline" onclick="closeRxModal()">Back</button>
+      <button class="btn btn-primary" onclick="window.print()">🖨 Print Prescription</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toastContainer" style="position:fixed; bottom:20px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:8px;"></div>
+
+<!-- ═══════════════════════════════════════
+     SCRIPTS
+═══════════════════════════════════════ -->
+<script src="../js/doctor.js"></script>
+  <script src="../js/validation.js"></script>
+</body>
+</html>

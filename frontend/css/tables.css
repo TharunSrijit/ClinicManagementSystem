@@ -1,0 +1,820 @@
+/* ============================================================
+   CLINIC MANAGEMENT SYSTEM — TABLES STYLESHEET
+   Palette: #FFF8F2 · #F6E3D6 · #D9B7A7 · #9C6B5D · #3D2A25
+   Depends on: style.css (design tokens must be loaded first)
+   ============================================================ */
+
+/* ─────────────────────────────────────────
+   1. TABLE CONTAINER / WRAPPER
+   ───────────────────────────────────────── */
+.table-container {
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-light);
+  flex-wrap: wrap;
+}
+
+.table-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.table-title {
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.table-count {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  background: var(--clr-blush);
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+}
+
+.table-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Scrollable wrapper */
+.table-scroll,
+.table-responsive,
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-scroll::-webkit-scrollbar { height: 5px; }
+.table-scroll::-webkit-scrollbar-track { background: var(--bg-page); }
+.table-scroll::-webkit-scrollbar-thumb {
+  background: var(--clr-mauve);
+  border-radius: var(--radius-pill);
+}
+
+/* ─────────────────────────────────────────
+   2. TABLE BASE STYLES
+   ───────────────────────────────────────── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  min-width: 540px;
+}
+
+/* ─── Head ─── */
+thead {
+  background: var(--clr-blush);
+  border-bottom: 1px solid var(--border-light);
+}
+
+thead th {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+  white-space: nowrap;
+  user-select: none;
+}
+
+thead th:first-child { padding-left: 20px; }
+thead th:last-child  { padding-right: 20px; }
+
+/* Sortable column header */
+.th-sortable {
+  cursor: pointer;
+  transition: color var(--transition);
+}
+
+.th-sortable:hover { color: var(--accent); }
+
+.th-sort-icon {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 1px;
+  vertical-align: middle;
+  margin-left: 4px;
+  opacity: 0.4;
+  transition: opacity var(--transition);
+}
+
+.th-sortable:hover .th-sort-icon,
+.th-sortable.sorted .th-sort-icon { opacity: 1; }
+
+.th-sortable.sorted { color: var(--accent); }
+
+.th-sort-icon .arrow-up,
+.th-sort-icon .arrow-down {
+  display: block;
+  width: 0;
+  height: 0;
+}
+
+.th-sort-icon .arrow-up {
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-bottom: 4px solid currentColor;
+}
+
+.th-sort-icon .arrow-down {
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid currentColor;
+}
+
+.th-sortable.sort-asc  .arrow-down { opacity: 0.3; }
+.th-sortable.sort-desc .arrow-up   { opacity: 0.3; }
+
+/* ─── Body ─── */
+tbody tr {
+  border-bottom: 1px solid var(--border-light);
+  transition: background var(--transition);
+}
+
+tbody tr:last-child { border-bottom: none; }
+
+tbody tr:hover { background: var(--bg-page); }
+
+tbody tr.selected { background: var(--accent-light); }
+
+tbody td {
+  padding: 13px 16px;
+  color: var(--text-secondary);
+  vertical-align: middle;
+  line-height: 1.4;
+}
+
+tbody td:first-child { padding-left: 20px; }
+tbody td:last-child  { padding-right: 20px; }
+
+/* Primary cell (first important column) */
+.td-primary {
+  color: var(--text-primary) !important;
+  font-weight: 600;
+}
+
+/* Monospace cell (IDs, codes) */
+.td-mono {
+  font-family: 'SFMono-Regular', 'Consolas', monospace;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* Numeric cell */
+.td-number {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Actions cell */
+.td-actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.td-actions-group,
+.action-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* ─── Foot ─── */
+tfoot td {
+  padding: 12px 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  border-top: 2px solid var(--border-color);
+  background: var(--clr-blush);
+  font-size: var(--text-sm);
+}
+
+/* ─────────────────────────────────────────
+   3. TABLE VARIANTS
+   ───────────────────────────────────────── */
+/* Striped */
+.table-striped tbody tr:nth-child(even) {
+  background: var(--bg-page);
+}
+.table-striped tbody tr:nth-child(even):hover {
+  background: var(--clr-blush);
+}
+
+/* Bordered */
+.table-bordered {
+  border: 1px solid var(--border-light);
+}
+.table-bordered th,
+.table-bordered td {
+  border: 1px solid var(--border-light);
+}
+
+/* Compact */
+.table-compact thead th { padding: 9px 12px; }
+.table-compact tbody td { padding: 9px 12px; }
+.table-compact thead th:first-child,
+.table-compact tbody td:first-child { padding-left: 16px; }
+.table-compact thead th:last-child,
+.table-compact tbody td:last-child  { padding-right: 16px; }
+
+/* Comfortable */
+.table-comfortable thead th { padding: 16px 20px; }
+.table-comfortable tbody td { padding: 16px 20px; }
+
+/* Borderless */
+.table-borderless tbody tr { border-bottom: none; }
+.table-borderless tbody tr:hover { background: var(--clr-blush); }
+
+/* ─────────────────────────────────────────
+   4. TABLE TOOLBAR (Search, Filter, Actions)
+   ───────────────────────────────────────── */
+.table-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border-light);
+  background: var(--bg-page);
+  flex-wrap: wrap;
+}
+
+.table-search {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+  max-width: 320px;
+}
+
+.table-search input {
+  width: 100%;
+  padding: 9px 14px 9px 36px;
+  background: #ffffff;
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-sm);
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.table-search input::placeholder { color: var(--clr-mauve); }
+
+.table-search input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(156,107,93,.15);
+}
+
+.table-search .search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  pointer-events: none;
+}
+
+.table-search input:focus + .search-icon,
+.table-search:focus-within .search-icon { color: var(--accent); }
+
+/* Filter select */
+.table-filter-select {
+  padding: 8px 32px 8px 12px;
+  background: #ffffff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%239C6B5D' d='M5 6L0 0h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-family: var(--font-sans);
+  color: var(--text-secondary);
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: border-color var(--transition);
+}
+
+.table-filter-select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(156,107,93,.15);
+}
+
+/* Bulk action bar */
+.bulk-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  background: var(--clr-espresso);
+  color: var(--clr-cream);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  animation: slideDown .2s var(--ease);
+}
+
+.bulk-action-count {
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.bulk-action-bar .btn-sm {
+  border-color: rgba(255,255,255,.3);
+  color: var(--clr-cream);
+}
+
+.bulk-action-bar .btn-sm:hover {
+  background: rgba(255,255,255,.1);
+  border-color: rgba(255,255,255,.6);
+}
+
+/* ─────────────────────────────────────────
+   5. PAGINATION
+   ───────────────────────────────────────── */
+.table-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border-light);
+  background: var(--bg-page);
+  flex-wrap: wrap;
+}
+
+.table-info {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.table-info strong { color: var(--text-secondary); }
+
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.page-btn {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  color: var(--text-secondary);
+  background: transparent;
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    color var(--transition);
+  font-family: var(--font-sans);
+}
+
+.page-btn:hover {
+  background: var(--clr-blush);
+  color: var(--accent);
+  border-color: var(--border-color);
+}
+
+.page-btn.active {
+  background: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
+  box-shadow: 0 2px 8px rgba(156,107,93,.35);
+}
+
+.page-btn.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.page-btn-icon {
+  font-size: 0.9rem;
+}
+
+.pagination-ellipsis {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+/* Per-page selector */
+.per-page-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.per-page-select select {
+  padding: 5px 24px 5px 8px;
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-xs);
+  background: #ffffff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath fill='%239C6B5D' d='M4 5L0 0h8z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 7px center;
+  font-size: var(--text-xs);
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+/* ─────────────────────────────────────────
+   6. TABLE CHECKBOX (Row selection)
+   ───────────────────────────────────────── */
+.td-checkbox,
+.th-checkbox {
+  width: 44px;
+  padding-right: 0 !important;
+}
+
+.table-checkbox {
+  width: 16px;
+  height: 16px;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 2px solid var(--border-color);
+  border-radius: 3px;
+  background: #ffffff;
+  cursor: pointer;
+  transition:
+    border-color var(--transition),
+    background var(--transition);
+  position: relative;
+  display: block;
+}
+
+.table-checkbox:hover { border-color: var(--accent); }
+
+.table-checkbox:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.table-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 0px;
+  width: 5px;
+  height: 9px;
+  border: 2px solid #fff;
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg);
+}
+
+.table-checkbox.indeterminate {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.table-checkbox.indeterminate::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 2px;
+  background: #fff;
+  border: none;
+  border-radius: 1px;
+}
+
+/* ─────────────────────────────────────────
+   7. INLINE TABLE ACTIONS
+   ───────────────────────────────────────── */
+.action-btn {
+  min-width: 30px;
+  width: auto;
+  height: 30px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-xs);
+  font-size: 0.825rem;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  white-space: nowrap;
+  gap: 4px;
+  transition:
+    background var(--transition),
+    color var(--transition);
+  text-decoration: none;
+}
+
+.action-btn:hover          { background: var(--clr-blush); color: var(--accent); }
+.action-btn.view:hover     { background: var(--info-light); color: var(--info); }
+.action-btn.edit:hover     { background: var(--warning-light); color: var(--warning); }
+.action-btn.delete:hover   { background: var(--danger-light); color: var(--danger); }
+.action-btn.approve:hover  { background: var(--success-light); color: var(--success); }
+
+/* ─────────────────────────────────────────
+   8. EXPANDABLE ROWS
+   ───────────────────────────────────────── */
+.tr-expandable > td:first-child {
+  cursor: pointer;
+  padding-left: 12px !important;
+}
+
+.expand-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+  background: var(--clr-blush);
+  color: var(--accent);
+  font-size: 0.65rem;
+  font-weight: 700;
+  margin-right: 6px;
+  flex-shrink: 0;
+  transition: background var(--transition), transform var(--transition);
+  vertical-align: middle;
+}
+
+.tr-expandable.expanded .expand-toggle {
+  transform: rotate(90deg);
+}
+
+.tr-expanded-row { background: var(--bg-page) !important; }
+
+.tr-expanded-row td {
+  padding: 16px 20px !important;
+  font-size: var(--text-sm);
+}
+
+.expanded-content {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px 24px;
+}
+
+.expanded-field { display: flex; flex-direction: column; gap: 2px; }
+
+.expanded-field-label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+}
+
+.expanded-field-value {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* ─────────────────────────────────────────
+   9. TABLE LOADING STATE
+   ───────────────────────────────────────── */
+.table-loading {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.table-loading .spinner { margin: 0 auto 12px; }
+
+/* Skeleton rows */
+.tr-skeleton td { padding: 14px 16px; }
+
+.td-skeleton {
+  height: 14px;
+  border-radius: var(--radius-xs);
+  background: linear-gradient(
+    90deg,
+    var(--clr-blush) 25%,
+    var(--border-light) 50%,
+    var(--clr-blush) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+
+/* ─────────────────────────────────────────
+   10. TABLE EMPTY STATE
+   ───────────────────────────────────────── */
+.table-empty {
+  padding: 56px 20px;
+  text-align: center;
+}
+
+.table-empty-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--clr-blush);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  margin: 0 auto 14px;
+}
+
+.table-empty-title {
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.table-empty-desc {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+/* ─────────────────────────────────────────
+   11. TABLE ROW STATUS HIGHLIGHTS
+   ───────────────────────────────────────── */
+tbody tr.row-success { background: var(--success-light); }
+tbody tr.row-warning { background: var(--warning-light); }
+tbody tr.row-danger  { background: var(--danger-light); }
+tbody tr.row-info    { background: var(--info-light); }
+
+tbody tr.row-success:hover { background: #d4edda; }
+tbody tr.row-warning:hover { background: #fdf3cd; }
+tbody tr.row-danger:hover  { background: #f8d7da; }
+tbody tr.row-info:hover    { background: #cce5ff; }
+
+/* Accent left border on row */
+tbody tr.row-accent-left td:first-child {
+  border-left: 3px solid var(--accent);
+}
+tbody tr.row-accent-success td:first-child {
+  border-left: 3px solid var(--success);
+}
+tbody tr.row-accent-danger td:first-child {
+  border-left: 3px solid var(--danger);
+}
+tbody tr.row-accent-warning td:first-child {
+  border-left: 3px solid var(--warning);
+}
+
+/* ─────────────────────────────────────────
+   12. COLUMN WIDTHS HELPERS
+   ───────────────────────────────────────── */
+.col-w-48  { width: 48px;  min-width: 48px; }
+.col-w-80  { width: 80px;  min-width: 80px; }
+.col-w-100 { width: 100px; min-width: 100px; }
+.col-w-120 { width: 120px; min-width: 120px; }
+.col-w-140 { width: 140px; min-width: 140px; }
+.col-w-160 { width: 160px; min-width: 160px; }
+.col-w-200 { width: 200px; min-width: 200px; }
+
+/* ─────────────────────────────────────────
+   13. INLINE DATA TABLE (inside cards)
+   ───────────────────────────────────────── */
+.data-table-inline {
+  width: 100%;
+  font-size: var(--text-sm);
+}
+
+.data-table-inline tr { border-bottom: 1px solid var(--border-light); }
+.data-table-inline tr:last-child { border-bottom: none; }
+
+.data-table-inline th {
+  padding: 8px 12px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  text-align: left;
+  background: var(--bg-page);
+}
+
+.data-table-inline td {
+  padding: 10px 12px;
+  color: var(--text-secondary);
+  vertical-align: middle;
+}
+
+/* Key-value table */
+.kv-table { width: 100%; }
+.kv-table tr { border-bottom: 1px solid var(--border-light); }
+.kv-table tr:last-child { border-bottom: none; }
+.kv-table th {
+  padding: 10px 16px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+  text-align: left;
+  width: 40%;
+  vertical-align: top;
+}
+.kv-table td {
+  padding: 10px 16px;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* ─────────────────────────────────────────
+   14. RESPONSIVE TABLE BEHAVIOR
+   ───────────────────────────────────────── */
+@media (max-width: 768px) {
+  .table-header  { flex-direction: column; align-items: flex-start; }
+  .table-footer  { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .table-toolbar { flex-direction: column; align-items: flex-start; }
+  .table-search  { max-width: 100%; width: 100%; }
+
+  /* Stack table on mobile */
+  .table-stack-mobile thead { display: none; }
+
+  .table-stack-mobile tbody tr {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    margin: 0 16px 12px;
+    padding: 12px 0;
+  }
+
+  .table-stack-mobile tbody td {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 7px 16px;
+    border: none;
+    min-width: 0;
+  }
+
+  .table-stack-mobile tbody td::before {
+    content: attr(data-label);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    min-width: 110px;
+    flex-shrink: 0;
+  }
+
+  .td-checkbox, .th-checkbox { display: none; }
+  .bulk-action-bar { flex-wrap: wrap; }
+  .pagination { gap: 2px; }
+  .page-btn { width: 30px; height: 30px; }
+
+  .expanded-content {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .expanded-content { grid-template-columns: 1fr; }
+}

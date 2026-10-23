@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Receptionist Dashboard — Clinic Management System" />
+  <title>Dashboard | Receptionist — CMS</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Shared CSS -->
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/dashboard.css" />
+  <link rel="stylesheet" href="../css/tables.css" />
+
+  <style>
+    /* ── Dashboard extras ─────────────────────────────── */
+    .quick-actions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 12px;
+    }
+
+    .status-booked      { background: var(--info-light);    color: var(--info); }
+    .status-confirmed   { background: var(--accent-light);  color: var(--accent); }
+    .status-waiting     { background: var(--warning-light); color: var(--warning); }
+    .status-completed   { background: var(--success-light); color: var(--success); }
+    .status-cancelled   { background: var(--danger-light);  color: var(--danger); }
+
+    /* Greeting time-of-day gradient text */
+    .greeting-highlight {
+      background: linear-gradient(90deg, var(--clr-espresso), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* Mini token now-serving block */
+    .now-serving-block {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 22px;
+      background: linear-gradient(120deg, var(--clr-espresso), #6b3d33);
+      border-radius: var(--radius-md);
+      color: var(--clr-cream);
+      margin-bottom: 16px;
+    }
+    .now-serving-num {
+      font-size: 2.4rem;
+      font-weight: 800;
+      line-height: 1;
+      color: #fff;
+      min-width: 60px;
+      text-align: center;
+    }
+    .now-serving-label {
+      font-size: var(--text-xs);
+      color: var(--clr-mauve);
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      margin-bottom: 2px;
+    }
+
+    @media (max-width: 992px) { .dash-cols { grid-template-columns: 1fr !important; } }
+    @media (max-width: 600px) { .quick-actions-grid { grid-template-columns: repeat(2,1fr); } }
+  </style>
+</head>
+
+<body>
+<!-- Mobile sidebar overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<!-- ═══════════════════════════════════════
+     SIDEBAR
+═══════════════════════════════════════ -->
+<div class="sidebar" id="sidebar">
+
+  <a class="sidebar-brand" href="dashboard.html">
+    <div class="sidebar-brand-icon">🏥</div>
+    <div class="sidebar-brand-text">
+      <span class="sidebar-brand-name">MediCare CMS</span>
+      <span class="sidebar-brand-sub">Reception Desk</span>
+    </div>
+  </a>
+
+  <nav class="sidebar-nav">
+    <span class="nav-section-label">Main</span>
+
+    <a class="nav-item active" href="dashboard.html">
+      <span class="nav-item-icon">📊</span>
+      <span class="nav-item-label">Dashboard</span>
+    </a>
+
+    <div class="sidebar-divider"></div>
+    <span class="nav-section-label">Patients</span>
+
+    <a class="nav-item" href="register-patient.html">
+      <span class="nav-item-icon">➕</span>
+      <span class="nav-item-label">Register Patient</span>
+    </a>
+
+    <a class="nav-item" href="search-patient.html">
+      <span class="nav-item-icon">🔍</span>
+      <span class="nav-item-label">Search Patient</span>
+    </a>
+
+    <div class="sidebar-divider"></div>
+    <span class="nav-section-label">Appointments</span>
+
+    <a class="nav-item" href="appointments.html">
+      <span class="nav-item-icon">📅</span>
+      <span class="nav-item-label">Today's Appointments</span>
+      <span class="nav-badge" id="sidebarApptBadge">0</span>
+    </a>
+
+    <a class="nav-item" href="token-queue.html">
+      <span class="nav-item-icon">🎫</span>
+      <span class="nav-item-label">Token Queue</span>
+      <span class="nav-badge" id="sidebarQueueBadge">0</span>
+    </a>
+
+    <div class="sidebar-divider"></div>
+    <span class="nav-section-label">Billing</span>
+
+    <a class="nav-item" href="billing.html">
+      <span class="nav-item-icon">💰</span>
+      <span class="nav-item-label">Billing</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-user">
+    <div class="sidebar-avatar" id="sidebarAvatar">RC</div>
+    <div class="sidebar-user-info">
+      <div class="sidebar-user-name" id="sidebarName">Loading…</div>
+      <div class="sidebar-user-role">Receptionist</div>
+    </div>
+    <button class="sidebar-logout-btn" onclick="logout()" title="Logout">⏏</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     MAIN CONTENT
+═══════════════════════════════════════ -->
+<div class="main-content">
+
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="topbar-toggle" onclick="openSidebar()">☰</button>
+      <div>
+        <div class="topbar-page-title">Reception Desk</div>
+        <div class="topbar-breadcrumb">
+          <span>Receptionist</span>
+          <span class="topbar-breadcrumb-sep">›</span>
+          <span>Dashboard</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="topbar-search">
+      <span class="search-icon">🔍</span>
+      <input type="text" placeholder="Quick search patient…"
+             id="topbarSearch" oninput="quickSearch(this.value)" />
+    </div>
+
+    <div class="topbar-right">
+      <div style="font-size:var(--text-xs);color:var(--text-muted);font-weight:600;white-space:nowrap;"
+           id="topbarDate"></div>
+      <div class="user-chip">
+        <div class="user-chip-avatar" id="topbarAvatar">RC</div>
+        <span class="user-chip-name" id="topbarName">Receptionist</span>
+        <span class="user-chip-caret">▾</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- PAGE CONTENT -->
+  <main class="page-content">
+
+    <!-- Welcome Banner -->
+    <div class="welcome-banner" style="margin-bottom:24px;">
+      <div style="z-index:1;">
+        <div class="welcome-banner-greeting">Good <span id="timeOfDay">day</span></div>
+        <div class="welcome-banner-name" id="welcomeName">Welcome back!</div>
+        <div class="welcome-banner-desc">
+          Here's what's happening at the clinic today. Manage appointments, register patients, and handle billing from one place.
+        </div>
+      </div>
+      <div class="welcome-banner-stat" id="bannerStats" style="z-index:1;">
+        <div class="welcome-banner-stat-item">
+          <div class="welcome-banner-stat-value" id="bannerTotal">0</div>
+          <div class="welcome-banner-stat-label">Today's Appts</div>
+        </div>
+        <div class="welcome-banner-stat-item">
+          <div class="welcome-banner-stat-value" id="bannerWaiting">0</div>
+          <div class="welcome-banner-stat-label">Waiting</div>
+        </div>
+        <div class="welcome-banner-stat-item">
+          <div class="welcome-banner-stat-value" id="bannerDone">0</div>
+          <div class="welcome-banner-stat-label">Completed</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STAT CARDS -->
+    <div class="stats-grid" style="margin-bottom:24px;">
+
+      <div class="stat-card terra" style="cursor:pointer;" onclick="location.href='appointments.html'">
+        <div class="stat-card-top">
+          <div>
+            <div class="stat-card-label">Appointments Today</div>
+            <div class="stat-card-value" id="statAppts">0</div>
+          </div>
+          <div class="stat-card-icon">📅</div>
+        </div>
+        <div class="stat-card-footer">
+          <span class="stat-card-trend up" id="statApptTrend">↑ 0</span>
+          <span>vs yesterday</span>
+        </div>
+      </div>
+
+      <div class="stat-card warning" style="cursor:pointer;" onclick="location.href='token-queue.html'">
+        <div class="stat-card-top">
+          <div>
+            <div class="stat-card-label">Patients Waiting</div>
+            <div class="stat-card-value" id="statWaiting">0</div>
+          </div>
+          <div class="stat-card-icon">⏳</div>
+        </div>
+        <div class="stat-card-footer">
+          <span id="statQueueNote">In queue right now</span>
+        </div>
+      </div>
+
+      <div class="stat-card success">
+        <div class="stat-card-top">
+          <div>
+            <div class="stat-card-label">Patients Registered</div>
+            <div class="stat-card-value" id="statPatients">0</div>
+          </div>
+          <div class="stat-card-icon">👤</div>
+        </div>
+        <div class="stat-card-footer">
+          <span id="statTodayRegistered">0 new today</span>
+        </div>
+      </div>
+
+      <div class="stat-card danger" style="cursor:pointer;" onclick="location.href='billing.html'">
+        <div class="stat-card-top">
+          <div>
+            <div class="stat-card-label">Pending Bills</div>
+            <div class="stat-card-value" id="statBilling">0</div>
+          </div>
+          <div class="stat-card-icon">💰</div>
+        </div>
+        <div class="stat-card-footer">
+          <span>Unpaid invoices</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- MAIN GRID: Left (table + actions) | Right (queue + activity) -->
+    <div class="dash-cols" style="display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start;">
+
+      <!-- LEFT COLUMN -->
+      <div style="display:flex;flex-direction:column;gap:20px;">
+
+        <!-- Quick Actions -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">⚡ Quick Actions</div>
+          </div>
+          <div class="card-body">
+            <div class="quick-actions-grid">
+
+              <a class="quick-action-card" href="register-patient.html">
+                <div class="quick-action-icon">➕</div>
+                <div class="quick-action-label">Register Patient</div>
+              </a>
+
+              <a class="quick-action-card" href="search-patient.html">
+                <div class="quick-action-icon">🔍</div>
+                <div class="quick-action-label">Search Patient</div>
+              </a>
+
+              <a class="quick-action-card" href="appointments.html">
+                <div class="quick-action-icon">📅</div>
+                <div class="quick-action-label">Today's List</div>
+              </a>
+
+              <a class="quick-action-card" href="token-queue.html">
+                <div class="quick-action-icon">🎫</div>
+                <div class="quick-action-label">Token Queue</div>
+              </a>
+
+              <a class="quick-action-card" href="billing.html">
+                <div class="quick-action-icon">💰</div>
+                <div class="quick-action-label">Billing</div>
+              </a>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- Today's Appointments Table -->
+        <div class="table-container">
+          <div class="table-header">
+            <div class="table-header-left">
+              <span class="table-title">📅 Today's Appointments</span>
+              <span class="table-count" id="apptTableCount">0</span>
+            </div>
+            <div class="table-header-right">
+              <a href="appointments.html" class="btn btn-ghost btn-sm">View All →</a>
+            </div>
+          </div>
+
+          <div class="table-toolbar">
+            <div class="table-search">
+              <span class="search-icon">🔍</span>
+              <input type="text" placeholder="Search patient name…"
+                     id="apptSearch" oninput="filterApptTable(this.value)" />
+            </div>
+            <select class="table-filter-select" id="apptStatusFilter"
+                    onchange="filterApptTable(document.getElementById('apptSearch').value)">
+              <option value="">All Statuses</option>
+              <option value="Booked">Booked</option>
+              <option value="Confirmed">Confirmed</option>
+              <option value="Waiting">Waiting</option>
+              <option value="Completed">Completed</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+          </div>
+
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th class="col-w-48">Token</th>
+                  <th>Patient</th>
+                  <th class="col-w-100">Time</th>
+                  <th class="col-w-100">Doctor</th>
+                  <th class="col-w-120">Status</th>
+                  <th class="td-actions col-w-120">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="apptTableBody">
+                <tr><td colspan="6">
+                  <div class="table-loading">
+                    <div class="spinner"></div>
+                    Loading appointments…
+                  </div>
+                </td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="table-footer">
+            <div class="table-info" id="apptTableInfo">—</div>
+            <a href="appointments.html" class="btn btn-ghost btn-sm">See full list →</a>
+          </div>
+        </div>
+
+        <!-- Recent Registrations -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">👤 Recent Patient Registrations</div>
+              <div class="card-subtitle">Last 5 registered patients</div>
+            </div>
+            <a href="register-patient.html" class="btn btn-primary btn-sm">+ Register</a>
+          </div>
+          <div id="recentPatientsList">
+            <div style="padding:24px;text-align:center;color:var(--text-muted);font-size:var(--text-sm);">
+              Loading…
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /LEFT -->
+
+      <!-- RIGHT COLUMN -->
+      <div style="display:flex;flex-direction:column;gap:20px;">
+
+        <!-- Now Serving -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">🎫 Token Queue</div>
+              <div class="card-subtitle">Live status</div>
+            </div>
+            <a href="token-queue.html" class="btn btn-ghost btn-sm">Manage →</a>
+          </div>
+          <div style="padding:16px 22px;">
+            <div class="now-serving-block" id="nowServingBlock">
+              <div class="now-serving-num" id="nowServingNum">—</div>
+              <div>
+                <div class="now-serving-label">Now Serving</div>
+                <div style="font-size:var(--text-sm);font-weight:600;" id="nowServingName">No patient</div>
+                <div style="font-size:var(--text-xs);color:var(--clr-mauve);" id="nowServingInfo">—</div>
+              </div>
+            </div>
+            <div class="token-queue-list" id="dashQueueList"></div>
+          </div>
+          <div class="card-footer" style="justify-content:space-between;">
+            <span style="font-size:var(--text-xs);color:var(--text-muted);" id="queueFooter">
+              0 waiting
+            </span>
+            <button class="btn btn-primary btn-sm" onclick="callNextToken()">
+              Call Next ›
+            </button>
+          </div>
+        </div>
+
+        <!-- Appointment Status Breakdown -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📊 Status Breakdown</div>
+          </div>
+          <div class="card-body" style="padding-top:14px;">
+            <div class="progress-bar-list" id="statusBreakdown"></div>
+          </div>
+        </div>
+
+        <!-- Activity Feed -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🕐 Recent Activity</div>
+          </div>
+          <div class="activity-feed" id="activityFeed">
+            <div style="padding:24px;text-align:center;color:var(--text-muted);font-size:var(--text-sm);">
+              Loading…
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /RIGHT -->
+    </div><!-- /dash-cols -->
+
+  </main>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ═══════════════════════════════════════
+     JAVASCRIPT
+═══════════════════════════════════════ -->
+<script>
+/* ─────────────────────────────────────────
+   0. AUTH GUARD
+   ───────────────────────────────────────── */
+const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
+if (!loggedInUser || (loggedInUser.role !== 'receptionist' && loggedInUser.role !== 'admin')) {
+  window.location.href = '../index.html';
+}
+
+/* ─────────────────────────────────────────
+   1. SEED MOCK DATA
+   ───────────────────────────────────────── */
+function getToday() {
+  const now = new Date();
+
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}
+
+const TODAY = getToday();
+
+const SEED_PATIENTS = [
+  { id:'PAT001', name:'Rahul Menon',     age:24, gender:'Male',   blood:'O+',  phone:'9876543210', registeredOn: TODAY },
+  { id:'PAT002', name:'Anu Thomas',      age:32, gender:'Female', blood:'A+',  phone:'9812345670', registeredOn: TODAY },
+  { id:'PAT003', name:'Arjun Kumar',     age:45, gender:'Male',   blood:'B-',  phone:'9823456701', registeredOn:'2026-09-27' },
+  { id:'PAT004', name:'Priya Nair',      age:28, gender:'Female', blood:'AB+', phone:'9834567012', registeredOn:'2026-09-27' },
+  { id:'PAT005', name:'Suresh Babu',     age:60, gender:'Male',   blood:'O-',  phone:'9845678123', registeredOn:'2026-09-26' },
+  { id:'PAT006', name:'Lakshmi Devi',    age:38, gender:'Female', blood:'A-',  phone:'9856789234', registeredOn:'2026-09-26' },
+  { id:'PAT007', name:'Mohammed Rizwan', age:22, gender:'Male',   blood:'B+',  phone:'9867890345', registeredOn:'2026-09-25' },
+  { id:'PAT008', name:'Divya Krishnan',  age:35, gender:'Female', blood:'O+',  phone:'9878901456', registeredOn:'2026-09-25' },
+];
+
+const SEED_APPOINTMENTS = [
+  { id:'APT001', token:1,  patientId:'PAT001', patientName:'Rahul Menon',    doctor:'Dr. Meena Pillai',  time:'09:00 AM', type:'General',   status:'Completed', date:TODAY },
+  { id:'APT002', token:2,  patientId:'PAT002', patientName:'Anu Thomas',     doctor:'Dr. Raj Varma',     time:'09:30 AM', type:'Follow-up', status:'Completed', date:TODAY },
+  { id:'APT003', token:3,  patientId:'PAT003', patientName:'Arjun Kumar',    doctor:'Dr. Meena Pillai',  time:'10:00 AM', type:'General',   status:'In Progress', date:TODAY },
+  { id:'APT004', token:4,  patientId:'PAT004', patientName:'Priya Nair',     doctor:'Dr. Raj Varma',     time:'10:30 AM', type:'General',   status:'Waiting',  date:TODAY },
+  { id:'APT005', token:5,  patientId:'PAT005', patientName:'Suresh Babu',    doctor:'Dr. Meena Pillai',  time:'11:00 AM', type:'Follow-up', status:'Waiting',  date:TODAY },
+  { id:'APT006', token:6,  patientId:'PAT006', patientName:'Lakshmi Devi',   doctor:'Dr. Raj Varma',     time:'11:30 AM', type:'General',   status:'Waiting',  date:TODAY },
+  { id:'APT007', token:7,  patientId:'PAT007', patientName:'Mohammed Rizwan',doctor:'Dr. Meena Pillai',  time:'12:00 PM', type:'Emergency', status:'Booked',   date:TODAY },
+  { id:'APT008', token:8,  patientId:'PAT008', patientName:'Divya Krishnan', doctor:'Dr. Raj Varma',     time:'12:30 PM', type:'Follow-up', status:'Booked',   date:TODAY },
+  { id:'APT009', token:9,  patientId:'PAT001', patientName:'Rahul Menon',    doctor:'Dr. Meena Pillai',  time:'01:00 PM', type:'General',   status:'Confirmed', date:TODAY },
+  { id:'APT010', token:10, patientId:'PAT003', patientName:'Arjun Kumar',    doctor:'Dr. Raj Varma',     time:'01:30 PM', type:'General',   status:'Confirmed', date:TODAY },
+];
+
+const SEED_BILLING = [
+  { id:'BILL001', type:'Registration', patientId:'PAT001', patientName:'Rahul Menon', doctor:'', amount:100, status:'Unpaid', method:'', reference:'', notes:'Patient registration fee', date:TODAY, paidDate:'', paidAt:'' },
+  { id:'BILL002', type:'Consultation', patientId:'PAT002', patientName:'Anu Thomas', doctor:'Dr. Raj Varma', amount:500, status:'Paid', method:'Cash', reference:'', notes:'Consultation fee', date:TODAY, paidDate:TODAY, paidAt:new Date().toISOString() },
+  { id:'BILL003', type:'Consultation', patientId:'PAT005', patientName:'Suresh Babu', doctor:'Dr. Meena Pillai', amount:500, status:'Unpaid', method:'', reference:'', notes:'Consultation fee', date:TODAY, paidDate:'', paidAt:'' },
+  { id:'BILL004', type:'Registration', patientId:'PAT007', patientName:'Mohammed Rizwan', doctor:'', amount:100, status:'Unpaid', method:'', reference:'', notes:'Patient registration fee', date:TODAY, paidDate:'', paidAt:'' },
+];
+
+const SEED_ACTIVITY = [
+  { icon:'➕', type:'success', text: '<strong>Rahul Menon</strong> was registered as a new patient', time:'9:02 AM' },
+  { icon:'📅', type:'info',    text: '<strong>Anu Thomas</strong> — appointment booked for 09:30 AM', time:'9:15 AM' },
+  { icon:'✅', type:'success', text: '<strong>APT001</strong> marked as Completed', time:'9:58 AM' },
+  { icon:'🎫', type:'terra',   text: 'Token #03 called for <strong>Arjun Kumar</strong>', time:'10:02 AM' },
+  { icon:'💰', type:'warning', text: 'Invoice <strong>BILL003</strong> is pending payment', time:'10:30 AM' },
+  { icon:'➕', type:'success', text: '<strong>Priya Nair</strong> checked in — token #04 issued', time:'10:45 AM' },
+];
+
+function seedData() {
+  if (!localStorage.getItem('cms_patients'))     localStorage.setItem('cms_patients',     JSON.stringify(SEED_PATIENTS));
+  if (!localStorage.getItem('cms_appointments')) localStorage.setItem('cms_appointments', JSON.stringify(SEED_APPOINTMENTS));
+  if (!localStorage.getItem('cms_billing'))      localStorage.setItem('cms_billing',      JSON.stringify(SEED_BILLING));
+}
+seedData();
+
+/* ─────────────────────────────────────────
+   2. STATE
+   ───────────────────────────────────────── */
+let allAppointments = [];
+let allPatients     = [];
+let allBilling      = [];
+let apptSearchQ     = '';
+let apptStatusQ     = '';
+
+/* ─────────────────────────────────────────
+   3. INIT
+   ───────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  initUserUI();
+  initDateLabel();
+  loadAllData();
+});
+
+function initUserUI() {
+  const name = loggedInUser.name || loggedInUser.username || 'Receptionist';
+  const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  ['sidebarAvatar','topbarAvatar'].forEach(id => document.getElementById(id).textContent = initials);
+  document.getElementById('sidebarName').textContent = name;
+  document.getElementById('topbarName').textContent  = name;
+  document.getElementById('welcomeName').textContent = `Welcome back, ${name}!`;
+}
+
+function initDateLabel() {
+  const now  = new Date();
+  const hour = now.getHours();
+  const greet = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+  document.getElementById('timeOfDay').textContent = greet;
+  const dateStr = now.toLocaleDateString('en-IN', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+  document.getElementById('topbarDate').textContent = dateStr;
+}
+
+/* ─────────────────────────────────────────
+   4. DATA LOADING
+   ───────────────────────────────────────── */
+function loadAllData() {
+  allPatients     = JSON.parse(localStorage.getItem('cms_patients')     || '[]');
+  allBilling      = JSON.parse(localStorage.getItem('cms_billing')      || '[]');
+  const raw       = JSON.parse(localStorage.getItem('cms_appointments') || '[]');
+  allAppointments = raw.filter(a => a.date === TODAY);
+
+  updateStats();
+  renderApptTable();
+  renderQueuePanel();
+  renderStatusBreakdown();
+  renderRecentPatients();
+  renderActivityFeed();
+}
+
+/* ─────────────────────────────────────────
+   5. STAT CARDS
+   ───────────────────────────────────────── */
+function updateStats() {
+  const total     = allAppointments.length;
+  const waiting   = allAppointments.filter(a => a.status === 'Waiting' || a.status === 'In Progress').length;
+  const completed = allAppointments.filter(a => a.status === 'Completed').length;
+  const unpaid    = allBilling.filter(b => b.status === 'Unpaid' && (b.type === 'Registration' || b.type === 'Consultation')).length;
+  const todayPats = allPatients.filter(p => p.registeredOn === TODAY).length;
+
+  animateCount('statAppts',   total);
+  animateCount('statWaiting', waiting);
+  animateCount('statPatients', allPatients.length);
+  animateCount('statBilling', unpaid);
+
+  document.getElementById('statTodayRegistered').textContent = `${todayPats} new today`;
+  document.getElementById('bannerTotal').textContent   = total;
+  document.getElementById('bannerWaiting').textContent = waiting;
+  document.getElementById('bannerDone').textContent    = completed;
+
+  document.getElementById('sidebarApptBadge').textContent = total;
+  document.getElementById('sidebarQueueBadge').textContent = waiting;
+}
+
+function animateCount(id, target) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  let cur = 0;
+  const step = Math.ceil(target / 20) || 1;
+  const t = setInterval(() => {
+    cur = Math.min(cur + step, target);
+    el.textContent = cur;
+    if (cur >= target) clearInterval(t);
+  }, 40);
+}
+
+/* ─────────────────────────────────────────
+   6. APPOINTMENT TABLE
+   ───────────────────────────────────────── */
+function filterApptTable(searchVal) {
+  apptSearchQ  = searchVal.trim().toLowerCase();
+  apptStatusQ  = document.getElementById('apptStatusFilter').value;
+  renderApptTable();
+}
+
+function renderApptTable() {
+  let data = [...allAppointments];
+
+  if (apptSearchQ) {
+    data = data.filter(a => a.patientName.toLowerCase().includes(apptSearchQ));
+  }
+  if (apptStatusQ) {
+    data = data.filter(a => a.status === apptStatusQ);
+  }
+
+  // show only first 8 on dashboard
+  const shown = data.slice(0, 8);
+  const tbody = document.getElementById('apptTableBody');
+
+  document.getElementById('apptTableCount').textContent = `${data.length} records`;
+  document.getElementById('apptTableInfo').textContent =
+    `Showing ${shown.length} of ${data.length} appointments today`;
+
+  if (shown.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6">
+      <div class="table-empty">
+        <div class="table-empty-icon">📭</div>
+        <div class="table-empty-title">No appointments found</div>
+        <div class="table-empty-desc">Try a different filter or search a patient to book an appointment.</div>
+      </div>
+    </td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = shown.map(a => {
+    const statusClass = apptStatusClass(a.status);
+    return `
+    <tr>
+      <td>
+        <span style="display:inline-flex;align-items:center;justify-content:center;
+              width:28px;height:28px;border-radius:var(--radius-xs);
+              background:${a.status === 'In Progress' ? 'var(--accent)' : 'var(--clr-blush)'};
+              color:${a.status === 'In Progress' ? '#fff' : 'var(--accent)'};
+              font-weight:700;font-size:var(--text-xs);">
+          ${String(a.token).padStart(2,'0')}
+        </span>
+      </td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="avatar avatar-sm" style="background:${avatarColor(a.patientId)};flex-shrink:0;">
+            ${initials_(a.patientName)}
+          </div>
+          <div>
+            <div class="td-primary" style="font-size:var(--text-sm);">${a.patientName}</div>
+            <div style="font-size:var(--text-xs);color:var(--text-muted);">${a.patientId}</div>
+          </div>
+        </div>
+      </td>
+      <td style="font-weight:600;font-size:var(--text-sm);white-space:nowrap;">${a.time}</td>
+      <td style="font-size:var(--text-xs);color:var(--text-secondary);">${a.doctor}</td>
+      <td><span class="badge ${statusClass}">${a.status}</span></td>
+      <td class="td-actions">
+        <div class="td-actions-group">
+          ${(() => {
+            const bill = getConsultationBill(a.id);
+            const isBillPaid = bill && bill.status === 'Paid';
+            if (a.status === 'Booked' || a.status === 'Confirmed') {
+              return `<button class="action-btn approve" title="Confirm Patient Arrival" onclick="confirmArrival('${a.id}')">📍</button>`;
+            } else if (a.status === 'Arrived') {
+              let btns = '';
+              if (!isBillPaid) {
+                btns += `<a href="billing.html?search=${encodeURIComponent(a.id)}" class="action-btn view" title="Collect Consultation Fee" style="color:var(--clr-terracotta,#9C6B5D);font-weight:700;">💰</a>`;
+              }
+              btns += `<button class="action-btn approve" title="Issue Token" onclick="issueToken('${a.id}')">🎫</button>`;
+              return btns;
+            } else if (a.status === 'Waiting' || a.status === 'In Progress') {
+              return `<button class="action-btn approve" title="Complete" onclick="completeAppt('${a.id}')">✅</button>`;
+            }
+            return '';
+          })()}
+          <button class="action-btn delete" title="Cancel"
+                  onclick="cancelAppt('${a.id}')"
+                  ${a.status === 'Completed' || a.status === 'Cancelled' ? 'style="display:none"' : ''}>✕</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+const CONSULTATION_FEE = 500;
+
+function getConsultationBill(apptId) {
+  const bills = JSON.parse(localStorage.getItem('cms_billing') || '[]');
+  return bills.find(b => b.type === 'Consultation' && b.appointmentId === apptId);
+}
+
+function confirmArrival(id) {
+  const all = JSON.parse(localStorage.getItem('cms_appointments') || '[]');
+  const appt = all.find(a => a.id === id);
+  if (!appt) return;
+
+  const bills = JSON.parse(localStorage.getItem('cms_billing') || '[]');
+  let bill = bills.find(b => b.type === 'Consultation' && b.appointmentId === id);
+  if (!bill) {
+    bill = {
+      id: 'BILL' + String(Date.now()).slice(-6) + String(Math.floor(Math.random() * 900 + 100)),
+      type: 'Consultation',
+      patientId: appt.patientId,
+      patientName: appt.patientName,
+      doctor: appt.doctor || '',
+      appointmentId: appt.id,
+      amount: CONSULTATION_FEE,
+      status: 'Unpaid',
+      method: '',
+      reference: '',
+      notes: 'Consultation fee — ' + (appt.type || 'General OPD'),
+      date: TODAY,
+      paidDate: '',
+      paidAt: ''
+    };
+    bills.push(bill);
+    localStorage.setItem('cms_billing', JSON.stringify(bills));
+  }
+
+  updateApptStatus(id, 'Arrived');
+  showToast('Arrival confirmed for ' + appt.patientName + '. Consultation bill created.', 'success');
+}
+
+function issueToken(id) {
+  const all = JSON.parse(localStorage.getItem('cms_appointments') || '[]');
+  const appt = all.find(a => a.id === id);
+  if (!appt) return;
+
+  const bill = getConsultationBill(id);
+  if (!bill || bill.status !== 'Paid') {
+    showToast('Please collect the consultation fee before issuing the token.', 'warning');
+    return;
+  }
+
+  updateApptStatus(id, 'Waiting');
+  showToast('Token #' + String(appt.token).padStart(2,'0') + ' issued to ' + appt.patientName + ' — in queue ✅', 'success');
+}
+
+function completeAppt(id) {
+  updateApptStatus(id, 'Completed');
+  showToast('Appointment marked as Completed', 'success');
+}
+
+function cancelAppt(id) {
+  const a = allAppointments.find(ap => ap.id === id);
+  if (!a) return;
+  if (!confirm(`Cancel appointment for ${a.patientName}?`)) return;
+  updateApptStatus(id, 'Cancelled');
+  showToast(`Appointment for ${a.patientName} cancelled`, 'danger');
+}
+
+function updateApptStatus(id, newStatus) {
+  const all = JSON.parse(localStorage.getItem('cms_appointments') || '[]');
+  const idx = all.findIndex(a => a.id === id);
+  if (idx !== -1) { all[idx].status = newStatus; localStorage.setItem('cms_appointments', JSON.stringify(all)); }
+  loadAllData();
+}
+
+/* ─────────────────────────────────────────
+   7. TOKEN QUEUE PANEL
+   ───────────────────────────────────────── */
+function renderQueuePanel() {
+  const inProgress = allAppointments.find(a => a.status === 'In Progress');
+  const waiting    = allAppointments
+    .filter(a => a.status === 'Waiting')
+    .sort((a,b) => a.token - b.token);
+
+  // Now Serving
+  document.getElementById('nowServingNum').textContent  = inProgress ? String(inProgress.token).padStart(2,'0') : '—';
+  document.getElementById('nowServingName').textContent = inProgress ? inProgress.patientName : 'No active patient';
+  document.getElementById('nowServingInfo').textContent = inProgress ? `${inProgress.time} · ${inProgress.doctor}` : 'Click "Call Next" to begin';
+  document.getElementById('queueFooter').textContent    = `${waiting.length} patient${waiting.length !== 1 ? 's' : ''} waiting`;
+
+  const queueEl = document.getElementById('dashQueueList');
+  if (waiting.length === 0) {
+    queueEl.innerHTML = `<div style="padding:16px;text-align:center;font-size:var(--text-sm);color:var(--text-muted);">
+      Queue is empty 🎉</div>`;
+    return;
+  }
+
+  queueEl.innerHTML = waiting.slice(0, 5).map((a, i) => `
+    <div class="token-queue-item" style="${i === 0 ? 'background:var(--accent-light);' : ''}">
+      <div class="token-num-badge"
+           style="${i === 0 ? 'background:var(--accent);color:#fff;' : ''}">
+        ${String(a.token).padStart(2,'0')}
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:var(--text-sm);font-weight:600;color:var(--text-primary);
+                    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+          ${a.patientName}
+        </div>
+        <div style="font-size:var(--text-xs);color:var(--text-muted);">${a.time}</div>
+      </div>
+      <span class="badge badge-warning" style="font-size:10px;">Waiting</span>
+    </div>
+  `).join('');
+}
+
+function callNextToken() {
+  const inProg = allAppointments.find(a => a.status === 'In Progress');
+  if (inProg) { updateApptStatus(inProg.id, 'Completed'); }
+
+  const next = allAppointments
+    .filter(a => a.status === 'Waiting')
+    .sort((a,b) => a.token - b.token)[0];
+
+  if (!next) {
+    showToast('No more patients waiting in queue 🎉', 'success');
+    return;
+  }
+  updateApptStatus(next.id, 'In Progress');
+  showToast(`Token #${String(next.token).padStart(2,'0')} — ${next.patientName} called`, 'info');
+}
+
+/* ─────────────────────────────────────────
+   8. STATUS BREAKDOWN
+   ───────────────────────────────────────── */
+function renderStatusBreakdown() {
+  const statuses = ['Booked','Confirmed','Waiting','In Progress','Completed','Cancelled'];
+  const total = allAppointments.length || 1;
+  const colours = {
+    Booked:'var(--info)', Confirmed:'var(--accent)',
+    Waiting:'var(--warning)', 'In Progress':'#8e44ad',
+    Completed:'var(--success)', Cancelled:'var(--danger)'
+  };
+
+  document.getElementById('statusBreakdown').innerHTML = statuses.map(s => {
+    const cnt = allAppointments.filter(a => a.status === s).length;
+    if (cnt === 0) return '';
+    const pct = Math.round((cnt / total) * 100);
+    return `
+      <div class="progress-bar-item">
+        <div class="progress-bar-label">
+          <span class="progress-bar-name">${s}</span>
+          <span class="progress-bar-value">${cnt}</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" style="width:${pct}%;background:${colours[s]};"></div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* ─────────────────────────────────────────
+   9. RECENT PATIENTS
+   ───────────────────────────────────────── */
+function renderRecentPatients() {
+  const recent = [...allPatients]
+    .sort((a,b) => new Date(b.registeredOn) - new Date(a.registeredOn))
+    .slice(0, 5);
+
+  const el = document.getElementById('recentPatientsList');
+
+  if (recent.length === 0) {
+    el.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text-muted);font-size:var(--text-sm);">
+      No patients registered yet.</div>`;
+    return;
+  }
+
+  el.innerHTML = recent.map(p => `
+    <div class="patient-row">
+      <div class="avatar avatar-sm" style="background:${avatarColor(p.id)};">${initials_(p.name)}</div>
+      <div class="patient-row-info">
+        <div class="patient-row-name">${p.name}</div>
+        <div class="patient-row-sub">${p.id} · ${p.age} yrs · ${p.gender} · ${p.blood}</div>
+      </div>
+      <span class="badge ${p.registeredOn === TODAY ? 'badge-success' : 'badge-neutral'}"
+            style="font-size:10px;">
+        ${p.registeredOn === TODAY ? 'New today' : p.registeredOn}
+      </span>
+    </div>
+  `).join('');
+}
+
+/* ─────────────────────────────────────────
+   10. ACTIVITY FEED
+   ───────────────────────────────────────── */
+function renderActivityFeed() {
+  const el = document.getElementById('activityFeed');
+  const typeMap = { success:'activity-dot success', info:'activity-dot info',
+                    warning:'activity-dot', terra:'activity-dot' };
+
+  el.innerHTML = SEED_ACTIVITY.map((a, i) => `
+    <div class="activity-item">
+      <div class="activity-dot-col">
+        <div class="${typeMap[a.type] || 'activity-dot'}">${a.icon}</div>
+        ${i < SEED_ACTIVITY.length - 1 ? '<div class="activity-line"></div>' : ''}
+      </div>
+      <div class="activity-content">
+        <div class="activity-text">${a.text}</div>
+        <div class="activity-time">Today, ${a.time}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+/* ─────────────────────────────────────────
+   11. QUICK SEARCH (topbar)
+   ───────────────────────────────────────── */
+function quickSearch(val) {
+  document.getElementById('apptSearch').value = val;
+  filterApptTable(val);
+}
+
+/* ─────────────────────────────────────────
+   12. HELPERS
+   ───────────────────────────────────────── */
+function apptStatusClass(status) {
+  return {
+    'Booked':      'badge-info',
+    'Confirmed':   'badge-primary',
+    'Arrived':     'badge-warning',
+    'Waiting':     'badge-warning',
+    'In Progress': 'badge-primary',
+    'Completed':   'badge-success',
+    'Cancelled':   'badge-danger',
+  }[status] || 'badge-neutral';
+}
+
+function initials_(name) {
+  return (name || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+}
+
+const AVATAR_COLOURS = [
+  '#9C6B5D','#7e5249','#5c3a32','#2980b9','#27ae60',
+  '#d68910','#8e44ad','#c0392b','#16a085','#2c3e50'
+];
+function avatarColor(id) {
+  const n = (id || '').replace(/\D/g, '');
+  return AVATAR_COLOURS[parseInt(n || '0') % AVATAR_COLOURS.length];
+}
+
+/* ─────────────────────────────────────────
+   13. SIDEBAR / MOBILE
+   ───────────────────────────────────────── */
+function openSidebar() {
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('sidebarOverlay').classList.add('open');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('open');
+}
+
+/* ─────────────────────────────────────────
+   14. LOGOUT
+   ───────────────────────────────────────── */
+function logout() {
+  if (!confirm('Are you sure you want to logout?')) return;
+  localStorage.removeItem('loggedInUser');
+  window.location.href = '../index.html';
+}
+
+/* ─────────────────────────────────────────
+   15. TOAST
+   ───────────────────────────────────────── */
+function showToast(msg, type = 'info') {
+  const icons = { success:'✅', danger:'⚠️', warning:'⚠️', info:'ℹ️' };
+  const container = document.getElementById('toastContainer');
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.innerHTML = `<span>${icons[type]||'ℹ️'}</span><span>${msg}</span>`;
+  container.appendChild(el);
+  setTimeout(() => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateX(24px)';
+    el.style.transition = 'all .3s ease';
+    setTimeout(() => el.remove(), 300);
+  }, 3200);
+}
+</script>
+  <script src="../js/validation.js"></script>
+</body>
+</html>

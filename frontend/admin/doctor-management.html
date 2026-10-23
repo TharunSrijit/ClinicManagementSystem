@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f3f6f3">
+    <title>Doctor Management | ClinicCare</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+    <link rel="stylesheet" href="../css/doctor-management.css">
+</head>
+<body class="admin-dashboard">
+    <div class="admin-shell">
+        <aside class="admin-sidebar">
+            <a class="admin-brand" href="dashboard.html">
+                <span class="admin-brand-mark" aria-hidden="true">C</span>
+                <span>Clinic<span>Care</span></span>
+            </a>
+            <p class="sidebar-caption">CLINIC OPERATIONS</p>
+            <nav class="admin-nav" aria-label="Administration">
+                <a class="admin-nav-link" href="dashboard.html">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>
+                    <span>Overview</span>
+                </a>
+                <p class="sidebar-caption nav-caption">PEOPLE &amp; ACCESS</p>
+                <a class="admin-nav-link is-current" href="doctor-management.html" aria-current="page">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="7" r="3.5"/><path d="M2.8 20v-1.5a6.2 6.2 0 0 1 12.4 0V20M17 8h5m-2.5-2.5v5"/></svg>
+                    <span>Doctors</span>
+                </a>
+                <a class="admin-nav-link" href="staff-management.html">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20v-1.2a6.5 6.5 0 0 1 13 0V20M16 5.5a3.2 3.2 0 0 1 0 6.2m2.5 2a5 5 0 0 1 3 4.6V20"/></svg>
+                    <span>Staff</span>
+                </a>
+                <a class="admin-nav-link" href="user-management.html">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3.5" width="16" height="17" rx="2"/><circle cx="12" cy="9" r="2.5"/><path d="M8 16.5a4 4 0 0 1 8 0"/></svg>
+                    <span>User accounts</span>
+                </a>
+                <p class="sidebar-caption nav-caption">MASTER DATA</p>
+                <a class="admin-nav-link" href="medicine-master.html"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.2 4.1a5.8 5.8 0 0 1 8.2 8.2l-4.1 4.1a5.8 5.8 0 0 1-8.2-8.2z"/><path d="m7.1 14.9 7.8-7.8"/></svg><span>Medicine Master</span></a>
+                <a class="admin-nav-link" href="lab-test-master.html"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6M10 3v6l-5.2 9.1A2 2 0 0 0 6.5 21h11a2 2 0 0 0 1.7-2.9L14 9V3M7.5 16h9"/></svg><span>Lab Test Master</span></a>
+            </nav>
+            <a class="sign-in-link" href="../index.html">Return to sign in <span aria-hidden="true">&#8599;</span></a>
+        </aside>
+
+        <div class="admin-main">
+            <header class="admin-topbar">
+                <div>
+                    <p class="topbar-kicker">ADMINISTRATION</p>
+                    <p class="topbar-title">People and access</p>
+                </div>
+                <div class="admin-profile">
+                    <span class="profile-mark" aria-hidden="true">A</span>
+                    <span><strong>Administrator</strong><small>Clinic management</small></span>
+                </div>
+            </header>
+
+            <main class="admin-content doctor-content">
+                <section class="page-intro">
+                    <div>
+                        <p class="section-eyebrow">CLINIC DIRECTORY</p>
+                        <h1>Doctor management</h1>
+                        <p class="intro-copy">Manage clinician details and availability.</p>
+                    </div>
+                </section>
+
+                <section class="doctor-panel" aria-labelledby="add-doctor-title">
+                    <div class="doctor-panel-heading">
+                        <div>
+                            <p class="section-eyebrow">NEW RECORD</p>
+                            <h2 id="add-doctor-title">Add a doctor</h2>
+                        </div>
+                    </div>
+                    <form id="doctorForm" class="doctor-form" onsubmit="event.preventDefault(); addDoctor();">
+                        <div class="doctor-form-grid">
+                            <div class="doctor-field">
+                                <label for="doctorName">Doctor name</label>
+                                <input class="doctor-input" type="text" id="doctorName" data-validate="person-name" placeholder="Enter doctor name" autocomplete="name" required>
+                            </div>
+                            <div class="doctor-field">
+                                <label for="doctorEmail">Email</label>
+                                <input class="doctor-input" type="email" id="doctorEmail" data-validate="contact-email" placeholder="name@clinic.com" autocomplete="email" required>
+                            </div>
+                            <div class="doctor-field">
+                                <label for="doctorPhone">Phone</label>
+                                <input class="doctor-input" type="tel" id="doctorPhone" placeholder="Enter phone number" autocomplete="tel" required>
+                            </div>
+                            <div class="doctor-field">
+                                <label for="doctorSpecialization">Specialization</label>
+                                <select class="doctor-input" id="doctorSpecialization" data-validate="medical-specialty" required>
+                                    <option value="">Select a specialty</option>
+                                    <option>General</option>
+                                    <option>General Medicine</option>
+                                    <option>Cardiology</option>
+                                    <option>Dermatology</option>
+                                    <option>Endocrinology</option>
+                                    <option>Gastroenterology</option>
+                                    <option>General Surgery</option>
+                                    <option>Gynecology &amp; Obstetrics</option>
+                                    <option>Nephrology</option>
+                                    <option>Neurology</option>
+                                    <option>Neurosurgery</option>
+                                    <option>Oncology</option>
+                                    <option>Ophthalmology</option>
+                                    <option>Orthopaedics</option>
+                                    <option>ENT</option>
+                                    <option>Pediatrics</option>
+                                    <option>Psychiatry</option>
+                                    <option>Pulmonology</option>
+                                    <option>Radiology</option>
+                                    <option>Urology</option>
+                                    <option>Emergency Medicine</option>
+                                    <option>Anesthesiology</option>
+                                    <option>Pathology</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="doctor-form-actions">
+                            <button class="doctor-submit" type="submit"><span aria-hidden="true">+</span> Add doctor</button>
+                        </div>
+                    </form>
+                </section>
+
+                <section class="doctor-panel" aria-labelledby="doctor-list-title">
+                    <div class="doctor-panel-heading doctor-list-heading">
+                        <div>
+                            <p class="section-eyebrow">CLINIC DIRECTORY</p>
+                            <h2 id="doctor-list-title">Doctors</h2>
+                        </div>
+                        <label class="doctor-search-wrap" for="doctorSearch">
+                            <span class="visually-hidden">Search doctors</span>
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.3 4.3"/></svg>
+                            <input type="search" id="doctorSearch" placeholder="Search doctors" oninput="searchDoctors()">
+                        </label>
+                    </div>
+                    <div class="doctor-table-scroll">
+                        <table class="doctor-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">ID</th>
+                                    <th scope="col">Name</th>
+                                    <th scope="col">Email</th>
+                                    <th scope="col">Phone</th>
+                                    <th scope="col">Specialization</th>
+                                    <th scope="col">Status</th>
+                                    <th scope="col">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="doctorTableBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <script src="../js/storage.js"></script>
+    <script src="../js/admin.js"></script>
+    <script src="../js/validation.js"></script>
+</body>
+</html>

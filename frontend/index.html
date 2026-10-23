@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta name="theme-color" content="#f6f7f2">
+	<title>Sign In | Clinic Management System</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="css/login.css">
+</head>
+<body>
+	<main class="login-layout">
+		<section class="welcome-panel" aria-label="Clinic Management System">
+			<img class="welcome-image" src="https://images.unsplash.com/photo-1551601651-2a8555f1a136?auto=format&fit=crop&w=1600&q=85" alt="Care team working together in a modern clinic">
+			<div class="image-shade"></div>
+			<a class="brand" href="index.html" aria-label="Clinic Management System home">
+				<span class="brand-mark" aria-hidden="true">C</span>
+				<span>Clinic<span class="brand-light">Care</span></span>
+			</a>
+			<div class="welcome-copy">
+				<p class="eyebrow">CLINIC MANAGEMENT SYSTEM</p>
+				<h1>Better care starts with a connected team.</h1>
+				<p>One place for the people and daily work that keep your clinic moving.</p>
+			</div>
+			<p class="image-caption">Care, coordinated.</p>
+		</section>
+
+		<section class="form-panel" aria-labelledby="login-title">
+			<div class="form-wrap">
+				<a class="mobile-brand" href="index.html"><span class="brand-mark" aria-hidden="true">C</span> Clinic<span>Care</span></a>
+				<p class="eyebrow form-eyebrow" id="portal-eyebrow">STAFF PORTAL</p>
+				<h2 id="login-title">Welcome back</h2>
+				<p class="form-intro" id="portal-intro">Sign in with your staff account to continue.</p>
+				<div class="portal-switch" role="group" aria-label="Choose sign-in portal">
+					<button class="portal-option is-current" type="button" data-role="STAFF" aria-pressed="true">Staff</button>
+					<button class="portal-option" type="button" data-role="ADMIN" aria-pressed="false">Admin</button>
+				</div>
+
+				<form id="login-form" data-role="STAFF" novalidate>
+					<div class="field">
+						<label for="username">Username</label>
+						<input id="username" name="username" type="text" autocomplete="username" placeholder="Enter your username" required>
+					</div>
+					<div class="field">
+						<div class="password-label">
+							<label for="password">Password</label>
+							<button class="show-password" id="toggle-password" type="button" aria-controls="password" aria-pressed="false">Show</button>
+						</div>
+						<input id="password" name="password" type="password" autocomplete="current-password" placeholder="Enter your password" required>
+					</div>
+					<p class="form-message" id="form-message" role="alert" aria-live="polite"></p>
+					<button class="submit-button" id="submit-button" type="submit">
+						<span id="submit-label">Sign in as Staff</span>
+						<span class="button-arrow" aria-hidden="true">&#8594;</span>
+					</button>
+				</form>
+
+				<p class="access-note">Need an account? Contact your clinic administrator.</p>
+				<p class="form-footer">ClinicCare <span aria-hidden="true">&middot;</span> Staff access</p>
+			</div>
+		</section>
+	</main>
+	<script src="js/login.js"></script>
+	<script src="js/validation.js"></script>
+</body>
+</html>

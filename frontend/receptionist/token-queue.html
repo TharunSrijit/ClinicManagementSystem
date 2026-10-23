@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Token Queue | Receptionist — CMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/dashboard.css" />
+  <link rel="stylesheet" href="../css/tables.css" />
+</head>
+<body>
+
+<!-- Mobile overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<div class="sidebar" id="sidebar">
+  <a class="sidebar-brand" href="dashboard.html">
+    <div class="sidebar-brand-icon">🏥</div>
+    <div class="sidebar-brand-text">
+      <span class="sidebar-brand-name">MediCare CMS</span>
+      <span class="sidebar-brand-sub">Reception Desk</span>
+    </div>
+  </a>
+  <nav class="sidebar-nav">
+    <span class="nav-section-label">Main</span>
+    <a class="nav-item" href="dashboard.html" id="nav-dashboard">
+      <span class="nav-item-icon">📊</span>
+      <span class="nav-item-label">Dashboard</span>
+    </a>
+    <a class="nav-item" href="register-patient.html" id="nav-register">
+      <span class="nav-item-icon">➕</span>
+      <span class="nav-item-label">Register Patient</span>
+    </a>
+    <a class="nav-item" href="search-patient.html" id="nav-search">
+      <span class="nav-item-icon">🔍</span>
+      <span class="nav-item-label">Search Patient</span>
+    </a>
+    <a class="nav-item" href="appointments.html" id="nav-today">
+      <span class="nav-item-icon">📅</span>
+      <span class="nav-item-label">Today's Appointments</span>
+    </a>
+    <a class="nav-item active" href="token-queue.html" id="nav-queue">
+      <span class="nav-item-icon">🎫</span>
+      <span class="nav-item-label">Token Queue</span>
+    </a>
+    <a class="nav-item" href="billing.html" id="nav-billing">
+      <span class="nav-item-icon">💰</span>
+      <span class="nav-item-label">Billing</span>
+    </a>
+  </nav>
+  <div class="sidebar-user">
+    <div class="sidebar-avatar" id="sidebarAvatar">RC</div>
+    <div class="sidebar-user-info">
+      <div class="sidebar-user-name" id="sidebarName">Loading…</div>
+      <div class="sidebar-user-role">Receptionist</div>
+    </div>
+    <button class="sidebar-logout-btn" onclick="logout()" title="Logout">⏏</button>
+  </div>
+</div>
+<div class="main-content">
+
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="topbar-toggle" onclick="openSidebar()">☰</button>
+      <div>
+        <div class="topbar-page-title">Token Queue</div>
+        <div class="topbar-breadcrumb">
+          <span>Receptionist</span>
+          <span class="topbar-breadcrumb-sep">›</span>
+          <span>Token Queue</span>
+        </div>
+      </div>
+    </div>
+    <div class="topbar-search">
+      <span class="search-icon">🔍</span>
+      <input type="text" placeholder="Search patient…" id="topbarSearch" />
+    </div>
+    <div class="topbar-right">
+      <div style="font-size:var(--text-xs);color:var(--text-muted);font-weight:600;" id="topbarDate"></div>
+      <div class="user-chip">
+        <div class="user-chip-avatar" id="topbarAvatar">RC</div>
+        <span class="user-chip-name" id="topbarName">Receptionist</span>
+        <span class="user-chip-caret">▾</span>
+      </div>
+    </div>
+  </header>
+  <main class="page-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1 class="page-title">Token Queue</h1>
+        <p class="page-subtitle">Manage the patient queue for today. Auto-refreshes every 30 seconds.</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn btn-secondary btn-sm" onclick="loadData()">↻ Refresh</button>
+        <button class="btn btn-primary btn-sm" onclick="callNext()">Call Next ›</button>
+      </div>
+    </div>
+
+    <!-- Now Serving big block -->
+    <div class="token-top-row" id="topRow">
+      <div class="card">
+        <div class="now-serving-banner">
+          <div style="font-size:4.5rem;font-weight:800;color:#fff;min-width:90px;text-align:center;
+               line-height:1;text-shadow:0 2px 8px rgba(0,0,0,.3);" id="nowNum">—</div>
+          <div style="flex:1;min-width:180px;">
+            <div style="font-size:var(--text-xs);color:var(--clr-mauve);text-transform:uppercase;
+                 letter-spacing:.12em;margin-bottom:4px;">NOW SERVING</div>
+            <div style="font-size:var(--text-xl);font-weight:700;color:#fff;" id="nowName">No active patient</div>
+            <div style="font-size:var(--text-sm);color:var(--clr-mauve);" id="nowInfo">—</div>
+          </div>
+          <div class="now-serving-actions" style="margin-left:auto;display:flex;flex-direction:column;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-primary btn-sm" onclick="callNext()">Call Next ›</button>
+            <button class="btn btn-ghost btn-sm" onclick="completeNow()" style="color:var(--clr-cream);border-color:rgba(255,255,255,.2);">✓ Complete</button>
+          </div>
+        </div>
+      </div>
+      <div class="stat-card warning">
+        <div class="stat-card-top">
+          <div><div class="stat-card-label">Waiting</div><div class="stat-card-value" id="waitCount">0</div></div>
+          <div class="stat-card-icon">⏳</div>
+        </div>
+        <div class="stat-card-footer"><span id="nextUp">Next: —</span></div>
+      </div>
+    </div>
+
+    <!-- Two column: waiting | completed -->
+    <div class="token-queues-grid">
+
+      <!-- Waiting -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">⏳ Waiting Queue</div>
+          <span class="table-count" id="qBadge">0</span>
+        </div>
+        <div id="waitingList" style="padding:8px 0;"></div>
+      </div>
+
+      <!-- Done today -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">✅ Completed Today</div>
+          <span class="table-count" id="doneBadge">0</span>
+        </div>
+        <div id="doneList" style="padding:8px 0;"></div>
+      </div>
+
+    </div>
+  </main>
+</div>
+<div class="toast-container" id="toastContainer"></div>
+<script>
+
+/* ── AUTH GUARD ── */
+const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
+if (!loggedInUser || (loggedInUser.role !== 'receptionist' && loggedInUser.role !== 'admin')) {
+  window.location.href = '../index.html';
+}
+
+/* ── SIDEBAR / TOPBAR INIT ── */
+document.addEventListener('DOMContentLoaded', () => {
+  const name = loggedInUser.name || loggedInUser.username || 'Receptionist';
+  const ini  = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2);
+  ['sidebarAvatar','topbarAvatar'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.textContent = ini;
+  });
+  ['sidebarName','topbarName'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.textContent = name;
+  });
+  const dateEl = document.getElementById('topbarDate');
+  if (dateEl) dateEl.textContent = new Date().toLocaleDateString('en-IN',
+    {weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  if (typeof pageInit === 'function') pageInit();
+});
+
+function openSidebar()  { document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('open'); }
+function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('open'); }
+function logout() {
+  if (!confirm('Are you sure you want to logout?')) return;
+  localStorage.removeItem('loggedInUser');
+  window.location.href = '../index.html';
+}
+function showToast(msg, type='info') {
+  const icons = {success:'✅',danger:'⚠️',warning:'⚠️',info:'ℹ️'};
+  const c = document.getElementById('toastContainer');
+  if (!c) return;
+  const el = document.createElement('div');
+  el.className = 'toast toast-' + type;
+  el.innerHTML = '<span>' + (icons[type]||'ℹ️') + '</span><span>' + msg + '</span>';
+  c.appendChild(el);
+  setTimeout(() => { el.style.opacity='0'; el.style.transform='translateX(24px)';
+    el.style.transition='all .3s ease'; setTimeout(()=>el.remove(),300); }, 3200);
+}
+
+function getToday() {
+  const now = new Date();
+
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}
+
+const TODAY = getToday();
+const AVATAR_COLOURS = ['#9C6B5D','#7e5249','#5c3a32','#2980b9','#27ae60','#d68910','#8e44ad','#c0392b','#16a085','#2c3e50'];
+function avatarColor(id) { const n=(id||'').replace(/\D/g,''); return AVATAR_COLOURS[parseInt(n||'0')%AVATAR_COLOURS.length]; }
+function initials_(name) { return (name||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2); }
+
+function pageInit() {
+  loadData();
+  setInterval(loadData, 30000);
+}
+
+function getAppts() {
+  return JSON.parse(localStorage.getItem('cms_appointments') || '[]').filter(a => a.date === TODAY);
+}
+
+function loadData() {
+  const appts = getAppts();
+  const inProg  = appts.find(a => a.status === 'In Progress');
+  const waiting = appts.filter(a => a.status === 'Waiting').sort((a,b) => a.token - b.token);
+  const done    = appts.filter(a => a.status === 'Completed').sort((a,b) => b.token - a.token);
+
+  // Now serving
+  document.getElementById('nowNum').textContent  = inProg ? String(inProg.token).padStart(2,'0') : '—';
+  document.getElementById('nowName').textContent = inProg ? inProg.patientName : 'No active patient';
+  document.getElementById('nowInfo').textContent = inProg ? inProg.time + ' · ' + inProg.doctor : 'Click "Call Next" to begin';
+  document.getElementById('waitCount').textContent = waiting.length;
+  document.getElementById('nextUp').textContent = waiting.length ? 'Next: ' + waiting[0].patientName : 'Next: —';
+  document.getElementById('qBadge').textContent = waiting.length + ' waiting';
+  document.getElementById('doneBadge').textContent = done.length + ' done';
+
+  // Waiting list
+  const wEl = document.getElementById('waitingList');
+  wEl.innerHTML = waiting.length ? waiting.map((a,i) => `
+    <div class="token-queue-item" style="${i===0?'background:var(--accent-light);':''}" >
+      <div class="token-num-badge" style="${i===0?'background:var(--accent);color:#fff;':''}">${String(a.token).padStart(2,'0')}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:var(--text-sm);font-weight:600;color:var(--text-primary);">${a.patientName}</div>
+        <div style="font-size:var(--text-xs);color:var(--text-muted);">${a.time} · ${a.doctor}</div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="callToken('${a.id}','${a.patientName}')">Call</button>
+    </div>`).join('')
+  : '<div style="padding:24px;text-align:center;color:var(--text-muted);font-size:var(--text-sm);">Queue is empty 🎉</div>';
+
+  // Done list
+  const dEl = document.getElementById('doneList');
+  dEl.innerHTML = done.length ? done.map(a => `
+    <div class="token-queue-item">
+      <div class="token-num-badge" style="background:var(--success-light);color:var(--success);">${String(a.token).padStart(2,'0')}</div>
+      <div style="flex:1;"><div style="font-size:var(--text-sm);font-weight:600;">${a.patientName}</div><div style="font-size:var(--text-xs);color:var(--text-muted);">${a.time}</div></div>
+      <span class="badge badge-success">Done</span>
+    </div>`).join('')
+  : '<div style="padding:24px;text-align:center;color:var(--text-muted);font-size:var(--text-sm);">Nothing completed yet.</div>';
+}
+
+function saveStatus(id, s) {
+  const all = JSON.parse(localStorage.getItem('cms_appointments') || '[]');
+  const idx = all.findIndex(a => a.id === id);
+  if (idx !== -1) { all[idx].status = s; localStorage.setItem('cms_appointments', JSON.stringify(all)); }
+}
+
+function callNext() {
+  const appts = getAppts();
+  const inProg = appts.find(a => a.status === 'In Progress');
+  if (inProg) saveStatus(inProg.id, 'Completed');
+  const next = appts.filter(a => a.status === 'Waiting').sort((a,b) => a.token - b.token)[0];
+  if (!next) { showToast('No more patients in queue 🎉', 'success'); loadData(); return; }
+  saveStatus(next.id, 'In Progress');
+  showToast('Token #' + String(next.token).padStart(2,'0') + ' — ' + next.patientName + ' called', 'info');
+  loadData();
+}
+
+function callToken(id, name) {
+  const appts = getAppts();
+  const inProg = appts.find(a => a.status === 'In Progress');
+  if (inProg) saveStatus(inProg.id, 'Waiting');
+  saveStatus(id, 'In Progress');
+  showToast(name + ' called', 'info');
+  loadData();
+}
+
+function completeNow() {
+  const inProg = getAppts().find(a => a.status === 'In Progress');
+  if (!inProg) { showToast('No patient currently in progress', 'warning'); return; }
+  saveStatus(inProg.id, 'Completed');
+  showToast(inProg.patientName + ' consultation completed ✅', 'success');
+  loadData();
+}
+</script>
+  <script src="../js/validation.js"></script>
+</body>
+</html>

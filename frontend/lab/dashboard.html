@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Laboratory Dashboard — Clinic Management System" />
+  <title>Dashboard | Laboratory — CMS</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Shared CSS -->
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/dashboard.css" />
+  <link rel="stylesheet" href="../css/tables.css" />
+
+  <style>
+    .task-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .task-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      background: var(--bg-page);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-light);
+      font-size: var(--text-sm);
+      color: var(--text-primary);
+      transition: background 0.15s ease;
+    }
+    .task-item:hover {
+      background: var(--clr-blush);
+    }
+    .task-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--success-light);
+      color: var(--success);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .quick-actions-flex {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+  </style>
+</head>
+
+<body>
+<!-- Mobile sidebar overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<!-- ═══════════════════════════════════════
+     SIDEBAR
+═══════════════════════════════════════ -->
+<div class="sidebar" id="sidebar">
+
+  <a class="sidebar-brand" href="dashboard.html">
+    <div class="sidebar-brand-icon">🧪</div>
+    <div class="sidebar-brand-text">
+      <span class="sidebar-brand-name">MediCare CMS</span>
+      <span class="sidebar-brand-sub">Laboratory Portal</span>
+    </div>
+  </a>
+
+  <nav class="sidebar-nav">
+    <span class="nav-section-label">Main</span>
+
+    <a class="nav-item active" href="dashboard.html" id="nav-dashboard">
+      <span class="nav-item-icon">📊</span>
+      <span class="nav-item-label">Dashboard</span>
+    </a>
+
+    <div class="sidebar-divider"></div>
+    <span class="nav-section-label">Orders & Testing</span>
+
+    <a class="nav-item" href="pending-lab-orders.html" id="nav-pending">
+      <span class="nav-item-icon">🕒</span>
+      <span class="nav-item-label">Pending Orders</span>
+      <span class="nav-badge" id="pendingSidebarCount">0</span>
+    </a>
+
+    <a class="nav-item" href="completed-tests.html" id="nav-completed">
+      <span class="nav-item-icon">✅</span>
+      <span class="nav-item-label">Completed Tests</span>
+    </a>
+
+    <div class="sidebar-divider"></div>
+    <span class="nav-section-label">Billing</span>
+
+    <a class="nav-item" href="lab-billing.html" id="nav-billing">
+      <span class="nav-item-icon">💰</span>
+      <span class="nav-item-label">Lab Billing</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-user">
+    <div class="sidebar-avatar" id="sidebarAvatar">LT</div>
+    <div class="sidebar-user-info">
+      <div class="sidebar-user-name" id="sidebarName">Lab Technician</div>
+      <div class="sidebar-user-role">Laboratory Staff</div>
+    </div>
+    <button class="sidebar-logout-btn" onclick="logout()" title="Logout">⏏</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     MAIN CONTENT
+═══════════════════════════════════════ -->
+<div class="main-content">
+
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="topbar-toggle" onclick="openSidebar()" aria-label="Open menu">☰</button>
+      <div>
+        <div class="topbar-page-title">Laboratory Dashboard</div>
+        <div class="topbar-breadcrumb">
+          <span>Laboratory</span>
+          <span class="topbar-breadcrumb-sep">›</span>
+          <span>Dashboard</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="topbar-right">
+      <div style="font-size:var(--text-xs);color:var(--text-muted);font-weight:600;white-space:nowrap;" id="topbarDate"></div>
+      <div class="user-chip">
+        <div class="user-chip-avatar" id="topbarAvatar">LT</div>
+        <span class="user-chip-name" id="topbarName">Lab Technician</span>
+        <span class="user-chip-role">Laboratory</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- PAGE CONTENT -->
+  <main class="page-content">
+
+    <!-- Welcome Banner -->
+    <div class="welcome-banner" style="margin-bottom:24px;">
+      <div style="z-index:1;">
+        <div class="welcome-banner-greeting">Good <span id="timeOfDay">day</span> 👋</div>
+        <div class="welcome-banner-name" id="welcomeName">Welcome back, Lab Technician!</div>
+        <div class="welcome-banner-desc">
+          Here's your laboratory overview for today. Process pending test orders, enter clinical findings, and generate diagnostic reports.
+        </div>
+      </div>
+      <div class="welcome-banner-stat" style="z-index:1;">
+        <div class="welcome-banner-stat-item">
+          <div class="welcome-banner-stat-value" id="bannerPending">0</div>
+          <div class="welcome-banner-stat-label">Pending Orders</div>
+        </div>
+        <div class="welcome-banner-stat-item">
+          <div class="welcome-banner-stat-value" id="bannerCompleted">0</div>
+          <div class="welcome-banner-stat-label">Completed</div>
+        </div>
+        <div class="welcome-banner-stat-item">
+          <div class="welcome-banner-stat-value" id="bannerTotal">0</div>
+          <div class="welcome-banner-stat-label">Total Tests</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1 class="page-title">Laboratory Overview</h1>
+        <p class="page-subtitle">Manage doctor-ordered laboratory tests, result entries, and diagnostics billing</p>
+      </div>
+      <div class="page-actions">
+        <a href="pending-lab-orders.html" class="btn btn-primary">
+          🕒 View Pending Orders
+        </a>
+      </div>
+    </div>
+
+    <!-- STAT CARDS -->
+    <div class="stats-grid">
+
+      <div class="stat-card warning" onclick="window.location.href='pending-lab-orders.html'" style="cursor:pointer;">
+        <div class="stat-card-top">
+          <div>
+            <div class="stat-card-label">Pending Orders</div>
+            <div class="stat-card-value" id="pendingCount">0</div>
+          </div>
+          <div class="stat-card-icon">🕒</div>
+        </div>
+        <div class="stat-card-footer">Tests awaiting result entry</div>
+      </div>
+
+      <div class="stat-card success" onclick="window.location.href='completed-tests.html'" style="cursor:pointer;">
+        <div class="stat-card-top">
+          <div>
+            <div class="stat-card-label">Completed Tests</div>
+            <div class="stat-card-value" id="completedCount">0</div>
+          </div>
+          <div class="stat-card-icon">✅</div>
+        </div>
+        <div class="stat-card-footer">Reports finalized and shared</div>
+      </div>
+
+      <div class="stat-card info">
+        <div class="stat-card-top">
+          <div>
+            <div class="stat-card-label">Total Lab Tests</div>
+            <div class="stat-card-value" id="totalTestCount">0</div>
+          </div>
+          <div class="stat-card-icon">🧪</div>
+        </div>
+        <div class="stat-card-footer">Master diagnostic catalog</div>
+      </div>
+
+      <div class="stat-card terra" onclick="window.location.href='lab-billing.html'" style="cursor:pointer;">
+        <div class="stat-card-top">
+          <div>
+            <div class="stat-card-label">Lab Billing</div>
+            <div class="stat-card-value">Active</div>
+          </div>
+          <div class="stat-card-icon">💰</div>
+        </div>
+        <div class="stat-card-footer">Generate test invoices</div>
+      </div>
+
+    </div>
+
+    <!-- QUICK ACTIONS & WORKFLOW -->
+    <div class="dashboard-grid">
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Quick Operations</div>
+            <div class="card-subtitle">Frequently accessed laboratory workflows</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="quick-actions-flex">
+            <a href="pending-lab-orders.html" class="btn btn-primary">
+              🕒 Pending Lab Orders
+            </a>
+            <a href="completed-tests.html" class="btn btn-secondary">
+              ✅ Completed Tests
+            </a>
+            <a href="lab-billing.html" class="btn btn-outline">
+              💰 Lab Billing
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Laboratory Workflow</div>
+            <div class="card-subtitle">Standard sample processing lifecycle</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <ul class="task-list">
+            <li class="task-item">
+              <span class="task-icon">1</span>
+              <span>Doctor requests test during patient consultation</span>
+            </li>
+            <li class="task-item">
+              <span class="task-icon">2</span>
+              <span>Review pending order queue and verify patient details</span>
+            </li>
+            <li class="task-item">
+              <span class="task-icon">3</span>
+              <span>Collect specimen sample and perform laboratory analysis</span>
+            </li>
+            <li class="task-item">
+              <span class="task-icon">4</span>
+              <span>Enter result value with automatic normal range snapshot</span>
+            </li>
+            <li class="task-item">
+              <span class="task-icon">5</span>
+              <span>Generate lab bill and finalize diagnostic report</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+<!-- Mobile Sidebar & Logout Helpers -->
+<script>
+function openSidebar()  { const sb = document.getElementById('sidebar') || document.getElementById('menu'); const sbo = document.getElementById('sidebarOverlay'); if(sb) sb.classList.add('open'); if(sbo) sbo.classList.add('open'); }
+function closeSidebar() { const sb = document.getElementById('sidebar') || document.getElementById('menu'); const sbo = document.getElementById('sidebarOverlay'); if(sb) sb.classList.remove('open'); if(sbo) sbo.classList.remove('open'); }
+function logout() {
+  if (typeof confirm === "function" && !confirm("Are you sure you want to logout?")) {
+    return;
+  }
+  localStorage.removeItem("loggedInUser");
+  localStorage.removeItem("fd_access");
+  localStorage.removeItem("fd_refresh");
+  localStorage.removeItem("fd_name");
+  window.location.href = "../index.html";
+}
+</script>
+
+<!-- Scripts -->
+<script src="../js/lab.js"></script>
+<script src="../js/validation.js"></script>
+</body>
+</html>

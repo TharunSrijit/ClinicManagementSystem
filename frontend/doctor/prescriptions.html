@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Doctor Prescriptions Management — Clinic Management System" />
+  <title>Prescriptions | Doctor — CMS</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Shared CSS -->
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/dashboard.css" />
+  <link rel="stylesheet" href="../css/tables.css" />
+
+  <style>
+    .med-pill-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .med-pill {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-primary);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .med-pill span {
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(4px);
+      align-items: center; justify-content: center;
+      z-index: 2000;
+      padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: #fff;
+      border-radius: 12px;
+      width: 100%;
+      max-width: min(95vw, 600px);
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow-lg);
+      padding: 24px;
+      box-sizing: border-box;
+    }
+    @media (max-width: 480px) {
+      .modal-box { padding: 16px; }
+    }
+    @media print {
+      body * { visibility: hidden; }
+      #printArea, #printArea * { visibility: visible; }
+      #printArea { position: absolute; left: 0; top: 0; width: 100%; }
+    }
+  </style>
+</head>
+
+<body>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<!-- ═══════════════════════════════════════
+     SIDEBAR
+═══════════════════════════════════════ -->
+<div class="sidebar" id="sidebar">
+  <a class="sidebar-brand" href="dashboard.html">
+    <div class="sidebar-brand-icon">🏥</div>
+    <div class="sidebar-brand-text">
+      <span class="sidebar-brand-name">MediCare CMS</span>
+      <span class="sidebar-brand-sub">Doctor Portal</span>
+    </div>
+  </a>
+
+  <nav class="sidebar-nav">
+    <span class="nav-section-label">Main</span>
+    <a class="nav-item" href="dashboard.html" id="nav-dashboard">
+      <span class="nav-item-icon">📊</span>
+      <span class="nav-item-label">Dashboard</span>
+    </a>
+    <a class="nav-item" href="appointments.html" id="nav-appointments">
+      <span class="nav-item-icon">📅</span>
+      <span class="nav-item-label">Appointments</span>
+      <span class="nav-badge" id="sidebarApptBadge">0</span>
+    </a>
+    <a class="nav-item" href="patients.html" id="nav-patients">
+      <span class="nav-item-icon">👤</span>
+      <span class="nav-item-label">Patients</span>
+    </a>
+
+    <div class="sidebar-divider"></div>
+    <span class="nav-section-label">Clinical</span>
+    <a class="nav-item" href="consultation.html" id="nav-consultation">
+      <span class="nav-item-icon">🩺</span>
+      <span class="nav-item-label">Consultation</span>
+    </a>
+    <a class="nav-item active" href="prescriptions.html" id="nav-prescriptions">
+      <span class="nav-item-icon">💊</span>
+      <span class="nav-item-label">Prescriptions</span>
+    </a>
+    <a class="nav-item" href="lab-tests.html" id="nav-lab">
+      <span class="nav-item-icon">🧪</span>
+      <span class="nav-item-label">Lab Tests</span>
+    </a>
+
+    <div class="sidebar-divider"></div>
+    <span class="nav-section-label">History</span>
+    <a class="nav-item" href="patient-details.html" id="nav-history">
+      <span class="nav-item-icon">📋</span>
+      <span class="nav-item-label">Past Consultations</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-user">
+    <div class="sidebar-avatar" id="sidebarAvatar">DR</div>
+    <div class="sidebar-user-info">
+      <div class="sidebar-user-name" id="sidebarName">Dr. Arun Kumar</div>
+      <div class="sidebar-user-role">Doctor</div>
+    </div>
+    <button class="sidebar-logout-btn" onclick="logout()" title="Logout">⏏</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     MAIN CONTENT
+═══════════════════════════════════════ -->
+<div class="main-content">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="topbar-menu-btn" onclick="toggleSidebar()" aria-label="Toggle menu">☰</button>
+      <div>
+        <div class="topbar-title">Prescriptions Management</div>
+        <div class="topbar-subtitle">Issued medications, e-prescriptions, and pharmacy dispatch logs</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <a href="consultation.html" class="btn btn-primary btn-sm">+ New Consultation (Rx)</a>
+      <div class="user-chip">
+        <div class="user-chip-avatar" id="topbarAvatar">DR</div>
+        <div class="user-chip-info">
+          <div class="user-chip-name" id="topbarName">Dr. Arun Kumar</div>
+          <div class="user-chip-role">Cardiologist / Physician</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-body">
+
+    <!-- STATS CARDS -->
+    <div class="stat-cards-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px; margin-bottom:20px;">
+      <div class="stat-card">
+        <div class="stat-card-label">Total Prescriptions</div>
+        <div class="stat-card-value" id="statTotalRx">0</div>
+        <div class="stat-card-footer">All records</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-label">Issued Today</div>
+        <div class="stat-card-value" id="statTodayRx">0</div>
+        <div class="stat-card-footer" id="statTodaySub">Active shift</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-label">Pending Dispensation</div>
+        <div class="stat-card-value" id="statPendingRx">0</div>
+        <div class="stat-card-footer">Sent to pharmacy</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-label">Dispensed by Pharmacy</div>
+        <div class="stat-card-value" id="statDispensedRx">0</div>
+        <div class="stat-card-footer">Fulfilled orders</div>
+      </div>
+    </div>
+
+    <!-- TOOLBAR & TABLE -->
+    <div class="table-card">
+      <div class="table-toolbar" style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; padding:16px;">
+        <div style="display:flex; gap:12px; align-items:center; flex:1; min-width:280px;">
+          <input type="text" id="rxSearch" placeholder="🔍 Search by patient name, Rx ID, medicine..." oninput="filterRx()" style="flex:1; padding:8px 14px; border:1px solid var(--border); border-radius:6px; font-size:13px;" />
+          <select id="statusFilter" onchange="filterRx()" style="padding:8px 12px; border:1px solid var(--border); border-radius:6px; font-size:13px; background:var(--surface);">
+            <option value="">All Statuses</option>
+            <option value="Pending Dispensation">Pending Dispensation</option>
+            <option value="Dispensed">Dispensed</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Rx Number</th>
+              <th>Date & Time</th>
+              <th>Patient</th>
+              <th>Prescribed Medicines</th>
+              <th>Doctor</th>
+              <th>Pharmacy Status</th>
+              <th style="text-align:right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="rxTableBody">
+            <!-- Dynamically populated -->
+          </tbody>
+        </table>
+      </div>
+
+      <div class="table-footer" style="padding:14px 16px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border-light); font-size:13px; color:var(--text-secondary);">
+        <span id="rxCountLabel">Showing 0 prescriptions</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- VIEW / PRINT MODAL -->
+<div class="modal-overlay" id="viewModal">
+  <div class="modal-box">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <h3 style="margin:0; font-size:16px;">Prescription Slip</h3>
+      <button class="btn btn-outline btn-sm" onclick="closeModal()">✕</button>
+    </div>
+
+    <div id="printArea" style="border:1px solid #e2d9d2; padding:20px; border-radius:8px; font-family:'Inter', sans-serif;">
+      <div style="display:flex; justify-content:space-between; border-bottom:2px solid #9c6b5d; padding-bottom:10px; margin-bottom:14px;">
+        <div>
+          <h2 style="margin:0; color:#3d2a25; font-size:18px;">MEDICARE CLINIC</h2>
+          <div style="font-size:11px; color:#7d6a63;">Prescription Receipt</div>
+        </div>
+        <div style="text-align:right;">
+          <h4 style="margin:0; color:#9c6b5d;" id="vDoc">Dr. Arun Kumar</h4>
+          <div style="font-size:11px; color:#7d6a63;">MBBS, MD</div>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:12px; background:#faf7f5; padding:8px 12px; border-radius:6px; margin-bottom:14px;">
+        <div><b>Patient:</b> <span id="vPatient">—</span></div>
+        <div><b>Rx ID:</b> <span id="vRxId">—</span></div>
+        <div><b>Date:</b> <span id="vDate">—</span></div>
+        <div><b>Status:</b> <span id="vStatus">—</span></div>
+      </div>
+
+      <div style="font-size:16px; font-weight:800; color:#9c6b5d; margin-bottom:6px;">℞</div>
+      <table style="width:100%; border-collapse:collapse; font-size:12px; margin-bottom:14px;">
+        <thead>
+          <tr style="background:#f0e9e4;">
+            <th style="text-align:left; padding:6px;">#</th>
+            <th style="text-align:left; padding:6px;">Medicine</th>
+            <th style="text-align:left; padding:6px;">Dosage</th>
+            <th style="text-align:left; padding:6px;">Frequency</th>
+            <th style="text-align:left; padding:6px;">Duration</th>
+            <th style="text-align:left; padding:6px;">Qty</th>
+            <th style="text-align:left; padding:6px;">Instructions</th>
+          </tr>
+        </thead>
+        <tbody id="vMedBody">
+        </tbody>
+      </table>
+
+      <div style="text-align:right; margin-top:20px; font-size:11px; color:#7d6a63;">
+        <div style="font-family:cursive; font-size:14px; color:#3d2a25;">Dr. Arun Kumar</div>
+        <div>Authorized Medical Practitioner</div>
+      </div>
+    </div>
+
+    <div style="margin-top:16px; display:flex; justify-content:flex-end; gap:8px;">
+      <button class="btn btn-outline" onclick="closeModal()">Close</button>
+      <button class="btn btn-primary" onclick="window.print()">🖨 Print Rx</button>
+    </div>
+  </div>
+</div>
+
+<script src="../js/doctor.js"></script>
+  <script src="../js/validation.js"></script>
+</body>
+</html>

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f3f6f3">
+    <title>Admin Dashboard | ClinicCare</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+</head>
+<body class="admin-dashboard">
+    <div class="admin-shell">
+        <aside class="admin-sidebar">
+            <a class="admin-brand" href="dashboard.html">
+                
+                <span class="admin-brand-mark" aria-hidden="true">C</span>
+                <span>Clinic<span>Care</span></span>
+            </a>
+
+            <p class="sidebar-caption">CLINIC OPERATIONS</p>
+            <nav class="admin-nav" aria-label="Administration">
+                <a class="admin-nav-link is-current" href="dashboard.html" aria-current="page">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>
+                    <span>Overview</span>
+                </a>
+                <p class="sidebar-caption nav-caption">PEOPLE & ACCESS</p>
+                <a class="admin-nav-link" href="doctor-management.html">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="7" r="3.5"/><path d="M2.8 20v-1.5a6.2 6.2 0 0 1 12.4 0V20M17 8h5m-2.5-2.5v5"/></svg>
+                    <span>Doctors</span>
+                </a>
+                <a class="admin-nav-link" href="staff-management.html">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20v-1.2a6.5 6.5 0 0 1 13 0V20M16 5.5a3.2 3.2 0 0 1 0 6.2m2.5 2a5 5 0 0 1 3 4.6V20"/></svg>
+                    <span>Staff</span>
+                </a>
+                <a class="admin-nav-link" href="user-management.html">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3.5" width="16" height="17" rx="2"/><circle cx="12" cy="9" r="2.5"/><path d="M8 16.5a4 4 0 0 1 8 0"/></svg>
+                    <span>User accounts</span>
+                </a>
+                <p class="sidebar-caption nav-caption">MASTER DATA</p>
+                <a class="admin-nav-link" href="medicine-master.html">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.2 4.1a5.8 5.8 0 0 1 8.2 8.2l-4.1 4.1a5.8 5.8 0 0 1-8.2-8.2z"/><path d="m7.1 14.9 7.8-7.8"/></svg>
+                    <span>Medicine Master</span>
+                </a>
+                <a class="admin-nav-link" href="lab-test-master.html">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6M10 3v6l-5.2 9.1A2 2 0 0 0 6.5 21h11a2 2 0 0 0 1.7-2.9L14 9V3M7.5 16h9"/></svg>
+                    <span>Lab Test Master</span>
+                </a>
+            </nav>
+
+            <a class="sign-in-link" id="sign-in-link" href="../index.html">Return to sign in <span aria-hidden="true">&#8599;</span></a>
+        </aside>
+
+        <div class="admin-main">
+            <header class="admin-topbar">
+                <div>
+                    <p class="topbar-kicker">ADMINISTRATION</p>
+                    <p class="topbar-title">Clinic overview</p>
+                </div>
+                <div class="admin-profile">
+                    <span class="profile-mark" aria-hidden="true">A</span>
+                    <span><strong>Administrator</strong><small>Clinic management</small></span>
+                </div>
+            </header>
+
+            <main class="admin-content">
+                <section class="page-intro">
+                    <div>
+                        <p class="section-eyebrow">YOUR WORKSPACE</p>
+                        <h1>Good day, Administrator</h1>
+                        <p class="intro-copy">A clear view of your clinic team and account access.</p>
+                    </div>
+                    <a class="primary-link" href="user-management.html">Manage accounts <span aria-hidden="true">&#8594;</span></a>
+                </section>
+
+                <section class="metrics-grid" aria-label="Clinic statistics">
+                    <article class="metric-card metric-doctors">
+                        <div class="metric-top"><span class="metric-label">Doctors</span><span class="metric-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="3.5"/><path d="M2.8 20v-1.5a6.2 6.2 0 0 1 12.4 0V20M17 8h5m-2.5-2.5v5"/></svg></span></div>
+                        <p class="metric-value" id="totalDoctors">0</p>
+                        <p class="metric-note">Registered clinicians</p>
+                    </article>
+                    <article class="metric-card metric-staff">
+                        <div class="metric-top"><span class="metric-label">Staff</span><span class="metric-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20v-1.2a6.5 6.5 0 0 1 13 0V20M16 5.5a3.2 3.2 0 0 1 0 6.2m2.5 2a5 5 0 0 1 3 4.6V20"/></svg></span></div>
+                        <p class="metric-value" id="totalStaff">0</p>
+                        <p class="metric-note">Across clinic teams</p>
+                    </article>
+                    <article class="metric-card metric-users">
+                        <div class="metric-top"><span class="metric-label">User accounts</span><span class="metric-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="3.5" width="16" height="17" rx="2"/><circle cx="12" cy="9" r="2.5"/><path d="M8 16.5a4 4 0 0 1 8 0"/></svg></span></div>
+                        <p class="metric-value" id="totalUsers">0</p>
+                        <p class="metric-note">Total system accounts</p>
+                    </article>
+                    <article class="metric-card metric-active">
+                        <div class="metric-top"><span class="metric-label">Active accounts</span><span class="metric-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="m8.5 12 2.2 2.2 4.8-4.8"/></svg></span></div>
+                        <p class="metric-value" id="activeUsers">0</p>
+                        <p class="metric-note">Enabled for access</p>
+                    </article>
+                </section>
+
+                <section class="workspaces-section" aria-labelledby="workspaces-title">
+                    <div class="section-heading">
+                        <div>
+                            <p class="section-eyebrow">ADMIN MODULE</p>
+                            <h2 id="workspaces-title">Open a workspace</h2>
+                        </div>
+                    </div>
+                    <div class="workspace-links">
+                        <a class="workspace-link workspace-doctor" href="../doctor/dashboard.html">
+                            <span class="workspace-mark" aria-hidden="true">DR</span>
+                            <span><strong>Doctor</strong><small>Patient care and consultations</small></span>
+                            <span class="workspace-arrow" aria-hidden="true">&#8594;</span>
+                        </a>
+                        <a class="workspace-link workspace-reception" href="../receptionist/dashboard.html">
+                            <span class="workspace-mark" aria-hidden="true">RE</span>
+                            <span><strong>Receptionist</strong><small>Appointments and front desk</small></span>
+                            <span class="workspace-arrow" aria-hidden="true">&#8594;</span>
+                        </a>
+                        <a class="workspace-link workspace-lab" href="../lab/dashboard.html">
+                            <span class="workspace-mark" aria-hidden="true">LB</span>
+                            <span><strong>Laboratory</strong><small>Tests and results</small></span>
+                            <span class="workspace-arrow" aria-hidden="true">&#8594;</span>
+                        </a>
+                        <a class="workspace-link workspace-pharmacy" href="../pharmacy/dashboard.html">
+                            <span class="workspace-mark" aria-hidden="true">PH</span>
+                            <span><strong>Pharmacy</strong><small>Prescriptions and inventory</small></span>
+                            <span class="workspace-arrow" aria-hidden="true">&#8594;</span>
+                        </a>
+                    </div>
+                </section>
+
+                <div class="dashboard-lower">
+                    <section class="overview-section" aria-labelledby="overview-title">
+                        <div class="section-heading">
+                            <div><p class="section-eyebrow">TEAM DIRECTORY</p><h2 id="overview-title">People and access</h2></div>
+                            <a href="user-management.html">View all accounts <span aria-hidden="true">&#8594;</span></a>
+                        </div>
+                        <div class="directory-row">
+                            <span class="directory-icon icon-clinicians" aria-hidden="true">DR</span>
+                            <span class="directory-copy"><strong>Doctors</strong><small>Manage clinician records and specialties</small></span>
+                            <a href="doctor-management.html" aria-label="Manage doctors">&#8594;</a>
+                        </div>
+                        <div class="directory-row">
+                            <span class="directory-icon icon-staff" aria-hidden="true">ST</span>
+                            <span class="directory-copy"><strong>Clinic staff</strong><small>Manage receptionist, lab and pharmacy teams</small></span>
+                            <a href="staff-management.html" aria-label="Manage clinic staff">&#8594;</a>
+                        </div>
+                        <div class="directory-row">
+                            <span class="directory-icon icon-users" aria-hidden="true">AC</span>
+                            <span class="directory-copy"><strong>User accounts</strong><small>Review roles and account status</small></span>
+                            <a href="user-management.html" aria-label="Manage user accounts">&#8594;</a>
+                        </div>
+                    </section>
+
+                    <aside class="admin-note" aria-labelledby="admin-note-title">
+                        <p class="section-eyebrow">ADMIN TOOLS</p>
+                        <h2 id="admin-note-title">Keep your team up to date</h2>
+                        <p>Use the management areas to maintain staff records, account roles and access status.</p>
+                        <a href="staff-management.html">Open staff management <span aria-hidden="true">&#8594;</span></a>
+                    </aside>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="../js/storage.js"></script>
+    <script src="../js/admin-dashboard.js"></script>
+    <script src="../js/validation.js"></script>
+</body>
+</html>

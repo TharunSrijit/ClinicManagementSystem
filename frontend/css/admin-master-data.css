@@ -1,0 +1,130 @@
+.master-form-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.master-field-wide {
+  grid-column: span 2;
+}
+
+.master-textarea {
+  min-height: 92px;
+  resize: vertical;
+}
+
+.master-optional {
+  margin-left: 4px;
+  color: #806e65;
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.master-secondary-button {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid #d9ccc3;
+  border-radius: 4px;
+  color: #6f4639;
+  background: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.master-secondary-button:hover {
+  background: #fbf6f1;
+}
+
+.master-message {
+  min-height: 1.4em;
+  margin-top: 12px;
+  font-size: 12px;
+}
+
+.master-message.is-error {
+  color: #a13f35;
+}
+
+.master-message.is-success {
+  color: #38745a;
+}
+
+.master-catalog-table {
+  min-width: 1120px;
+}
+
+.lab-catalog-table {
+  min-width: 900px;
+}
+
+.master-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.master-status.is-active {
+  color: #28664d;
+  background: #e8f3ec;
+}
+
+.master-status.is-inactive {
+  color: #6f625d;
+  background: #f0ece9;
+}
+
+.master-status.is-warning {
+  margin-top: 4px;
+  color: #805712;
+  background: #fbf0d8;
+}
+
+.master-status.is-danger {
+  margin-top: 4px;
+  color: #913b33;
+  background: #f9e7e4;
+}
+
+.master-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.master-actions button {
+  padding: 5px 7px;
+  border: 1px solid #e3d7cf;
+  border-radius: 3px;
+  color: #6f4639;
+  background: #fff;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.master-actions button:hover {
+  border-color: #b98f7c;
+  background: #fbf6f1;
+}
+
+@media (max-width: 900px) {
+  .master-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .master-form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .master-field-wide {
+    grid-column: auto;
+  }
+
+  .master-secondary-button {
+    width: 100%;
+  }
+}

@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Medicine Inventory — Clinic Management System" />
+  <title>Medicine Inventory | Pharmacy — CMS</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Shared CSS -->
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/forms.css" />
+  <link rel="stylesheet" href="../css/tables.css" />
+</head>
+
+<body>
+<!-- Mobile sidebar overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<!-- ═══════════════════════════════════════
+     SIDEBAR
+═══════════════════════════════════════ -->
+<div class="sidebar" id="sidebar">
+
+  <a class="sidebar-brand" href="dashboard.html">
+    <div class="sidebar-brand-icon">💊</div>
+    <div class="sidebar-brand-text">
+      <span class="sidebar-brand-name">MediCare CMS</span>
+      <span class="sidebar-brand-sub">Pharmacy Portal</span>
+    </div>
+  </a>
+
+  <nav class="sidebar-nav">
+    <span class="nav-section-label">Main</span>
+
+    <a class="nav-item" href="dashboard.html" id="nav-dashboard">
+      <span class="nav-item-icon">📊</span>
+      <span class="nav-item-label">Dashboard</span>
+    </a>
+
+    <div class="sidebar-divider"></div>
+    <span class="nav-section-label">Prescriptions</span>
+
+    <a class="nav-item" href="prescription-queue.html" id="nav-queue">
+      <span class="nav-item-icon">📋</span>
+      <span class="nav-item-label">Prescription Queue</span>
+    </a>
+
+    <a class="nav-item" href="prescription-details.html" id="nav-details">
+      <span class="nav-item-icon">📄</span>
+      <span class="nav-item-label">Prescription Details</span>
+    </a>
+
+    <div class="sidebar-divider"></div>
+    <span class="nav-section-label">Inventory & Stock</span>
+
+    <a class="nav-item active" href="medicine-inventory.html" id="nav-inventory">
+      <span class="nav-item-icon">📦</span>
+      <span class="nav-item-label">Medicine Inventory</span>
+    </a>
+
+    <a class="nav-item" href="stock.html" id="nav-stock">
+      <span class="nav-item-icon">📈</span>
+      <span class="nav-item-label">Stock Status</span>
+    </a>
+
+    <div class="sidebar-divider"></div>
+    <span class="nav-section-label">Billing</span>
+
+    <a class="nav-item" href="pharmacy-billing.html" id="nav-billing">
+      <span class="nav-item-icon">💰</span>
+      <span class="nav-item-label">Pharmacy Billing</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-user">
+    <div class="sidebar-avatar" id="sidebarAvatar">PH</div>
+    <div class="sidebar-user-info">
+      <div class="sidebar-user-name" id="sidebarName">Pharmacist</div>
+      <div class="sidebar-user-role">Pharmacy Staff</div>
+    </div>
+    <button class="sidebar-logout-btn" onclick="logout()" title="Logout">⏏</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     MAIN CONTENT
+═══════════════════════════════════════ -->
+<div class="main-content">
+
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="topbar-toggle" onclick="openSidebar()" aria-label="Open menu">☰</button>
+      <div>
+        <div class="topbar-page-title">Medicine Inventory</div>
+        <div class="topbar-breadcrumb">
+          <span>Pharmacy</span>
+          <span class="topbar-breadcrumb-sep">›</span>
+          <span>Medicine Inventory</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="topbar-right">
+      <div style="font-size:var(--text-xs);color:var(--text-muted);font-weight:600;white-space:nowrap;" id="topbarDate"></div>
+      <div class="user-chip">
+        <div class="user-chip-avatar" id="topbarAvatar">PH</div>
+        <span class="user-chip-name" id="topbarName">Pharmacist</span>
+        <span class="user-chip-role">Pharmacy</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- PAGE CONTENT -->
+  <main class="page-content">
+
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1 class="page-title">Medicine Inventory</h1>
+        <p class="page-subtitle">View medicines, available quantities, pricing, batch numbers, and expiry status</p>
+      </div>
+      <div class="page-actions">
+        <a href="stock.html" class="btn btn-primary">
+          📈 Stock Status
+        </a>
+      </div>
+    </div>
+
+    <!-- SEARCH FORM SECTION -->
+    <div class="form-section mb-20">
+      <div class="form-section-header">
+        <div class="form-section-icon">🔍</div>
+        <div>
+          <div class="form-section-title">Search Medicines</div>
+          <div class="form-section-subtitle">Search the pharmacy medicine master by ID, name, or category</div>
+        </div>
+      </div>
+
+      <div class="form-section-body">
+        <div class="form-grid form-grid-2">
+          <div class="form-group">
+            <label for="inventorySearch" class="form-label">Search Keyword</label>
+            <input
+              id="inventorySearch"
+              class="form-control"
+              type="text"
+              placeholder="Search by ID, medicine name, or category…"
+              oninput="filterInventory()"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- INVENTORY TABLE CONTAINER -->
+    <div class="table-container">
+      <div class="table-header">
+        <div class="table-header-left">
+          <div class="table-title">Medicine Master List</div>
+        </div>
+      </div>
+
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Medicine</th>
+              <th>Category</th>
+              <th>Unit</th>
+              <th>Price</th>
+              <th>Stock</th>
+              <th>Reorder Level</th>
+              <th>Batch No</th>
+              <th>Expiry Date</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="inventoryTable">
+            <!-- Populated dynamically by js/pharmacy.js or filterInventory -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Mobile Sidebar Helpers -->
+<script>
+function openSidebar()  { document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('open'); }
+function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('open'); }
+</script>
+
+<!-- Scripts -->
+<script src="../js/pharmacy.js"></script>
+<script src="../js/validation.js"></script>
+
+<!-- Inline Filter Logic Preserved -->
+<script>
+function filterInventory() {
+    const searchInput = document.getElementById("inventorySearch");
+    const tableBody = document.getElementById("inventoryTable");
+    if (!searchInput || !tableBody) return;
+
+    const searchValue = searchInput.value.trim().toLowerCase();
+    const medicines = JSON.parse(localStorage.getItem("cms_medicines") || "[]");
+
+    const filteredMedicines = medicines.filter(function (medicine) {
+        return (
+            String(medicine.id || "").toLowerCase().includes(searchValue) ||
+            String(medicine.name || "").toLowerCase().includes(searchValue) ||
+            String(medicine.category || "").toLowerCase().includes(searchValue)
+        );
+    });
+
+    tableBody.innerHTML = "";
+
+    if (filteredMedicines.length === 0) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="10" style="text-align:center;padding:24px;color:var(--text-muted);">
+                    No medicines found matching your search.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    filteredMedicines.forEach(function (medicine) {
+        const stock = Number(medicine.stock || 0);
+        const reorderLevel = Number(medicine.reorderLevel || 0);
+
+        let stockStatus = "Normal";
+        if (stock === 0) {
+            stockStatus = "Out of Stock";
+        } else if (stock <= reorderLevel) {
+            stockStatus = "Low Stock";
+        }
+
+        let status = medicine.status || "Active";
+        if (medicine.expiryDate && new Date(medicine.expiryDate) < new Date()) {
+            status = "Expired";
+        }
+
+        let statusBadgeClass = "badge badge-success";
+        if (status === "Expired" || stockStatus === "Out of Stock") {
+            statusBadgeClass = "badge badge-danger";
+        } else if (stockStatus === "Low Stock") {
+            statusBadgeClass = "badge badge-warning";
+        }
+
+        const row = document.createElement("tr");
+        row.innerHTML = `
+            <td><strong>${medicine.id || "-"}</strong></td>
+            <td><strong>${medicine.name || "-"}</strong></td>
+            <td>${medicine.category || "-"}</td>
+            <td>${medicine.unit || "-"}</td>
+            <td>₹${Number(medicine.price || 0).toFixed(2)}</td>
+            <td><strong>${stock}</strong></td>
+            <td>${reorderLevel}</td>
+            <td>${medicine.batchNo || "-"}</td>
+            <td>${medicine.expiryDate || "-"}</td>
+            <td>
+                <span class="${statusBadgeClass}">
+                    ${status}${stockStatus !== "Normal" ? ` - ${stockStatus}` : ""}
+                </span>
+            </td>
+        `;
+        tableBody.appendChild(row);
+    });
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    const searchInput = document.getElementById("inventorySearch");
+    if (searchInput) {
+        searchInput.value = "";
+    }
+});
+</script>
+</body>
+</html>

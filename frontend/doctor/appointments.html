@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Doctor Appointments — Clinic Management System" />
+  <title>Appointments | Doctor — CMS</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Shared CSS (order matters) -->
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/dashboard.css" />
+  <link rel="stylesheet" href="../css/tables.css" />
+
+  <!-- Page-level overrides / extras -->
+  <style>
+    /* ── Token Queue panel ───────────────────────── */
+    .appt-layout {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 20px;
+      align-items: start;
+    }
+
+    /* Token pulse animation on "current" badge */
+    @keyframes tokenPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(156,107,93,.5); }
+      50%       { box-shadow: 0 0 0 10px rgba(156,107,93,0); }
+    }
+    .token-number { animation: tokenPulse 2s ease infinite; }
+
+    /* Status pill inside table */
+    .status-waiting    { background: var(--warning-light); color: var(--warning); }
+    .status-confirmed  { background: var(--info-light);    color: var(--info); }
+    .status-in-progress{ background: var(--accent-light);  color: var(--accent); }
+    .status-completed  { background: var(--success-light); color: var(--success); }
+    .status-cancelled  { background: var(--danger-light);  color: var(--danger); }
+
+    /* Highlight current row */
+    tr.current-patient td { background: #fff8f2; font-weight: 600; }
+    tr.current-patient td:first-child {
+      border-left: 3px solid var(--accent);
+    }
+
+    /* Slide-in drawer for patient quick-view */
+    .drawer-overlay {
+      position: fixed; inset: 0;
+      background: rgba(61,42,37,.45);
+      backdrop-filter: blur(3px);
+      z-index: 2000;
+      opacity: 0; pointer-events: none;
+      transition: opacity 200ms ease;
+    }
+    .drawer-overlay.open { opacity: 1; pointer-events: all; }
+
+    .drawer {
+      position: fixed;
+      top: 0; right: -480px; bottom: 0;
+      width: 460px;
+      background: #fff;
+      box-shadow: var(--shadow-xl);
+      z-index: 2001;
+      display: flex; flex-direction: column;
+      transition: right 280ms cubic-bezier(.4,0,.2,1);
+    }
+    .drawer.open { right: 0; }
+
+    .drawer-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border-light);
+      display: flex; align-items: center;
+      justify-content: space-between;
+      background: var(--clr-blush);
+    }
+    .drawer-body { padding: 24px; overflow-y: auto; flex: 1; }
+    .drawer-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border-light);
+      display: flex; gap: 10px; justify-content: flex-end;
+      background: var(--bg-page);
+    }
+
+    .info-row {
+      display: flex; align-items: flex-start;
+      gap: 12px; padding: 11px 0;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-label {
+      width: 130px; flex-shrink: 0;
+      font-size: var(--text-xs); font-weight: 700;
+      text-transform: uppercase; letter-spacing: .07em;
+      color: var(--text-muted);
+    }
+    .info-value {
+      font-size: var(--text-sm); font-weight: 500;
+      color: var(--text-primary); flex: 1;
+    }
+
+    /* Toast tweak */
+    .toast-container { bottom: 20px; right: 20px; }
+
+    @media (max-width: 1100px) { .appt-layout { grid-template-columns: 1fr; } }
+    @media (max-width: 768px)  {
+      .drawer { width: 100%; right: -100%; }
+      .table-header-right { flex-wrap: wrap; gap: 4px; }
+      .drawer-footer { flex-wrap: wrap; gap: 8px; }
+    }
+  </style>
+</head>
+
+<body>
+<!-- ─────────────── SIDEBAR OVERLAY (mobile) ─────────────── -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SIDEBAR
+═══════════════════════════════════════════════════════════ -->
+<div class="sidebar" id="sidebar">
+
+  <!-- Brand -->
+  <a class="sidebar-brand" href="dashboard.html">
+    <div class="sidebar-brand-icon">🏥</div>
+    <div class="sidebar-brand-text">
+      <span class="sidebar-brand-name">MediCare CMS</span>
+      <span class="sidebar-brand-sub">Doctor Portal</span>
+    </div>
+  </a>
+
+  <!-- Navigation -->
+  <nav class="sidebar-nav">
+    <span class="nav-section-label">Main</span>
+
+    <a class="nav-item" href="dashboard.html" id="nav-dashboard">
+      <span class="nav-item-icon">📊</span>
+      <span class="nav-item-label">Dashboard</span>
+    </a>
+
+    <a class="nav-item active" href="appointments.html" id="nav-appointments">
+      <span class="nav-item-icon">📅</span>
+      <span class="nav-item-label">Appointments</span>
+      <span class="nav-badge" id="sidebarWaitBadge">0</span>
+    </a>
+
+    <a class="nav-item" href="patients.html" id="nav-patients">
+      <span class="nav-item-icon">👤</span>
+      <span class="nav-item-label">Patients</span>
+    </a>
+
+    <div class="sidebar-divider"></div>
+    <span class="nav-section-label">Clinical</span>
+
+    <a class="nav-item" href="consultation.html" id="nav-consultation">
+      <span class="nav-item-icon">🩺</span>
+      <span class="nav-item-label">Consultation</span>
+    </a>
+
+    <a class="nav-item" href="prescriptions.html" id="nav-prescriptions">
+      <span class="nav-item-icon">💊</span>
+      <span class="nav-item-label">Prescriptions</span>
+    </a>
+
+    <a class="nav-item" href="lab-tests.html" id="nav-lab">
+      <span class="nav-item-icon">🧪</span>
+      <span class="nav-item-label">Lab Tests</span>
+    </a>
+
+    <div class="sidebar-divider"></div>
+    <span class="nav-section-label">History</span>
+
+    <a class="nav-item" href="patient-details.html" id="nav-history">
+      <span class="nav-item-icon">📋</span>
+      <span class="nav-item-label">Past Consultations</span>
+    </a>
+  </nav>
+
+  <!-- User card -->
+  <div class="sidebar-user">
+    <div class="sidebar-avatar" id="sidebarAvatar">DR</div>
+    <div class="sidebar-user-info">
+      <div class="sidebar-user-name" id="sidebarName">Dr. Loading…</div>
+      <div class="sidebar-user-role">Doctor</div>
+    </div>
+    <button class="sidebar-logout-btn" onclick="logout()" title="Logout">⏏</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MAIN CONTENT
+═══════════════════════════════════════════════════════════ -->
+<div class="main-content">
+
+  <!-- ── TOP BAR ─────────────────────────────────────────── -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <!-- Mobile hamburger -->
+      <button class="topbar-toggle" onclick="openSidebar()" aria-label="Open menu">☰</button>
+
+      <div>
+        <div class="topbar-page-title">Appointments</div>
+        <div class="topbar-breadcrumb">
+          <span>Doctor</span>
+          <span class="topbar-breadcrumb-sep">›</span>
+          <span>Appointments</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search -->
+    <div class="topbar-search">
+      <span class="search-icon">🔍</span>
+      <input type="text" placeholder="Search patients…" id="topbarSearch" oninput="handleTopbarSearch(this.value)" />
+    </div>
+
+    <div class="topbar-right">
+      <!-- Date chip -->
+      <div style="font-size:var(--text-xs);color:var(--text-muted);font-weight:600;white-space:nowrap;" id="todayLabel"></div>
+
+      <!-- User chip -->
+      <div class="user-chip" onclick="toggleUserMenu()">
+        <div class="user-chip-avatar" id="topbarAvatar">DR</div>
+        <span class="user-chip-name" id="topbarName">Doctor</span>
+        <span class="user-chip-caret">▾</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── PAGE CONTENT ────────────────────────────────────── -->
+  <main class="page-content">
+
+    <!-- Page header -->
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1 class="page-title">Today's Appointments</h1>
+        <p class="page-subtitle" id="dateSubtitle">Loading date…</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn btn-secondary btn-sm" onclick="exportAppointments()">
+          ⬇ Export
+        </button>
+        <button class="btn btn-primary btn-sm" onclick="refreshAppointments()">
+          ↻ Refresh
+        </button>
+      </div>
+    </div>
+
+    <!-- ── STAT CARDS ──────────────────────────────────── -->
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px;">
+
+      <div class="stat-card terra">
+        <div class="stat-card-top">
+          <div>
+            <div class="stat-card-label">Total Today</div>
+            <div class="stat-card-value" id="statTotal">0</div>
+          </div>
+          <div class="stat-card-icon">📅</div>
+        </div>
+        <div class="stat-card-footer">
+          <span>Scheduled for today</span>
+        </div>
+      </div>
+
+      <div class="stat-card warning">
+        <div class="stat-card-top">
+          <div>
+            <div class="stat-card-label">Waiting</div>
+            <div class="stat-card-value" id="statWaiting">0</div>
+          </div>
+          <div class="stat-card-icon">⏳</div>
+        </div>
+        <div class="stat-card-footer">
+          <span>Patients in queue</span>
+        </div>
+      </div>
+
+      <div class="stat-card info">
+        <div class="stat-card-top">
+          <div>
+            <div class="stat-card-label">In Progress</div>
+            <div class="stat-card-value" id="statInProgress">0</div>
+          </div>
+          <div class="stat-card-icon">🩺</div>
+        </div>
+        <div class="stat-card-footer">
+          <span>Currently consulting</span>
+        </div>
+      </div>
+
+      <div class="stat-card success">
+        <div class="stat-card-top">
+          <div>
+            <div class="stat-card-label">Completed</div>
+            <div class="stat-card-value" id="statCompleted">0</div>
+          </div>
+          <div class="stat-card-icon">✅</div>
+        </div>
+        <div class="stat-card-footer">
+          <span>Done for today</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── MAIN LAYOUT: Table + Token Queue ───────────── -->
+    <div class="appt-layout">
+
+      <!-- LEFT — Appointments Table -->
+      <div>
+        <div class="table-container">
+
+          <!-- Table header -->
+          <div class="table-header">
+            <div class="table-header-left">
+              <span class="table-title">Appointment List</span>
+              <span class="table-count" id="tableCount">0 records</span>
+            </div>
+            <div class="table-header-right">
+              <button class="btn btn-ghost btn-sm" onclick="filterAll()" id="btnAll">All</button>
+              <button class="btn btn-ghost btn-sm" onclick="filterByStatus('Waiting')" id="btnWaiting">Waiting</button>
+              <button class="btn btn-ghost btn-sm" onclick="filterByStatus('In Progress')" id="btnInProgress">In Progress</button>
+              <button class="btn btn-ghost btn-sm" onclick="filterByStatus('Completed')" id="btnCompleted">Completed</button>
+            </div>
+          </div>
+
+          <!-- Toolbar -->
+          <div class="table-toolbar">
+            <div class="table-search">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="tableSearchInput"
+                     placeholder="Search by name, token or time…"
+                     oninput="handleSearch(this.value)" />
+            </div>
+
+            <select class="table-filter-select" id="statusFilter" onchange="handleStatusFilter(this.value)">
+              <option value="">All Statuses</option>
+              <option value="Waiting">Waiting</option>
+              <option value="Confirmed">Confirmed</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Completed">Completed</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+
+            <select class="table-filter-select" id="typeFilter" onchange="handleTypeFilter(this.value)">
+              <option value="">All Types</option>
+              <option value="General">General</option>
+              <option value="Follow-up">Follow-up</option>
+              <option value="Emergency">Emergency</option>
+            </select>
+          </div>
+
+          <!-- Table -->
+          <div class="table-scroll">
+            <table id="appointmentsTable">
+              <thead>
+                <tr>
+                  <th class="th-sortable col-w-48"
+                      onclick="sortTable('token')"
+                      id="th-token">
+                    Token
+                    <span class="th-sort-icon">
+                      <span class="arrow-up"></span>
+                      <span class="arrow-down"></span>
+                    </span>
+                  </th>
+                  <th>Patient</th>
+                  <th class="th-sortable col-w-100"
+                      onclick="sortTable('time')"
+                      id="th-time">
+                    Time
+                    <span class="th-sort-icon">
+                      <span class="arrow-up"></span>
+                      <span class="arrow-down"></span>
+                    </span>
+                  </th>
+                  <th class="col-w-100">Type</th>
+                  <th class="col-w-120">Status</th>
+                  <th class="col-w-80">Wait (min)</th>
+                  <th class="td-actions col-w-140">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="appointmentsTbody">
+                <!-- Injected by JS -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Table footer / pagination -->
+          <div class="table-footer">
+            <div class="table-info" id="paginationInfo">Showing 0 of 0</div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="per-page-select">
+                <label for="perPage">Rows:</label>
+                <select id="perPage" onchange="changePerPage(this.value)">
+                  <option value="8">8</option>
+                  <option value="15" selected>15</option>
+                  <option value="25">25</option>
+                  <option value="50">50</option>
+                </select>
+              </div>
+              <div class="pagination" id="pagination"></div>
+            </div>
+          </div>
+
+        </div><!-- /table-container -->
+      </div><!-- /LEFT col -->
+
+      <!-- RIGHT — Token Queue Panel -->
+      <div class="dashboard-col">
+
+        <!-- Current Token -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">🎫 Current Token</div>
+              <div class="card-subtitle">Now consulting</div>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="callNextToken()" id="callNextBtn">
+              Call Next
+            </button>
+          </div>
+          <div class="token-display" id="currentTokenDisplay">
+            <div class="token-current-label">TOKEN NUMBER</div>
+            <div class="token-number" id="currentTokenNum" style="font-size:3.5rem;font-weight:800;color:var(--accent);line-height:1;letter-spacing:-.03em;margin-bottom:8px;">—</div>
+            <div class="token-patient-name" id="currentTokenName">No Active Patient</div>
+            <div class="token-info" id="currentTokenInfo">—</div>
+          </div>
+        </div>
+
+        <!-- Queue list -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">⏳ Waiting Queue</div>
+              <div class="card-subtitle" id="queueSubtitle">0 patients waiting</div>
+            </div>
+          </div>
+          <div class="token-queue-list" id="queueList">
+            <!-- Injected by JS -->
+          </div>
+          <div class="card-footer" style="justify-content:center;">
+            <span style="font-size:var(--text-xs);color:var(--text-muted);" id="queueFooterNote">
+              Queue updates in real time
+            </span>
+          </div>
+        </div>
+
+        <!-- Quick stats by type -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📊 By Type</div>
+          </div>
+          <div class="card-body" style="padding-top:14px;">
+            <div class="progress-bar-list" id="typeBreakdown">
+              <!-- Injected by JS -->
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /RIGHT col -->
+    </div><!-- /appt-layout -->
+
+  </main>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     DRAWER — Quick Patient View
+═══════════════════════════════════════════════════════════ -->
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="patientDrawer">
+
+  <div class="drawer-header">
+    <div>
+      <div style="font-size:var(--text-lg);font-weight:700;color:var(--text-primary);">
+        Patient Details
+      </div>
+      <div style="font-size:var(--text-xs);color:var(--text-muted);" id="drawerApptId">APT—</div>
+    </div>
+    <button class="modal-close" onclick="closeDrawer()">✕</button>
+  </div>
+
+  <div class="drawer-body">
+
+    <!-- Patient info section -->
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;
+                padding:16px;background:var(--clr-blush);border-radius:var(--radius-md);">
+      <div class="avatar avatar-lg" id="drawerAvatar">RM</div>
+      <div>
+        <div style="font-size:var(--text-lg);font-weight:700;color:var(--text-primary);" id="drawerName">—</div>
+        <div style="font-size:var(--text-xs);color:var(--text-muted);" id="drawerPatientId">—</div>
+        <div style="margin-top:6px;" id="drawerStatusBadge"></div>
+      </div>
+    </div>
+
+    <!-- Appointment info -->
+    <div style="margin-bottom:20px;">
+      <div style="font-size:var(--text-xs);font-weight:700;text-transform:uppercase;
+                  letter-spacing:.08em;color:var(--text-muted);margin-bottom:10px;">
+        Appointment Info
+      </div>
+      <div class="info-row"><span class="info-label">Token</span><span class="info-value" id="drawerToken">—</span></div>
+      <div class="info-row"><span class="info-label">Time</span><span class="info-value" id="drawerTime">—</span></div>
+      <div class="info-row"><span class="info-label">Type</span><span class="info-value" id="drawerType">—</span></div>
+      <div class="info-row"><span class="info-label">Status</span><span class="info-value" id="drawerStatus">—</span></div>
+      <div class="info-row"><span class="info-label">Booked On</span><span class="info-value" id="drawerBooked">—</span></div>
+    </div>
+
+    <!-- Patient vitals -->
+    <div style="margin-bottom:20px;">
+      <div style="font-size:var(--text-xs);font-weight:700;text-transform:uppercase;
+                  letter-spacing:.08em;color:var(--text-muted);margin-bottom:10px;">
+        Patient Information
+      </div>
+      <div class="info-row"><span class="info-label">Age / Gender</span><span class="info-value" id="drawerAgeGender">—</span></div>
+      <div class="info-row"><span class="info-label">Blood Group</span><span class="info-value" id="drawerBlood">—</span></div>
+      <div class="info-row"><span class="info-label">Phone</span><span class="info-value" id="drawerPhone">—</span></div>
+      <div class="info-row"><span class="info-label">Allergies</span><span class="info-value" id="drawerAllergies">—</span></div>
+    </div>
+
+    <!-- Reason / chief complaint -->
+    <div>
+      <div style="font-size:var(--text-xs);font-weight:700;text-transform:uppercase;
+                  letter-spacing:.08em;color:var(--text-muted);margin-bottom:8px;">
+        Chief Complaint
+      </div>
+      <div style="padding:12px 14px;background:var(--clr-blush);border-left:3px solid var(--accent);
+                  border-radius:0 var(--radius-sm) var(--radius-sm) 0;
+                  font-size:var(--text-sm);color:var(--text-secondary);" id="drawerComplaint">
+        —
+      </div>
+    </div>
+  </div>
+
+  <div class="drawer-footer">
+    <button class="btn btn-ghost btn-sm" onclick="closeDrawer()">Close</button>
+    <button class="btn btn-secondary btn-sm" onclick="markCompleted()" id="drawerCompleteBtn">
+      ✓ Mark Completed
+    </button>
+    <button class="btn btn-primary btn-sm" id="drawerConsultBtn" onclick="startConsultation()">
+      🩺 Start Consultation
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     TOAST CONTAINER
+═══════════════════════════════════════════════════════════ -->
+<div class="toast-container" id="toastContainer"></div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     JAVASCRIPT
+═══════════════════════════════════════════════════════════ -->
+<script src="../js/doctor.js"></script>
+  <script src="../js/validation.js"></script>
+</body>
+</html>

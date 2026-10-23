@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Prescription Details — Clinic Management System" />
+  <title>Prescription Details | Pharmacy — CMS</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Shared CSS -->
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/forms.css" />
+  <link rel="stylesheet" href="../css/tables.css" />
+
+  <style>
+    .rx-meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      padding: 16px 20px;
+      background: var(--bg-page);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-light);
+    }
+    .rx-meta-item strong {
+      display: block;
+      font-size: var(--text-xs);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    .rx-meta-item p {
+      font-size: var(--text-base);
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0;
+    }
+  </style>
+</head>
+
+<body>
+<!-- Mobile sidebar overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<!-- ═══════════════════════════════════════
+     SIDEBAR
+═══════════════════════════════════════ -->
+<div class="sidebar" id="sidebar">
+
+  <a class="sidebar-brand" href="dashboard.html">
+    <div class="sidebar-brand-icon">💊</div>
+    <div class="sidebar-brand-text">
+      <span class="sidebar-brand-name">MediCare CMS</span>
+      <span class="sidebar-brand-sub">Pharmacy Portal</span>
+    </div>
+  </a>
+
+  <nav class="sidebar-nav">
+    <span class="nav-section-label">Main</span>
+
+    <a class="nav-item" href="dashboard.html" id="nav-dashboard">
+      <span class="nav-item-icon">📊</span>
+      <span class="nav-item-label">Dashboard</span>
+    </a>
+
+    <div class="sidebar-divider"></div>
+    <span class="nav-section-label">Prescriptions</span>
+
+    <a class="nav-item" href="prescription-queue.html" id="nav-queue">
+      <span class="nav-item-icon">📋</span>
+      <span class="nav-item-label">Prescription Queue</span>
+    </a>
+
+    <a class="nav-item active" href="prescription-details.html" id="nav-details">
+      <span class="nav-item-icon">📄</span>
+      <span class="nav-item-label">Prescription Details</span>
+    </a>
+
+    <div class="sidebar-divider"></div>
+    <span class="nav-section-label">Inventory & Stock</span>
+
+    <a class="nav-item" href="medicine-inventory.html" id="nav-inventory">
+      <span class="nav-item-icon">📦</span>
+      <span class="nav-item-label">Medicine Inventory</span>
+    </a>
+
+    <a class="nav-item" href="stock.html" id="nav-stock">
+      <span class="nav-item-icon">📈</span>
+      <span class="nav-item-label">Stock Status</span>
+    </a>
+
+    <div class="sidebar-divider"></div>
+    <span class="nav-section-label">Billing</span>
+
+    <a class="nav-item" href="pharmacy-billing.html" id="nav-billing">
+      <span class="nav-item-icon">💰</span>
+      <span class="nav-item-label">Pharmacy Billing</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-user">
+    <div class="sidebar-avatar" id="sidebarAvatar">PH</div>
+    <div class="sidebar-user-info">
+      <div class="sidebar-user-name" id="sidebarName">Pharmacist</div>
+      <div class="sidebar-user-role">Pharmacy Staff</div>
+    </div>
+    <button class="sidebar-logout-btn" onclick="logout()" title="Logout">⏏</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     MAIN CONTENT
+═══════════════════════════════════════ -->
+<div class="main-content">
+
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="topbar-toggle" onclick="openSidebar()" aria-label="Open menu">☰</button>
+      <div>
+        <div class="topbar-page-title">Prescription Details</div>
+        <div class="topbar-breadcrumb">
+          <span>Pharmacy</span>
+          <span class="topbar-breadcrumb-sep">›</span>
+          <span>Prescription Details</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="topbar-right">
+      <div style="font-size:var(--text-xs);color:var(--text-muted);font-weight:600;white-space:nowrap;" id="topbarDate"></div>
+      <div class="user-chip">
+        <div class="user-chip-avatar" id="topbarAvatar">PH</div>
+        <span class="user-chip-name" id="topbarName">Pharmacist</span>
+        <span class="user-chip-role">Pharmacy</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- PAGE CONTENT -->
+  <main class="page-content">
+
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1 class="page-title">Prescription Details</h1>
+        <p class="page-subtitle">Detailed view of patient prescription and prescribed medication items</p>
+      </div>
+      <div class="page-actions">
+        <a href="prescription-queue.html" class="btn btn-outline">
+          ← Back to Queue
+        </a>
+      </div>
+    </div>
+
+    <!-- RX INFO CARD -->
+    <div class="card mb-20">
+      <div class="card-header">
+        <div>
+          <div class="card-title" id="rxTitle">Prescription Information</div>
+          <div class="card-subtitle">Clinical prescription metadata</div>
+        </div>
+        <span class="badge badge-warning" id="rxStatusBadge">Pending</span>
+      </div>
+
+      <div class="card-body">
+        <div class="rx-meta-grid">
+          <div class="rx-meta-item">
+            <strong>Patient</strong>
+            <p id="rxPatient">—</p>
+          </div>
+          <div class="rx-meta-item">
+            <strong>Doctor</strong>
+            <p id="rxDoctor">—</p>
+          </div>
+          <div class="rx-meta-item">
+            <strong>Date</strong>
+            <p id="rxDate">—</p>
+          </div>
+          <div class="rx-meta-item">
+            <strong>Prescription ID</strong>
+            <p id="rxId">—</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRESCRIBED MEDICINES TABLE -->
+    <div class="table-container mb-20">
+      <div class="table-header">
+        <div class="table-header-left">
+          <div class="table-title">Prescribed Medicines</div>
+        </div>
+      </div>
+
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Medicine</th>
+              <th>Dosage</th>
+              <th>Duration</th>
+              <th>Instructions / Quantity</th>
+            </tr>
+          </thead>
+          <tbody id="rxMedicinesTable">
+            <!-- Populated dynamically by js/pharmacy.js -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ACTION CONTAINER -->
+    <div id="rxActionContainer" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+      <!-- Dispense / Action buttons injected dynamically by pharmacy.js -->
+    </div>
+
+  </main>
+</div>
+
+<!-- Mobile Sidebar Helpers -->
+<script>
+function openSidebar()  { document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('open'); }
+function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('open'); }
+</script>
+
+<!-- Scripts -->
+<script src="../js/pharmacy.js"></script>
+<script src="../js/validation.js"></script>
+</body>
+</html>
