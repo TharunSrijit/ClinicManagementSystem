@@ -13,7 +13,7 @@
 (function () {
 
     // Change this one line when the backend moves (or set window.CMS_API_BASE first)
-    const API_BASE = window.CMS_API_BASE || 'http://localhost:8000/api';
+    const API_BASE = window.CMS_API_BASE || 'http://127.0.0.1:8000/api';
 
     // URL of the frontend root, works from any subfolder (admin/, doctor/, ...)
     const ROOT_URL = document.currentScript.src.replace(/js\/api\.js.*$/, '');

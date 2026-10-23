@@ -146,6 +146,9 @@ else:
         "http://localhost:5500",
     ]
 
+# In development, allow all origins so Live Server (on any port) or local file access works seamlessly
+CORS_ALLOW_ALL_ORIGINS = DEBUG
+
 
 
 # Static files (CSS, JavaScript, Images)
