@@ -1,1862 +1,493 @@
 // ============================================================
-// CMS - ADMIN JAVASCRIPT
+// CMS - ADMIN MANAGEMENT
 // File: js/admin.js
 // ============================================================
 
-// ============================================================
-// PAGE LOAD
-// ============================================================
+let allDoctors = [];
+let allStaff = [];
+let allUsers = [];
 
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener('DOMContentLoaded', async () => {
+    const user = CMS.requireRole(['admin']);
+    if (!user) return;
 
-syncDirectoryRecords();
-
-// Load dashboard
-loadDashboard();
-
-// Load doctors
-loadDoctors();
-
-// Load staff
-loadStaff();
-
-loadUsers();
-updateStaffRoleFields();
-
-});
-
-// ============================================================
-// DASHBOARD
-// ============================================================
-
-function loadDashboard() {
-
-const doctors = getDoctors();
-
-const staff = getStaff();
-
-const users = getUsers();
-
-
-// Total Doctors
-const totalDoctors =
-    document.getElementById("totalDoctors");
-
-if (totalDoctors) {
-
-    totalDoctors.textContent =
-        doctors.length;
-
-}
-
-
-// Total Staff
-const totalStaff =
-    document.getElementById("totalStaff");
-
-if (totalStaff) {
-
-    totalStaff.textContent =
-        staff.length;
-
-}
-
-
-// Total Users
-const totalUsers =
-    document.getElementById("totalUsers");
-
-if (totalUsers) {
-
-    totalUsers.textContent =
-        users.length;
-
-}
-
-
-// Active Users
-const activeUsers =
-    document.getElementById("activeUsers");
-
-if (activeUsers) {
-
-    const active =
-        users.filter(function (user) {
-
-            return user.status === "Active";
-
+    const signInLink = document.getElementById('sign-in-link');
+    if (signInLink) {
+        signInLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            CMS.session.clear();
+            window.location.href = '../index.html';
         });
+    }
 
-    activeUsers.textContent =
-        active.length;
-
-}
-
-}
-
-// ============================================================
-// DASHBOARD NAVIGATION
-// ============================================================
-
-function goToDoctors() {
-
-window.location.href =
-    "doctor-management.html";
-
-}
-
-function goToStaff() {
-
-window.location.href =
-    "staff-management.html";
-
-}
-
-function goToUsers() {
-
-window.location.href =
-    "user-management.html";
-
-}
+    if (document.getElementById('doctorTableBody')) {
+        await loadDoctors();
+    }
+    if (document.getElementById('staffTableBody')) {
+        updateStaffRoleFields();
+        await loadStaff();
+    }
+    if (document.getElementById('userTableBody')) {
+        await loadUsers();
+    }
+});
 
 // ============================================================
 // DOCTOR MANAGEMENT
 // ============================================================
-
-// ADD DOCTOR
-
-function syncLinkedAccounts(profileType, profileId, updates) {
-    if (!profileId) return;
-
-    const users = getUsers();
-    let changed = false;
-
-    users.forEach(function (user) {
-        if (user.profileType === profileType && user.profileId === profileId) {
-            Object.assign(user, updates);
-            changed = true;
-        }
-    });
-
-    if (changed) saveUsers(users);
+async function loadDoctors() {
+    const tableBody = document.getElementById('doctorTableBody');
+    if (!tableBody) return;
+    try {
+        allDoctors = await CMS.api.list('/admin/doctors/');
+        displayDoctors(allDoctors);
+    } catch (err) {
+        console.error('Failed to load doctors:', err);
+        tableBody.innerHTML = '<tr><td colspan="7">Failed to load doctors.</td></tr>';
+    }
 }
-
-function syncDirectoryRecords() {
-    getDoctors().forEach(syncDoctorStaffRecord);
-
-    getStaff().forEach(function (person) {
-        if (person.role === "Doctor" && person.specialization) {
-            syncDoctorProfileFromStaff(person, person.specialization);
-        }
-    });
-}
-
-function syncDoctorStaffRecord(doctor) {
-
-const staff = getStaff();
-let person = staff.find(function (item) {
-    return item.id === doctor.staffId || item.doctorId === doctor.id;
-});
-
-if (!person) {
-    person = staff.find(function (item) {
-        return item.role === "Doctor" && item.email.toLowerCase() === doctor.email.toLowerCase();
-    });
-}
-
-if (!person) {
-    person = {
-        id: doctor.staffId || generateId("STAFF"),
-        createdAt: doctor.createdAt
-    };
-    staff.push(person);
-}
-
-doctor.staffId = person.id;
-Object.assign(person, {
-    doctorId: doctor.id,
-    name: doctor.name,
-    email: doctor.email,
-    phone: doctor.phone,
-    role: "Doctor",
-    specialization: doctor.specialization,
-    status: doctor.status
-});
-
-saveStaff(staff);
-const doctors = getDoctors();
-const storedDoctor = doctors.find(function (item) {
-    return item.id === doctor.id;
-});
-if (storedDoctor) {
-    storedDoctor.staffId = doctor.staffId;
-    saveDoctors(doctors);
-}
-syncLinkedAccounts("doctor", doctor.id, {
-    name: doctor.name,
-    email: doctor.email,
-    role: "Doctor",
-    status: doctor.status
-});
-
-}
-
-function removeDoctorStaffRecord(doctor) {
-    const staff = getStaff().filter(function (person) {
-        return person.id !== doctor.staffId && person.doctorId !== doctor.id;
-    });
-    saveStaff(staff);
-    syncLinkedAccounts("doctor", doctor.id, { status: "Inactive" });
-}
-
-function addDoctor() {
-
-const name = document.getElementById("doctorName").value.trim();
-const email = document.getElementById("doctorEmail").value.trim();
-const phone = document.getElementById("doctorPhone").value.trim();
-const specialization = document.getElementById("doctorSpecialization").value.trim();
-
-if (!name || !email || !phone || !specialization) {
-    alert("Please fill all doctor details.");
-    return;
-}
-
-const doctors = getDoctors();
-const staff = getStaff();
-const duplicateDoctor = doctors.some(function (item) {
-    return item.email.toLowerCase() === email.toLowerCase();
-});
-const matchingStaff = staff.find(function (person) {
-    return person.email.toLowerCase() === email.toLowerCase();
-});
-
-if (duplicateDoctor || (matchingStaff && matchingStaff.role !== "Doctor")) {
-    alert("A person with this email already exists. Check the staff and doctor directories.");
-    return;
-}
-
-const doctor = {
-    id: generateId("DOC"),
-    staffId: matchingStaff ? matchingStaff.id : generateId("STAFF"),
-    name: name,
-    email: email,
-    phone: phone,
-    specialization: specialization,
-    status: "Active",
-    createdAt: new Date().toLocaleDateString()
-};
-
-doctors.push(doctor);
-saveDoctors(doctors);
-syncDoctorStaffRecord(doctor);
-
-alert("Doctor added successfully.");
-document.getElementById("doctorForm").reset();
-loadDoctors();
-
-}
-
-// LOAD DOCTORS
-
-function loadDoctors() {
-
-const tableBody =
-    document.getElementById(
-        "doctorTableBody"
-    );
-
-
-// If this is not doctor page
-
-if (!tableBody) {
-
-    return;
-
-}
-
-
-const doctors = getDoctors();
-
-
-tableBody.innerHTML = "";
-
-
-// No doctors
-
-if (doctors.length === 0) {
-
-    tableBody.innerHTML = `
-
-        <tr>
-
-            <td colspan="7">
-                No doctors found.
-            </td>
-
-        </tr>
-
-    `;
-
-    return;
-
-}
-
-
-// Display doctors
-
-doctors.forEach(function (doctor) {
-
-    const row =
-        document.createElement("tr");
-
-
-    row.innerHTML = `
-
-        <td>${doctor.id}</td>
-
-        <td>${doctor.name}</td>
-
-        <td>${doctor.email}</td>
-
-        <td>${doctor.phone}</td>
-
-        <td>${doctor.specialization}</td>
-
-        <td>${doctor.status}</td>
-
-        <td>
-
-            <button
-                onclick="editDoctor('${doctor.id}')">
-                Edit
-            </button>
-
-            <button
-                onclick="toggleDoctorStatus('${doctor.id}')">
-                ${
-                    doctor.status === "Active"
-                    ? "Deactivate"
-                    : "Activate"
-                }
-            </button>
-
-            <button
-                onclick="deleteDoctor('${doctor.id}')">
-                Delete
-            </button>
-
-        </td>
-
-    `;
-
-
-    tableBody.appendChild(row);
-
-});
-
-}
-
-// EDIT DOCTOR
-
-function editDoctor(id) {
-
-const doctors = getDoctors();
-
-
-const doctor =
-    doctors.find(function (item) {
-
-        return item.id === id;
-
-    });
-
-
-if (!doctor) {
-
-    alert("Doctor not found.");
-
-    return;
-
-}
-
-
-const name =
-    prompt(
-        "Enter doctor name:",
-        doctor.name
-    );
-
-
-if (name === null) {
-
-    return;
-
-}
-
-
-const email =
-    prompt(
-        "Enter doctor email:",
-        doctor.email
-    );
-
-
-if (email === null) {
-
-    return;
-
-}
-
-
-const phone =
-    prompt(
-        "Enter doctor phone:",
-        doctor.phone
-    );
-
-
-if (phone === null) {
-
-    return;
-
-}
-
-
-const specialization =
-    prompt(
-        "Enter specialization:",
-        doctor.specialization
-    );
-
-
-if (specialization === null) {
-
-    return;
-
-}
-
-
-doctor.name =
-    name.trim();
-
-doctor.email =
-    email.trim();
-
-doctor.phone =
-    phone.trim();
-
-doctor.specialization =
-    specialization.trim();
-
-
-saveDoctors(doctors);
-syncDoctorStaffRecord(doctor);
-
-
-alert(
-    "Doctor updated successfully."
-);
-
-
-loadDoctors();
-
-}
-
-// DELETE DOCTOR
-
-function deleteDoctor(id) {
-
-const confirmDelete =
-    confirm(
-        "Are you sure you want to delete this doctor?"
-    );
-
-
-if (!confirmDelete) {
-
-    return;
-
-}
-
-
-const doctor = getDoctors().find(function (item) {
-    return item.id === id;
-});
-
-
-deleteById(
-    STORAGE_KEYS.doctors,
-    id
-);
-
-if (doctor) {
-    removeDoctorStaffRecord(doctor);
-}
-
-
-alert(
-    "Doctor deleted successfully."
-);
-
-
-loadDoctors();
-
-}
-
-// TOGGLE DOCTOR STATUS
-
-function toggleDoctorStatus(id) {
-
-const doctors = getDoctors();
-
-
-const doctor =
-    doctors.find(function (item) {
-
-        return item.id === id;
-
-    });
-
-
-if (!doctor) {
-
-    return;
-
-}
-
-
-if (doctor.status === "Active") {
-
-    doctor.status = "Inactive";
-
-} else {
-
-    doctor.status = "Active";
-
-}
-
-
-saveDoctors(doctors);
-syncDoctorStaffRecord(doctor);
-
-
-loadDoctors();
-
-}
-
-// SEARCH DOCTORS
 
 function searchDoctors() {
-
-const search =
-    document.getElementById(
-        "doctorSearch"
-    ).value
-    .toLowerCase()
-    .trim();
-
-
-const doctors = getDoctors();
-
-
-const filteredDoctors =
-    doctors.filter(function (doctor) {
-
-        return (
-
-            doctor.name
-                .toLowerCase()
-                .includes(search)
-
-            ||
-
-            doctor.email
-                .toLowerCase()
-                .includes(search)
-
-            ||
-
-            doctor.specialization
-                .toLowerCase()
-                .includes(search)
-
-        );
-
-    });
-
-
-displayDoctors(
-    filteredDoctors
-);
-
+    const q = (document.getElementById('doctorSearch')?.value || '').toLowerCase().trim();
+    if (!q) {
+        displayDoctors(allDoctors);
+        return;
+    }
+    const filtered = allDoctors.filter(d => 
+        (d.full_name || '').toLowerCase().includes(q) ||
+        (d.email || '').toLowerCase().includes(q) ||
+        (d.specialization || '').toLowerCase().includes(q) ||
+        (d.doctor_id || '').toLowerCase().includes(q)
+    );
+    displayDoctors(filtered);
 }
-
-// DISPLAY SEARCHED DOCTORS
 
 function displayDoctors(doctors) {
-
-const tableBody =
-    document.getElementById(
-        "doctorTableBody"
-    );
-
-
-if (!tableBody) {
-
-    return;
-
-}
-
-
-tableBody.innerHTML = "";
-
-
-if (doctors.length === 0) {
-
-    tableBody.innerHTML = `
-
-        <tr>
-
-            <td colspan="7">
-                No doctors found.
+    const tableBody = document.getElementById('doctorTableBody');
+    if (!tableBody) return;
+    tableBody.innerHTML = '';
+    if (!doctors || doctors.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="7">No doctors found.</td></tr>';
+        return;
+    }
+    doctors.forEach(doc => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${doc.doctor_id || doc.id}</td>
+            <td>${doc.full_name || '-'}</td>
+            <td>${doc.email || '-'}</td>
+            <td>${doc.phone || '-'}</td>
+            <td>${doc.specialization || '-'}</td>
+            <td><span class="status-badge status-confirmed">Active</span></td>
+            <td>
+                <button type="button" class="btn-table" onclick="editDoctor(${doc.id})">Edit</button>
+                <button type="button" class="btn-table btn-danger" onclick="deleteDoctor(${doc.id})">Delete</button>
             </td>
-
-        </tr>
-
-    `;
-
-    return;
-
+        `;
+        tableBody.appendChild(row);
+    });
 }
 
+async function addDoctor() {
+    const name = document.getElementById('doctorName')?.value.trim();
+    const email = document.getElementById('doctorEmail')?.value.trim();
+    const phone = document.getElementById('doctorPhone')?.value.trim();
+    const specialization = document.getElementById('doctorSpecialization')?.value.trim();
 
-doctors.forEach(function (doctor) {
+    if (!name || !email || !phone || !specialization) {
+        alert('Please fill all doctor details.');
+        return;
+    }
 
-    const row =
-        document.createElement("tr");
+    const nameParts = name.split(' ');
+    const firstName = nameParts[0] || 'Doctor';
+    const lastName = nameParts.slice(1).join(' ') || '';
+    const username = ('dr_' + firstName.toLowerCase() + (Date.now() % 1000)).replace(/[^a-z0-9_]/g, '');
 
+    try {
+        await CMS.api.post('/admin/users/create_staff/', {
+            role: 'DOCTOR',
+            username: username,
+            password: 'TempPassword123!',
+            email: email,
+            first_name: firstName,
+            last_name: lastName,
+            phone: phone,
+            profile: {
+                doctor_id: 'DOC' + Math.floor(1000 + Math.random() * 9000),
+                specialization: specialization,
+                qualification: 'MBBS',
+                registration_number: 'REG' + (Date.now() % 100000),
+                consultation_fee: 500
+            }
+        });
+        alert('Doctor added successfully. Login username: ' + username + ' (Default password: TempPassword123!)');
+        document.getElementById('doctorForm')?.reset();
+        await loadDoctors();
+    } catch (err) {
+        console.error('Failed to add doctor:', err);
+        alert('Failed to add doctor: ' + (err.message || 'Server error'));
+    }
+}
 
-    row.innerHTML = `
+async function editDoctor(id) {
+    const doc = allDoctors.find(d => d.id === id);
+    if (!doc) return;
+    const newSpec = prompt('Update doctor specialization:', doc.specialization || '');
+    if (newSpec === null) return;
+    const newFee = prompt('Update consultation fee:', doc.consultation_fee || '500');
+    if (newFee === null) return;
 
-        <td>${doctor.id}</td>
+    try {
+        await CMS.api.patch(`/admin/doctors/${id}/`, {
+            specialization: newSpec.trim(),
+            consultation_fee: parseFloat(newFee) || doc.consultation_fee
+        });
+        alert('Doctor updated successfully.');
+        await loadDoctors();
+    } catch (err) {
+        console.error('Failed to update doctor:', err);
+        alert('Failed to update doctor: ' + (err.message || 'Server error'));
+    }
+}
 
-        <td>${doctor.name}</td>
-
-        <td>${doctor.email}</td>
-
-        <td>${doctor.phone}</td>
-
-        <td>${doctor.specialization}</td>
-
-        <td>${doctor.status}</td>
-
-        <td>
-
-            <button
-                onclick="editDoctor('${doctor.id}')">
-                Edit
-            </button>
-
-            <button
-                onclick="toggleDoctorStatus('${doctor.id}')">
-                ${
-                    doctor.status === "Active"
-                    ? "Deactivate"
-                    : "Activate"
-                }
-            </button>
-
-            <button
-                onclick="deleteDoctor('${doctor.id}')">
-                Delete
-            </button>
-
-        </td>
-
-    `;
-
-
-    tableBody.appendChild(row);
-
-});
-
+async function deleteDoctor(id) {
+    if (!confirm('Are you sure you want to delete this doctor?')) return;
+    try {
+        await CMS.api.delete(`/admin/doctors/${id}/`);
+        alert('Doctor deleted successfully.');
+        await loadDoctors();
+    } catch (err) {
+        console.error('Failed to delete doctor:', err);
+        alert('Failed to delete doctor: ' + (err.message || 'Server error'));
+    }
 }
 
 // ============================================================
 // STAFF MANAGEMENT
 // ============================================================
-
-// ADD STAFF
-
 function updateStaffRoleFields() {
-    const roleInput = document.getElementById("staffRole");
-    const specializationField = document.getElementById("doctor-specialization-field");
-    const specializationInput = document.getElementById("staffSpecialization");
-
-    if (!roleInput || !specializationField || !specializationInput) return;
-
-    const isDoctor = roleInput.value === "Doctor";
-    specializationField.hidden = !isDoctor;
-    specializationInput.required = isDoctor;
+    const roleInput = document.getElementById('staffRole');
+    const specField = document.getElementById('doctor-specialization-field');
+    const specInput = document.getElementById('staffSpecialization');
+    if (!roleInput || !specField) return;
+    const isDoctor = roleInput.value === 'Doctor';
+    specField.hidden = !isDoctor;
+    if (specInput) specInput.required = isDoctor;
 }
 
-function syncDoctorProfileFromStaff(person, specialization) {
-    const doctors = getDoctors();
-    let doctor = doctors.find(function (item) {
-        return item.id === person.doctorId || item.staffId === person.id;
-    });
+async function loadStaff() {
+    const tableBody = document.getElementById('staffTableBody');
+    if (!tableBody) return;
+    try {
+        const [receptionists, labTechs, pharmacists] = await Promise.all([
+            CMS.api.list('/admin/receptionists/').catch(() => []),
+            CMS.api.list('/admin/lab-technicians/').catch(() => []),
+            CMS.api.list('/admin/pharmacists/').catch(() => [])
+        ]);
 
-    if (!doctor) {
-        doctor = {
-            id: generateId("DOC"),
-            staffId: person.id,
-            createdAt: person.createdAt
-        };
-        doctors.push(doctor);
+        allStaff = [
+            ...receptionists.map(r => ({
+                id: r.employee_id || ('REC' + r.id),
+                name: r.full_name || 'Staff Member',
+                email: r.email || '-',
+                phone: r.phone || '-',
+                role: 'Receptionist',
+                status: 'Active',
+                rawId: r.id,
+                userId: r.user,
+                endpoint: 'receptionists'
+            })),
+            ...labTechs.map(l => ({
+                id: l.employee_id || ('LAB' + l.id),
+                name: l.full_name || 'Staff Member',
+                email: l.email || '-',
+                phone: l.phone || '-',
+                role: 'Lab Technician',
+                status: 'Active',
+                rawId: l.id,
+                userId: l.user,
+                endpoint: 'lab-technicians'
+            })),
+            ...pharmacists.map(p => ({
+                id: p.employee_id || ('PHARM' + p.id),
+                name: p.full_name || 'Staff Member',
+                email: p.email || '-',
+                phone: p.phone || '-',
+                role: 'Pharmacist',
+                status: 'Active',
+                rawId: p.id,
+                userId: p.user,
+                endpoint: 'pharmacists'
+            }))
+        ];
+
+        displayStaff(allStaff);
+    } catch (err) {
+        console.error('Failed to load staff:', err);
+        tableBody.innerHTML = '<tr><td colspan="7">Failed to load staff.</td></tr>';
     }
-
-    Object.assign(doctor, {
-        staffId: person.id,
-        name: person.name,
-        email: person.email,
-        phone: person.phone,
-        specialization: specialization,
-        status: person.status
-    });
-    person.doctorId = doctor.id;
-    person.specialization = specialization;
-
-    const staff = getStaff();
-    const storedPerson = staff.find(function (item) {
-        return item.id === person.id;
-    });
-    if (storedPerson) Object.assign(storedPerson, person);
-
-    saveDoctors(doctors);
-    saveStaff(staff);
-    syncLinkedAccounts("staff", person.id, {
-        profileType: "doctor",
-        profileId: doctor.id,
-        name: person.name,
-        email: person.email,
-        role: "Doctor",
-        status: person.status
-    });
-    syncLinkedAccounts("doctor", doctor.id, {
-        name: person.name,
-        email: person.email,
-        role: "Doctor",
-        status: person.status
-    });
 }
-
-function removeDoctorProfileForStaff(person) {
-    const existingDoctors = getDoctors();
-    const linkedDoctors = existingDoctors.filter(function (doctor) {
-        return doctor.id === person.doctorId || doctor.staffId === person.id;
-    });
-
-    linkedDoctors.forEach(function (doctor) {
-        syncLinkedAccounts("doctor", doctor.id, {
-            profileType: "staff",
-            profileId: person.id,
-            role: person.role,
-            name: person.name,
-            email: person.email,
-            status: person.status
-        });
-    });
-
-    const doctors = existingDoctors.filter(function (doctor) {
-        return doctor.id !== person.doctorId && doctor.staffId !== person.id;
-    });
-    saveDoctors(doctors);
-}
-
-function addStaff() {
-
-const name = document.getElementById("staffName").value.trim();
-const email = document.getElementById("staffEmail").value.trim();
-const phone = document.getElementById("staffPhone").value.trim();
-const role = document.getElementById("staffRole").value;
-const specializationInput = document.getElementById("staffSpecialization");
-const specialization = specializationInput ? specializationInput.value.trim() : "";
-
-if (!name || !email || !phone || !role || (role === "Doctor" && !specialization)) {
-    alert("Please fill all required staff details.");
-    return;
-}
-
-const staff = getStaff();
-const duplicateStaff = staff.some(function (person) {
-    return person.email.toLowerCase() === email.toLowerCase();
-});
-const duplicateDoctor = role === "Doctor" && getDoctors().some(function (doctor) {
-    return doctor.email.toLowerCase() === email.toLowerCase();
-});
-
-if (duplicateStaff || duplicateDoctor) {
-    alert("A person with this email already exists in the directory.");
-    return;
-}
-
-const newStaff = {
-    id: generateId("STAFF"),
-    name: name,
-    email: email,
-    phone: phone,
-    role: role,
-    status: "Active",
-    createdAt: new Date().toLocaleDateString()
-};
-
-staff.push(newStaff);
-saveStaff(staff);
-
-if (role === "Doctor") {
-    syncDoctorProfileFromStaff(newStaff, specialization);
-}
-
-alert("Staff added successfully.");
-document.getElementById("staffForm").reset();
-updateStaffRoleFields();
-loadStaff();
-
-}
-
-// LOAD STAFF
-
-function loadStaff() {
-
-const tableBody =
-    document.getElementById(
-        "staffTableBody"
-    );
-
-
-if (!tableBody) {
-
-    return;
-
-}
-
-
-const staff = getStaff();
-
-
-tableBody.innerHTML = "";
-
-
-if (staff.length === 0) {
-
-    tableBody.innerHTML = `
-
-        <tr>
-
-            <td colspan="7">
-                No staff found.
-            </td>
-
-        </tr>
-
-    `;
-
-    return;
-
-}
-
-
-staff.forEach(function (person) {
-
-    const row =
-        document.createElement("tr");
-
-
-    row.innerHTML = `
-
-        <td>${person.id}</td>
-
-        <td>${person.name}</td>
-
-        <td>${person.email}</td>
-
-        <td>${person.phone}</td>
-
-        <td>${person.role}</td>
-
-        <td>${person.status}</td>
-
-        <td>
-
-            <button
-                onclick="editStaff('${person.id}')">
-                Edit
-            </button>
-
-            <button
-                onclick="toggleStaffStatus('${person.id}')">
-                ${
-                    person.status === "Active"
-                    ? "Deactivate"
-                    : "Activate"
-                }
-            </button>
-
-            <button
-                onclick="deleteStaff('${person.id}')">
-                Delete
-            </button>
-
-        </td>
-
-    `;
-
-
-    tableBody.appendChild(row);
-
-});
-
-}
-
-// EDIT STAFF
-
-function editStaff(id) {
-
-const staff = getStaff();
-
-
-const person =
-    staff.find(function (item) {
-
-        return item.id === id;
-
-    });
-
-
-if (!person) {
-
-    alert("Staff member not found.");
-
-    return;
-
-}
-
-
-const name =
-    prompt(
-        "Enter staff name:",
-        person.name
-    );
-
-
-if (name === null) return;
-
-
-const email =
-    prompt(
-        "Enter staff email:",
-        person.email
-    );
-
-
-if (email === null) return;
-
-
-const phone =
-    prompt(
-        "Enter staff phone:",
-        person.phone
-    );
-
-
-if (phone === null) return;
-
-
-const role =
-    prompt(
-        "Enter role:\nDoctor\nReceptionist\nLab Technician\nPharmacist",
-        person.role
-    );
-
-
-if (role === null) return;
-
-const nextRole = role.trim();
-const originalDoctorId = person.doctorId;
-let specialization = person.specialization || "";
-
-if (nextRole === "Doctor") {
-    specialization = prompt("Enter doctor specialization:", specialization);
-    if (specialization === null || !specialization.trim()) {
-        alert("Doctor specialization is required.");
-        return;
-    }
-    specialization = specialization.trim();
-}
-
-const duplicateStaff = staff.some(function (item) {
-    return item.id !== id && item.email.toLowerCase() === email.trim().toLowerCase();
-});
-const duplicateDoctor = nextRole === "Doctor" && getDoctors().some(function (doctor) {
-    return doctor.id !== originalDoctorId && doctor.email.toLowerCase() === email.trim().toLowerCase();
-});
-
-if (duplicateStaff || duplicateDoctor) {
-    alert("A person with this email already exists in the directory.");
-    return;
-}
-
-
-person.name =
-    name.trim();
-
-person.email =
-    email.trim();
-
-person.phone =
-    phone.trim();
-
-person.role =
-    nextRole;
-
-
-saveStaff(staff);
-
-if (nextRole === "Doctor") {
-    syncDoctorProfileFromStaff(person, specialization);
-} else if (originalDoctorId || person.role === "Doctor") {
-    person.doctorId = originalDoctorId;
-    removeDoctorProfileForStaff(person);
-    delete person.doctorId;
-    delete person.specialization;
-    saveStaff(staff);
-    syncLinkedAccounts("staff", person.id, {
-        name: person.name,
-        email: person.email,
-        role: person.role,
-        status: person.status
-    });
-} else {
-    syncLinkedAccounts("staff", person.id, {
-        name: person.name,
-        email: person.email,
-        role: person.role,
-        status: person.status
-    });
-}
-
-
-alert(
-    "Staff updated successfully."
-);
-
-
-loadStaff();
-
-}
-
-// DELETE STAFF
-
-function deleteStaff(id) {
-
-const confirmDelete =
-    confirm(
-        "Are you sure you want to delete this staff member?"
-    );
-
-
-if (!confirmDelete) {
-
-    return;
-
-}
-
-const person = getStaff().find(function (item) {
-    return item.id === id;
-});
-
-
-deleteById(
-    STORAGE_KEYS.staff,
-    id
-);
-
-if (person && person.role === "Doctor") {
-    removeDoctorProfileForStaff(person);
-    syncLinkedAccounts("staff", person.id, { status: "Inactive" });
-} else if (person) {
-    syncLinkedAccounts("staff", person.id, { status: "Inactive" });
-}
-
-
-alert(
-    "Staff deleted successfully."
-);
-
-
-loadStaff();
-
-}
-
-// TOGGLE STAFF STATUS
-
-function toggleStaffStatus(id) {
-
-const staff = getStaff();
-
-
-const person =
-    staff.find(function (item) {
-
-        return item.id === id;
-
-    });
-
-
-if (!person) {
-
-    return;
-
-}
-
-
-person.status =
-    person.status === "Active"
-        ? "Inactive"
-        : "Active";
-
-
-saveStaff(staff);
-
-if (person.role === "Doctor") {
-    syncDoctorProfileFromStaff(person, person.specialization || "");
-} else {
-    syncLinkedAccounts("staff", person.id, {
-        name: person.name,
-        email: person.email,
-        role: person.role,
-        status: person.status
-    });
-}
-
-
-loadStaff();
-
-}
-
-// SEARCH STAFF
 
 function searchStaff() {
-
-const search =
-    document.getElementById(
-        "staffSearch"
-    ).value
-    .toLowerCase()
-    .trim();
-
-
-const staff = getStaff();
-
-
-const filteredStaff =
-    staff.filter(function (person) {
-
-        return (
-
-            person.name
-                .toLowerCase()
-                .includes(search)
-
-            ||
-
-            person.email
-                .toLowerCase()
-                .includes(search)
-
-            ||
-
-            person.role
-                .toLowerCase()
-                .includes(search)
-
-        );
-
-    });
-
-
-displayStaff(
-    filteredStaff
-);
-
-}
-
-// DISPLAY STAFF
-
-function displayStaff(staff) {
-
-const tableBody =
-    document.getElementById(
-        "staffTableBody"
+    const q = (document.getElementById('staffSearch')?.value || '').toLowerCase().trim();
+    if (!q) {
+        displayStaff(allStaff);
+        return;
+    }
+    const filtered = allStaff.filter(s =>
+        s.name.toLowerCase().includes(q) ||
+        s.email.toLowerCase().includes(q) ||
+        s.role.toLowerCase().includes(q) ||
+        s.id.toLowerCase().includes(q)
     );
-
-
-if (!tableBody) return;
-
-
-tableBody.innerHTML = "";
-
-
-if (staff.length === 0) {
-
-    tableBody.innerHTML = `
-
-        <tr>
-
-            <td colspan="7">
-                No staff found.
-            </td>
-
-        </tr>
-
-    `;
-
-    return;
-
+    displayStaff(filtered);
 }
 
+function displayStaff(staffList) {
+    const tableBody = document.getElementById('staffTableBody');
+    if (!tableBody) return;
+    tableBody.innerHTML = '';
+    if (!staffList || staffList.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="7">No staff found.</td></tr>';
+        return;
+    }
+    staffList.forEach(s => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${s.id}</td>
+            <td>${s.name}</td>
+            <td>${s.email}</td>
+            <td>${s.phone}</td>
+            <td>${s.role}</td>
+            <td><span class="status-badge status-confirmed">${s.status}</span></td>
+            <td>
+                <button type="button" class="btn-table" onclick="editStaff('${s.id}')">Edit</button>
+                <button type="button" class="btn-table btn-danger" onclick="deleteStaff('${s.id}')">Delete</button>
+            </td>
+        `;
+        tableBody.appendChild(row);
+    });
+}
 
-staff.forEach(function (person) {
+async function addStaff() {
+    const name = document.getElementById('staffName')?.value.trim();
+    const email = document.getElementById('staffEmail')?.value.trim();
+    const phone = document.getElementById('staffPhone')?.value.trim();
+    const role = document.getElementById('staffRole')?.value;
+    const spec = document.getElementById('staffSpecialization')?.value.trim() || '';
 
-    const row =
-        document.createElement("tr");
+    if (!name || !email || !phone || !role) {
+        alert('Please fill all required staff details.');
+        return;
+    }
 
+    const roleMap = {
+        'Receptionist': 'RECEPTIONIST',
+        'Lab Technician': 'LAB_TECHNICIAN',
+        'Pharmacist': 'PHARMACIST',
+        'Doctor': 'DOCTOR'
+    };
+    const backendRole = roleMap[role];
+    if (!backendRole) {
+        alert('Invalid role selected.');
+        return;
+    }
 
-    row.innerHTML = `
+    const nameParts = name.split(' ');
+    const firstName = nameParts[0] || 'Staff';
+    const lastName = nameParts.slice(1).join(' ') || '';
+    const username = (firstName.toLowerCase() + (Date.now() % 1000)).replace(/[^a-z0-9_]/g, '');
 
-        <td>${person.id}</td>
+    const empId = (role === 'Receptionist' ? 'REC' : role === 'Lab Technician' ? 'LAB' : 'PHARM') + Math.floor(1000 + Math.random() * 9000);
 
-        <td>${person.name}</td>
+    const profileData = {
+        employee_id: empId,
+        phone: phone,
+        qualification: role === 'Pharmacist' ? 'B.Pharm' : role === 'Lab Technician' ? 'B.Sc MLT' : undefined
+    };
 
-        <td>${person.email}</td>
+    try {
+        await CMS.api.post('/admin/users/create_staff/', {
+            role: backendRole,
+            username: username,
+            password: 'TempPassword123!',
+            email: email,
+            first_name: firstName,
+            last_name: lastName,
+            phone: phone,
+            profile: profileData
+        });
+        alert('Staff added successfully. Login username: ' + username + ' (Default password: TempPassword123!)');
+        document.getElementById('staffForm')?.reset();
+        updateStaffRoleFields();
+        await loadStaff();
+    } catch (err) {
+        console.error('Failed to add staff:', err);
+        alert('Failed to add staff: ' + (err.message || 'Server error'));
+    }
+}
 
-        <td>${person.phone}</td>
+async function editStaff(id) {
+    const person = allStaff.find(s => s.id === id);
+    if (!person) return;
+    const newPhone = prompt('Update phone number:', person.phone !== '-' ? person.phone : '');
+    if (newPhone === null) return;
+    try {
+        await CMS.api.patch(`/admin/${person.endpoint}/${person.rawId}/`, {
+            phone: newPhone.trim()
+        });
+        alert('Staff updated successfully.');
+        await loadStaff();
+    } catch (err) {
+        console.error('Failed to update staff:', err);
+        alert('Failed to update staff: ' + (err.message || 'Server error'));
+    }
+}
 
-        <td>${person.role}</td>
-
-        <td>${person.status}</td>
-
-        <td>
-
-            <button
-                onclick="editStaff('${person.id}')">
-                Edit
-            </button>
-
-            <button
-                onclick="toggleStaffStatus('${person.id}')">
-                ${
-                    person.status === "Active"
-                    ? "Deactivate"
-                    : "Activate"
-                }
-            </button>
-
-            <button
-                onclick="deleteStaff('${person.id}')">
-                Delete
-            </button>
-
-        </td>
-
-    `;
-
-
-    tableBody.appendChild(row);
-
-});
-
+async function deleteStaff(id) {
+    const person = allStaff.find(s => s.id === id);
+    if (!person) return;
+    if (!confirm(`Are you sure you want to delete ${person.name}?`)) return;
+    try {
+        await CMS.api.delete(`/admin/${person.endpoint}/${person.rawId}/`);
+        alert('Staff deleted successfully.');
+        await loadStaff();
+    } catch (err) {
+        console.error('Failed to delete staff:', err);
+        alert('Failed to delete staff: ' + (err.message || 'Server error'));
+    }
 }
 
 // ============================================================
 // USER MANAGEMENT
 // ============================================================
-
-// ADD USER
-
-function addUser() {
-
-const name =
-    document.getElementById("userName")
-        .value
-        .trim();
-
-const email =
-    document.getElementById("userEmail")
-        .value
-        .trim();
-
-const username =
-    document.getElementById("userUsername")
-        .value
-        .trim()
-        .toLowerCase();
-
-const password =
-    document.getElementById("userPassword")
-        .value;
-
-const role =
-    document.getElementById("userRole")
-        .value;
-
-if (!name || !email || !username || !password || !role) {
-    alert("Please fill all user details.");
-    return;
-}
-
-if (password.length < 8) {
-    alert("The temporary password must be at least 8 characters.");
-    return;
-}
-
-const users = getUsers();
-const reservedUsernames = [
-    "admin"
-];
-
-if (reservedUsernames.includes(username) || users.some(function (user) {
-    return user.username && user.username.toLowerCase() === username;
-})) {
-    alert("That username is already in use. Choose another username.");
-    return;
-}
-
-const emailAlreadyExists = users.some(function (user) {
-    return user.email.toLowerCase() === email.toLowerCase();
-});
-
-if (emailAlreadyExists) {
-    alert("A user with this email already exists.");
-    return;
-}
-
-let profile = null;
-let profileType = null;
-
-if (role === "Doctor") {
-    profile = getDoctors().find(function (doctor) {
-        return doctor.email.toLowerCase() === email.toLowerCase();
-    });
-    profileType = "doctor";
-} else if (role !== "Admin") {
-    profile = getStaff().find(function (person) {
-        return person.email.toLowerCase() === email.toLowerCase() && person.role === role;
-    });
-    profileType = "staff";
-}
-
-if (role !== "Admin" && !profile) {
-    alert("Add this person to the matching staff or doctor directory before creating a login.");
-    return;
-}
-
-if (profile && profile.status !== "Active") {
-    alert("Activate this staff or doctor profile before creating a login.");
-    return;
-}
-
-const user = {
-    id: generateId("USER"),
-    name: name,
-    email: email,
-    username: username,
-    password: password,
-    role: role,
-    profileId: profile ? profile.id : null,
-    profileType: profileType,
-    status: "Active",
-    createdAt: new Date().toLocaleDateString()
-};
-
-users.push(user);
-saveUsers(users);
-
-alert("User added successfully.");
-document.getElementById("userForm").reset();
-loadUsers();
-
-}
-
-// LOAD USERS
-
-function loadUsers() {
-
-const tableBody =
-    document.getElementById(
-        "userTableBody"
-    );
-
-
-if (!tableBody) {
-
-    return;
-
-}
-
-
-const users = getUsers();
-
-
-tableBody.innerHTML = "";
-
-
-if (users.length === 0) {
-
-    tableBody.innerHTML = `
-
-        <tr>
-
-            <td colspan="7">
-                No users found.
-            </td>
-
-        </tr>
-
-    `;
-
-    return;
-
-}
-
-
-users.forEach(function (user) {
-
-    const row =
-        document.createElement("tr");
-
-
-    row.innerHTML = `
-
-        <td>${user.id}</td>
-
-        <td>${user.name}</td>
-
-        <td>${user.email}</td>
-
-        <td>${user.username || "-"}</td>
-
-        <td>${user.role}</td>
-
-        <td>${user.status}</td>
-
-        <td>
-
-            <button
-                onclick="editUser('${user.id}')">
-                Edit
-            </button>
-
-            <button
-                onclick="toggleUserStatus('${user.id}')">
-                ${
-                    user.status === "Active"
-                    ? "Deactivate"
-                    : "Activate"
-                }
-            </button>
-
-            <button
-                onclick="deleteUser('${user.id}')">
-                Delete
-            </button>
-
-        </td>
-
-    `;
-
-
-    tableBody.appendChild(row);
-
-});
-
-}
-
-// EDIT USER
-
-function editUser(id) {
-
-const users = getUsers();
-
-
-const user =
-    users.find(function (item) {
-
-        return item.id === id;
-
-    });
-
-
-if (!user) {
-
-    alert("User not found.");
-
-    return;
-
-}
-
-
-const name =
-    prompt(
-        "Enter user name:",
-        user.name
-    );
-
-
-if (name === null) return;
-
-
-const email =
-    prompt(
-        "Enter user email:",
-        user.email
-    );
-
-
-if (email === null) return;
-
-
-const role = prompt(
-    "Enter role:\nAdmin\nDoctor\nReceptionist\nLab Technician\nPharmacist",
-    user.role
-);
-if (role === null) return;
-
-
-const username =
-    prompt(
-        "Enter login username:",
-        user.username || ""
-    );
-
-
-if (username === null) return;
-
-const newPassword = prompt("New password (leave blank to keep current):", "");
-if (newPassword === null) return;
-
-const nextName = name.trim();
-const nextEmail = email.trim();
-const nextUsername = username.trim().toLowerCase();
-const nextRole = role.trim();
-const allowedRoles = ["Admin", "Doctor", "Receptionist", "Lab Technician", "Pharmacist"];
-
-if (!nextName || !nextEmail || !nextUsername || !allowedRoles.includes(nextRole)) {
-    alert("Name, email, username, and a valid role are required.");
-    return;
-}
-
-if (newPassword && newPassword.length < 8) {
-    alert("The password must be at least 8 characters.");
-    return;
-}
-
-const reservedUsernames = [
-    "admin"
-];
-const usernameInUse = reservedUsernames.includes(nextUsername) || users.some(function (item) {
-    return item.id !== id && item.username && item.username.toLowerCase() === nextUsername;
-});
-const emailInUse = users.some(function (item) {
-    return item.id !== id && item.email.toLowerCase() === nextEmail.toLowerCase();
-});
-
-if (usernameInUse || emailInUse) {
-    alert("That username or email is already in use.");
-    return;
-}
-
-let profile = null;
-let profileType = null;
-
-if (nextRole === "Doctor") {
-    profile = getDoctors().find(function (doctor) {
-        return doctor.email.toLowerCase() === nextEmail.toLowerCase();
-    });
-    profileType = "doctor";
-} else if (nextRole !== "Admin") {
-    profile = getStaff().find(function (person) {
-        return person.email.toLowerCase() === nextEmail.toLowerCase() && person.role === nextRole;
-    });
-    profileType = "staff";
-}
-
-if (nextRole !== "Admin" && !profile) {
-    alert("Add this person to the matching staff or doctor directory before assigning this role.");
-    return;
-}
-
-if (profile && profile.status !== "Active") {
-    alert("Activate this staff or doctor profile before assigning this account.");
-    return;
-}
-
-
-user.name = nextName;
-user.email = nextEmail;
-user.username = nextUsername;
-if (newPassword) user.password = newPassword;
-user.role = nextRole;
-user.profileId = profile ? profile.id : null;
-user.profileType = profileType;
-
-
-saveUsers(users);
-
-if (user.profileType === "doctor") {
-    const doctors = getDoctors();
-    const doctor = doctors.find(function (item) {
-        return item.id === user.profileId;
-    });
-    if (doctor) {
-        doctor.name = nextName;
-        doctor.email = nextEmail;
-        saveDoctors(doctors);
-        syncDoctorStaffRecord(doctor);
-    }
-} else if (user.profileType === "staff") {
-    const staff = getStaff();
-    const person = staff.find(function (item) {
-        return item.id === user.profileId;
-    });
-    if (person) {
-        person.name = nextName;
-        person.email = nextEmail;
-        saveStaff(staff);
-        if (person.role === "Doctor") {
-            syncDoctorProfileFromStaff(person, person.specialization || "");
-        } else {
-            syncLinkedAccounts("staff", person.id, {
-                name: nextName,
-                email: nextEmail
-            });
-        }
+async function loadUsers() {
+    const tableBody = document.getElementById('userTableBody');
+    if (!tableBody) return;
+    try {
+        allUsers = await CMS.api.list('/admin/users/');
+        displayUsers(allUsers);
+    } catch (err) {
+        console.error('Failed to load users:', err);
+        tableBody.innerHTML = '<tr><td colspan="7">Failed to load user accounts.</td></tr>';
     }
 }
-
-
-alert(
-    "User updated successfully."
-);
-
-
-loadUsers();
-
-}
-
-// DELETE USER
-
-function deleteUser(id) {
-
-const confirmDelete =
-    confirm(
-        "Are you sure you want to delete this user?"
-    );
-
-
-if (!confirmDelete) {
-
-    return;
-
-}
-
-
-deleteById(
-    STORAGE_KEYS.users,
-    id
-);
-
-
-alert(
-    "User deleted successfully."
-);
-
-
-loadUsers();
-
-}
-
-// TOGGLE USER STATUS
-
-function toggleUserStatus(id) {
-
-const users = getUsers();
-
-
-const user =
-    users.find(function (item) {
-
-        return item.id === id;
-
-    });
-
-
-if (!user) {
-
-    return;
-
-}
-
-
-user.status =
-    user.status === "Active"
-        ? "Inactive"
-        : "Active";
-
-
-saveUsers(users);
-
-
-loadUsers();
-
-}
-
-// SEARCH USERS
 
 function searchUsers() {
-
-const search =
-    document.getElementById(
-        "userSearch"
-    ).value
-    .toLowerCase()
-    .trim();
-
-
-const users = getUsers();
-
-
-const filteredUsers =
-    users.filter(function (user) {
-
-        return (
-
-            user.name
-                .toLowerCase()
-                .includes(search)
-
-            ||
-
-            user.email
-                .toLowerCase()
-                .includes(search)
-
-            ||
-
-            (user.username || "")
-                .toLowerCase()
-                .includes(search)
-
-            ||
-
-            user.role
-                .toLowerCase()
-                .includes(search)
-
-        );
-
-    });
-
-
-displayUsers(
-    filteredUsers
-);
-
-}
-
-// DISPLAY USERS
-
-function displayUsers(users) {
-
-const tableBody =
-    document.getElementById(
-        "userTableBody"
+    const q = (document.getElementById('userSearch')?.value || '').toLowerCase().trim();
+    if (!q) {
+        displayUsers(allUsers);
+        return;
+    }
+    const filtered = allUsers.filter(u =>
+        (u.username || '').toLowerCase().includes(q) ||
+        (u.email || '').toLowerCase().includes(q) ||
+        (u.role || '').toLowerCase().includes(q) ||
+        ((u.first_name || '') + ' ' + (u.last_name || '')).toLowerCase().includes(q)
     );
-
-
-if (!tableBody) return;
-
-
-tableBody.innerHTML = "";
-
-
-if (users.length === 0) {
-
-    tableBody.innerHTML = `
-
-        <tr>
-
-            <td colspan="7">
-                No users found.
-            </td>
-
-        </tr>
-
-    `;
-
-    return;
-
+    displayUsers(filtered);
 }
 
+function displayUsers(usersList) {
+    const tableBody = document.getElementById('userTableBody');
+    if (!tableBody) return;
+    tableBody.innerHTML = '';
+    if (!usersList || usersList.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="7">No user accounts found.</td></tr>';
+        return;
+    }
+    usersList.forEach(u => {
+        const row = document.createElement('tr');
+        const fullName = (u.first_name || u.last_name) ? `${u.first_name || ''} ${u.last_name || ''}`.trim() : u.username;
+        const statusClass = u.is_active ? 'status-confirmed' : 'status-cancelled';
+        const statusText = u.is_active ? 'Active' : 'Inactive';
+        const toggleAction = u.is_active ? 'Deactivate' : 'Activate';
+        row.innerHTML = `
+            <td>${u.id}</td>
+            <td>${fullName}</td>
+            <td>${u.email || '-'}</td>
+            <td>${u.username}</td>
+            <td>${u.role}</td>
+            <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+            <td>
+                <button type="button" class="btn-table" onclick="toggleUserStatus(${u.id})">${toggleAction}</button>
+                <button type="button" class="btn-table btn-danger" onclick="deleteUser(${u.id})">Delete</button>
+            </td>
+        `;
+        tableBody.appendChild(row);
+    });
+}
 
-users.forEach(function (user) {
+async function addUser() {
+    const name = document.getElementById('userName')?.value.trim();
+    const email = document.getElementById('userEmail')?.value.trim();
+    const username = document.getElementById('userUsername')?.value.trim().toLowerCase();
+    const password = document.getElementById('userPassword')?.value;
+    const role = document.getElementById('userRole')?.value;
 
-    const row =
-        document.createElement("tr");
+    if (!name || !email || !username || !password || !role) {
+        alert('Please fill all user details.');
+        return;
+    }
 
+    const roleMap = {
+        'Admin': 'ADMIN',
+        'Doctor': 'DOCTOR',
+        'Receptionist': 'RECEPTIONIST',
+        'Lab Technician': 'LAB_TECHNICIAN',
+        'Pharmacist': 'PHARMACIST'
+    };
+    const backendRole = roleMap[role];
+    if (!backendRole) {
+        alert('Invalid role selected.');
+        return;
+    }
 
-    row.innerHTML = `
+    const nameParts = name.split(' ');
+    const firstName = nameParts[0] || 'User';
+    const lastName = nameParts.slice(1).join(' ') || '';
 
-        <td>${user.id}</td>
+    try {
+        await CMS.api.post('/admin/users/', {
+            username: username,
+            password: password,
+            email: email,
+            first_name: firstName,
+            last_name: lastName,
+            role: backendRole,
+            is_active: true
+        });
+        alert('User created successfully.');
+        document.getElementById('userForm')?.reset();
+        await loadUsers();
+    } catch (err) {
+        console.error('Failed to create user:', err);
+        alert('Failed to create user: ' + (err.message || 'Server error'));
+    }
+}
 
-        <td>${user.name}</td>
+async function toggleUserStatus(id) {
+    const user = allUsers.find(u => u.id === id);
+    if (!user) return;
+    const action = user.is_active ? 'deactivate' : 'activate';
+    try {
+        await CMS.api.post(`/admin/users/${id}/${action}/`, {});
+        await loadUsers();
+    } catch (err) {
+        console.error(`Failed to ${action} user:`, err);
+        alert(`Failed to ${action} user: ` + (err.message || 'Server error'));
+    }
+}
 
-        <td>${user.email}</td>
-
-        <td>${user.username || "-"}</td>
-
-        <td>${user.role}</td>
-
-        <td>${user.status}</td>
-
-        <td>
-
-            <button
-                onclick="editUser('${user.id}')">
-                Edit
-            </button>
-
-            <button
-                onclick="toggleUserStatus('${user.id}')">
-                ${
-                    user.status === "Active"
-                    ? "Deactivate"
-                    : "Activate"
-                }
-            </button>
-
-            <button
-                onclick="deleteUser('${user.id}')">
-                Delete
-            </button>
-
-        </td>
-
-    `;
-
-
-    tableBody.appendChild(row);
-
-});
-
+async function deleteUser(id) {
+    if (!confirm('Are you sure you want to delete this user?')) return;
+    try {
+        await CMS.api.delete(`/admin/users/${id}/`);
+        alert('User deleted successfully.');
+        await loadUsers();
+    } catch (err) {
+        console.error('Failed to delete user:', err);
+        alert('Failed to delete user: ' + (err.message || 'Server error'));
+    }
 }

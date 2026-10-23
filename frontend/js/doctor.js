@@ -9,16 +9,26 @@
 // 1. AUTH GUARD
 // ============================================================
 
-const loggedInUser = JSON.parse(
+if (window.CMS && typeof window.CMS.requireRole === 'function') {
+    window.CMS.requireRole('doctor', 'admin');
+}
+
+const loggedInUser = (window.CMS && window.CMS.session && window.CMS.session.user) || JSON.parse(
     localStorage.getItem('loggedInUser') || 'null'
 );
 
 if (
     !loggedInUser ||
     (loggedInUser.role !== 'doctor' &&
-     loggedInUser.role !== 'admin')
+     loggedInUser.role !== 'admin' &&
+     loggedInUser.userRole !== 'doctor' &&
+     loggedInUser.userRole !== 'admin')
 ) {
-    window.location.href = '../index.html';
+    if (window.CMS && typeof window.CMS.logout === 'function') {
+        window.CMS.logout();
+    } else {
+        window.location.href = '../index.html';
+    }
 }
 
 
@@ -38,24 +48,21 @@ function getToday() {
 
 const TODAY = getToday();
 
+var cachedConsultations = [];
+
 function isAppointmentConsulted(appt) {
     if (!appt) return false;
-    var apptId = (typeof appt === 'string') ? appt : appt.id;
-    var status = (typeof appt === 'object') ? appt.status : null;
+    var apptId = (typeof appt === 'object') ? (appt.id || appt.rawId) : appt;
+    var status = (typeof appt === 'object') ? String(appt.status || appt.rawStatus || '').toUpperCase() : '';
 
-    if (status === 'Completed') return true;
+    if (status === 'COMPLETED') return true;
 
-    try {
-        var appts = JSON.parse(localStorage.getItem('cms_appointments') || '[]');
-        var foundAppt = appts.find(function (a) { return a.id === apptId; });
-        if (foundAppt && foundAppt.status === 'Completed') return true;
-
-        var consults = JSON.parse(localStorage.getItem('cms_consultations') || '[]');
-        var foundConsult = consults.some(function (c) {
-            return c.appointmentId && c.appointmentId === apptId;
+    if (cachedConsultations && cachedConsultations.length > 0) {
+        return cachedConsultations.some(function (c) {
+            var cApptId = c.appointment ? (c.appointment.id || c.appointment) : null;
+            return cApptId === apptId || String(cApptId) === String(apptId);
         });
-        if (foundConsult) return true;
-    } catch (e) {}
+    }
 
     return false;
 }
@@ -64,21 +71,25 @@ function isPatientConsultedToday(patientId, excludeApptId) {
     if (!patientId) return false;
     var today = getToday();
 
-    try {
-        var appts = JSON.parse(localStorage.getItem('cms_appointments') || '[]');
-        var completedApptToday = appts.some(function (a) {
-            if (excludeApptId && a.id === excludeApptId) return false;
-            return a.patientId === patientId && a.date === today && a.status === 'Completed';
+    if (allAppointments && allAppointments.length > 0) {
+        var completedApptToday = allAppointments.some(function (a) {
+            if (excludeApptId && (a.id === excludeApptId || a.rawId === excludeApptId)) return false;
+            var pId = a.patientId || a.patientNumericId;
+            return (pId === patientId || String(pId) === String(patientId) || String(a.patientNumericId) === String(patientId)) &&
+                   a.date === today && (a.status === 'Completed' || String(a.rawStatus || '').toUpperCase() === 'COMPLETED');
         });
         if (completedApptToday) return true;
+    }
 
-        var consults = JSON.parse(localStorage.getItem('cms_consultations') || '[]');
-        var consultedToday = consults.some(function (c) {
-            if (excludeApptId && c.appointmentId === excludeApptId) return false;
-            return c.patientId === patientId && c.date === today;
+    if (cachedConsultations && cachedConsultations.length > 0) {
+        return cachedConsultations.some(function (c) {
+            var cApptId = c.appointment ? (c.appointment.id || c.appointment) : null;
+            if (excludeApptId && (cApptId === excludeApptId || String(cApptId) === String(excludeApptId))) return false;
+            var cPatId = c.patient ? (c.patient.id || c.patient) : null;
+            return (cPatId === patientId || String(cPatId) === String(patientId)) &&
+                   String(c.consultation_date || '').slice(0, 10) === today;
         });
-        if (consultedToday) return true;
-    } catch (e) {}
+    }
 
     return false;
 }
@@ -212,15 +223,19 @@ function initDoctorUI() {
 }
 
 
-function updateSidebarBadge() {
-
-    var appts = JSON.parse(
-        localStorage.getItem('cms_appointments') || '[]'
-    );
-
-    var waiting = appts.filter(function (a) {
-        return a.date === TODAY && a.status === 'Waiting';
-    }).length;
+function updateSidebarBadge(count) {
+    var waiting = 0;
+    if (typeof count === 'number') {
+        waiting = count;
+    } else if (typeof allAppointments !== 'undefined' && Array.isArray(allAppointments)) {
+        waiting = allAppointments.filter(function (a) {
+            return a.date === TODAY && (a.status === 'Waiting' || a.status === 'Confirmed');
+        }).length;
+    } else if (typeof dashAllAppts !== 'undefined' && Array.isArray(dashAllAppts)) {
+        waiting = dashAllAppts.filter(function (a) {
+            return a.status === 'Waiting' || a.status === 'Confirmed';
+        }).length;
+    }
 
     var badge = document.getElementById('sidebarApptBadge') ||
                 document.getElementById('sidebarWaitBadge');
@@ -314,13 +329,16 @@ function toggleSidebar() {
 // ============================================================
 
 function logout() {
-
     if (!confirm('Are you sure you want to logout?')) {
         return;
     }
 
-    localStorage.removeItem('loggedInUser');
-    window.location.href = '../index.html';
+    if (window.CMS && typeof window.CMS.logout === 'function') {
+        window.CMS.logout();
+    } else {
+        localStorage.removeItem('loggedInUser');
+        window.location.href = '../index.html';
+    }
 }
 
 
@@ -373,59 +391,69 @@ function showToast(msg, type) {
 
 
 // ============================================================
-// 8. SEED DATA
+// 8. DATA SOURCES & MASTER DATA
 // ============================================================
 
-var SEED_APPOINTMENTS = [
-    { id:'APT001', token:1,  patientId:'PAT001', patientName:'Rahul Menon',     age:24, gender:'Male',   blood:'O+',  phone:'9876543210', allergies:'None',        time:'09:00 AM', type:'General',   status:'Completed',   waitMin:0,  complaint:'Persistent headache for 3 days',          bookedOn:'2026-09-26', date:TODAY },
-    { id:'APT002', token:2,  patientId:'PAT002', patientName:'Anu Thomas',      age:32, gender:'Female', blood:'A+',  phone:'9812345670', allergies:'Penicillin',  time:'09:30 AM', type:'Follow-up', status:'Completed',   waitMin:0,  complaint:'Post-surgery check-up',                   bookedOn:'2026-09-25', date:TODAY },
-    { id:'APT003', token:3,  patientId:'PAT003', patientName:'Arjun Kumar',     age:45, gender:'Male',   blood:'B-',  phone:'9823456701', allergies:'Sulfa drugs', time:'10:00 AM', type:'General',   status:'In Progress', waitMin:5,  complaint:'Chest tightness and mild breathlessness',  bookedOn:'2026-09-27', date:TODAY },
-    { id:'APT004', token:4,  patientId:'PAT004', patientName:'Priya Nair',      age:28, gender:'Female', blood:'AB+', phone:'9834567012', allergies:'None',        time:'10:30 AM', type:'General',   status:'Waiting',     waitMin:12, complaint:'Fever and sore throat since yesterday',   bookedOn:'2026-09-28', date:TODAY },
-    { id:'APT005', token:5,  patientId:'PAT005', patientName:'Suresh Babu',     age:60, gender:'Male',   blood:'O-',  phone:'9845678123', allergies:'Aspirin',     time:'11:00 AM', type:'Follow-up', status:'Waiting',     waitMin:20, complaint:'Diabetes follow-up — monthly review',     bookedOn:'2026-09-20', date:TODAY },
-    { id:'APT006', token:6,  patientId:'PAT006', patientName:'Lakshmi Devi',    age:38, gender:'Female', blood:'A-',  phone:'9856789234', allergies:'None',        time:'11:30 AM', type:'General',   status:'Waiting',     waitMin:30, complaint:'Skin rash on arms for 1 week',            bookedOn:'2026-09-28', date:TODAY },
-    { id:'APT007', token:7,  patientId:'PAT007', patientName:'Mohammed Rizwan', age:22, gender:'Male',   blood:'B+',  phone:'9867890345', allergies:'None',        time:'12:00 PM', type:'Emergency', status:'Waiting',     waitMin:35, complaint:'Acute abdominal pain — sudden onset',     bookedOn:'2026-09-28', date:TODAY },
-    { id:'APT008', token:8,  patientId:'PAT008', patientName:'Divya Krishnan',  age:35, gender:'Female', blood:'O+',  phone:'9878901456', allergies:'Latex',       time:'12:30 PM', type:'Follow-up', status:'Waiting',     waitMin:42, complaint:'Thyroid follow-up',                       bookedOn:'2026-09-22', date:TODAY },
-    { id:'APT009', token:9,  patientId:'PAT009', patientName:'Ravi Shankar',    age:50, gender:'Male',   blood:'A+',  phone:'9889012567', allergies:'None',        time:'01:00 PM', type:'General',   status:'Confirmed',   waitMin:50, complaint:'Back pain — lower lumbar region',         bookedOn:'2026-09-28', date:TODAY },
-    { id:'APT010', token:10, patientId:'PAT010', patientName:'Meera Pillai',    age:29, gender:'Female', blood:'B+',  phone:'9890123678', allergies:'Codeine',     time:'01:30 PM', type:'General',   status:'Confirmed',   waitMin:58, complaint:'Migraine with visual aura',               bookedOn:'2026-09-27', date:TODAY },
-    { id:'APT011', token:11, patientId:'PAT011', patientName:'Anand Mohan',     age:41, gender:'Male',   blood:'AB-', phone:'9801234789', allergies:'None',        time:'02:00 PM', type:'General',   status:'Confirmed',   waitMin:66, complaint:'Weakness and fatigue for 2 weeks',        bookedOn:'2026-09-28', date:TODAY },
-    { id:'APT012', token:12, patientId:'PAT012', patientName:'Kavitha Ramesh',  age:55, gender:'Female', blood:'O+',  phone:'9812340890', allergies:'Iodine',      time:'02:30 PM', type:'Follow-up', status:'Confirmed',   waitMin:75, complaint:'Blood pressure monitoring visit',         bookedOn:'2026-09-18', date:TODAY }
-];
+var SEED_APPOINTMENTS = [];
+var DEFAULT_PATIENTS = [];
 
-var DEFAULT_PATIENTS = [
-    { id:'PAT001', name:'Rahul Menon',     age:24, gender:'Male',   blood:'O+',  phone:'9876543210', allergies:'None',        chronic:'None',               status:'Active' },
-    { id:'PAT002', name:'Anu Thomas',      age:32, gender:'Female', blood:'A+',  phone:'9812345670', allergies:'Penicillin',  chronic:'Post-Surgery Check', status:'Active' },
-    { id:'PAT003', name:'Arjun Kumar',     age:45, gender:'Male',   blood:'B-',  phone:'9823456701', allergies:'Sulfa drugs', chronic:'Hypertension',       status:'Active' },
-    { id:'PAT004', name:'Priya Nair',      age:28, gender:'Female', blood:'AB+', phone:'9834567012', allergies:'None',        chronic:'None',               status:'Active' },
-    { id:'PAT005', name:'Suresh Babu',     age:60, gender:'Male',   blood:'O-',  phone:'9845678123', allergies:'Aspirin',     chronic:'Type 2 Diabetes',   status:'Active' },
-    { id:'PAT006', name:'Lakshmi Devi',    age:38, gender:'Female', blood:'A-',  phone:'9856789234', allergies:'None',        chronic:'None',               status:'Active' },
-    { id:'PAT007', name:'Mohammed Rizwan', age:22, gender:'Male',   blood:'B+',  phone:'9867890345', allergies:'None',        chronic:'Gastritis',          status:'Active' },
-    { id:'PAT008', name:'Divya Krishnan',  age:35, gender:'Female', blood:'O+',  phone:'9878901456', allergies:'Latex',       chronic:'Hypothyroidism',    status:'Active' },
-    { id:'PAT009', name:'Ravi Shankar',    age:50, gender:'Male',   blood:'A+',  phone:'9889012567', allergies:'None',        chronic:'Lumbar Spondylosis', status:'Active' },
-    { id:'PAT010', name:'Meera Pillai',    age:29, gender:'Female', blood:'B+',  phone:'9890123678', allergies:'Codeine',     chronic:'Migraine',           status:'Active' },
-    { id:'PAT011', name:'Anand Mohan',     age:41, gender:'Male',   blood:'AB-', phone:'9801234789', allergies:'None',        chronic:'Asthma',             status:'Active' },
-    { id:'PAT012', name:'Kavitha Ramesh',  age:55, gender:'Female', blood:'O+',  phone:'9812340890', allergies:'Iodine',      chronic:'Hypertension',       status:'Active' }
-];
+var cachedMasterMedicines = [];
+var cachedMasterLabTests = [];
+var cachedMasterDosages = [];
+
+async function loadMasterData() {
+    try {
+        if (window.CMS && window.CMS.api) {
+            const [meds, tests, dosages] = await Promise.all([
+                CMS.api.list('/doctor/medicines/').catch(() => []),
+                CMS.api.list('/doctor/lab-tests/').catch(() => []),
+                CMS.api.list('/doctor/dosages/').catch(() => [])
+            ]);
+            if (meds && meds.length) {
+                cachedMasterMedicines = meds.map(function (m) {
+                    return {
+                        id: m.id,
+                        name: m.medicine_name,
+                        genericName: m.generic_name,
+                        category: m.category || 'Tablet',
+                        unit: m.unit || 'Strip',
+                        status: m.is_active ? 'Active' : 'Inactive'
+                    };
+                });
+            }
+            if (tests && tests.length) {
+                cachedMasterLabTests = tests.map(function (t) {
+                    return {
+                        id: t.id,
+                        testId: t.id,
+                        name: t.test_name,
+                        testName: t.test_name,
+                        category: 'General',
+                        price: parseFloat(t.price || 0),
+                        normalRange: t.normal_range || '',
+                        unit: t.unit || '',
+                        status: t.is_active ? 'Active' : 'Inactive'
+                    };
+                });
+            }
+            if (dosages && dosages.length) {
+                cachedMasterDosages = dosages.map(function (d) {
+                    return {
+                        id: d.id,
+                        name: d.dosage_name,
+                        description: d.description
+                    };
+                });
+            }
+        }
+    } catch (e) {
+        console.warn('Could not load master data from API:', e);
+    }
+}
 
 // Master Data Helpers
 function getMasterMedicines() {
-    var raw = JSON.parse(localStorage.getItem('cms_medicines') || '[]');
-    if (!raw || raw.length === 0) {
-        raw = [
-            { id: 'MED001', name: 'Paracetamol 500mg', category: 'Tablet', unit: 'Strip', price: 25, stock: 100, reorderLevel: 20, batchNo: 'PCM2026A', expiryDate: '2027-08-31', status: 'Active' },
-            { id: 'MED002', name: 'Amoxicillin 500mg', category: 'Capsule', unit: 'Strip', price: 80, stock: 50, reorderLevel: 10, batchNo: 'AMX2026A', expiryDate: '2027-06-30', status: 'Active' },
-            { id: 'MED003', name: 'Cetirizine 10mg', category: 'Tablet', unit: 'Strip', price: 30, stock: 40, reorderLevel: 10, batchNo: 'CET2026A', expiryDate: '2027-10-31', status: 'Active' },
-            { id: 'MED004', name: 'Azithromycin 250mg', category: 'Tablet', unit: 'Strip', price: 60, stock: 30, reorderLevel: 8, batchNo: 'AZI2026A', expiryDate: '2027-02-28', status: 'Active' },
-            { id: 'MED005', name: 'Omeprazole 20mg', category: 'Capsule', unit: 'Strip', price: 45, stock: 60, reorderLevel: 15, batchNo: 'OME2026A', expiryDate: '2027-07-31', status: 'Active' },
-            { id: 'MED006', name: 'Cough Syrup 100ml', category: 'Syrup', unit: 'Bottle', price: 90, stock: 25, reorderLevel: 5, batchNo: 'COU2026A', expiryDate: '2027-04-30', status: 'Active' },
-            { id: 'MED007', name: 'Vitamin C 500mg', category: 'Tablet', unit: 'Box', price: 120, stock: 80, reorderLevel: 20, batchNo: 'VTC2026A', expiryDate: '2027-12-31', status: 'Active' },
-            { id: 'MED008', name: 'Clotrimazole 1% Cream', category: 'Cream', unit: 'Tube', price: 55, stock: 12, reorderLevel: 5, batchNo: 'CLO2026A', expiryDate: '2027-03-31', status: 'Active' }
-        ];
-        localStorage.setItem('cms_medicines', JSON.stringify(raw));
-        if (!localStorage.getItem('cms_medicine_id_sequence')) {
-            localStorage.setItem('cms_medicine_id_sequence', '9');
-        }
-    }
-    return raw;
+    return cachedMasterMedicines;
 }
 
 function getActiveMedicines() {
@@ -442,6 +470,7 @@ function findMedicineById(id) {
         return m && m.id !== undefined && m.id !== null && String(m.id).trim() === targetId;
     }) || null;
 }
+
 
 var CANONICAL_LAB_TESTS = [
     {
@@ -677,42 +706,7 @@ function cleanupMasterLabTests(masterTests) {
 }
 
 function getMasterLabTests() {
-    var raw = JSON.parse(localStorage.getItem('cms_lab_tests') || '[]');
-    var master = raw.filter(function (t) {
-        if (t.recordType === 'master') return true;
-        if (t.patientId || t.patientName || t.consultationId || t.requestedAt || t.orderDate) return false;
-        return t.id && (t.name || t.testName);
-    });
-
-    if (master.length === 0) {
-        master = [
-            { id: 'LAB001', name: 'Complete Blood Count (CBC)', category: 'Hematology', price: 350, normalRange: '4,000–11,000', unit: '/µL', description: 'Complete blood count analysis', status: 'Active', recordType: 'master' },
-            { id: 'LAB002', name: 'Fasting Blood Sugar (FBS)', category: 'Biochemistry', price: 150, normalRange: '70–100', unit: 'mg/dL', description: 'Blood glucose level test', status: 'Active', recordType: 'master' },
-            { id: 'LAB003', name: 'HbA1c Glycated Hemoglobin', category: 'Biochemistry', price: 450, normalRange: '< 5.7', unit: '%', description: '3-month average blood glucose', status: 'Active', recordType: 'master' },
-            { id: 'LAB004', name: 'Lipid Profile', category: 'Biochemistry', price: 500, normalRange: '< 200', unit: 'mg/dL', description: 'Cholesterol & triglyceride panel', status: 'Active', recordType: 'master' },
-            { id: 'LAB005', name: 'Liver Function Test (LFT)', category: 'Biochemistry', price: 650, normalRange: '0.2–1.2', unit: 'mg/dL', description: 'Hepatic enzyme assessment', status: 'Active', recordType: 'master' },
-            { id: 'LAB006', name: 'Renal Function Test (RFT)', category: 'Biochemistry', price: 550, normalRange: '0.6–1.2', unit: 'mg/dL', description: 'Kidney function panel', status: 'Active', recordType: 'master' },
-            { id: 'LAB007', name: 'Thyroid Profile (T3, T4, TSH)', category: 'Endocrinology', price: 600, normalRange: '0.4–4.0', unit: 'µIU/mL', description: 'Thyroid hormone assessment', status: 'Active', recordType: 'master' },
-            { id: 'LAB008', name: 'Urine Routine Examination', category: 'Pathology', price: 180, normalRange: 'Normal / Pale Yellow', unit: '', description: 'Urine routine and microscopy', status: 'Active', recordType: 'master' },
-            { id: 'LAB009', name: '12-Lead ECG', category: 'Cardiology', price: 300, normalRange: 'Normal Sinus Rhythm', unit: 'ECG', description: 'Electrocardiogram recording', status: 'Active', recordType: 'master' },
-            { id: 'LAB010', name: 'Chest X-Ray PA View', category: 'Radiology', price: 400, normalRange: 'Normal Lung Fields & Cardiac Shadow', unit: 'Film', description: 'Chest radiography PA view', status: 'Active', recordType: 'master' }
-        ];
-
-        localStorage.setItem('cms_lab_tests', JSON.stringify(master));
-    }
-
-    var cleaned = cleanupMasterLabTests(master);
-    if (cleaned.modified) {
-        var legacyOrders = raw.filter(function (t) {
-            return t.recordType !== 'master' && (t.patientId || t.patientName || t.consultationId || t.requestedAt || t.orderDate);
-        });
-        var catalogRecords = cleaned.tests.map(function (test) {
-            return Object.assign({}, test, { recordType: 'master' });
-        });
-        localStorage.setItem('cms_lab_tests', JSON.stringify(legacyOrders.concat(catalogRecords)));
-    }
-
-    return cleaned.tests;
+    return cachedMasterLabTests;
 }
 
 function getActiveMasterLabTests() {
@@ -730,165 +724,16 @@ function findLabTestById(id) {
 }
 
 function getLabOrders() {
-    var rawOrders = JSON.parse(localStorage.getItem('cms_lab_orders') || '[]');
-    // Safe migration fallback if cms_lab_orders is null/not yet initialized
-    if ((!rawOrders || rawOrders.length === 0) && localStorage.getItem('cms_lab_orders') === null) {
-        var rawTests = JSON.parse(localStorage.getItem('cms_lab_tests') || '[]');
-        var legacyOrders = rawTests.filter(function (t) {
-            return t.recordType !== 'master' && (t.patientId || t.patientName) && (t.consultationId || t.requestedAt || t.orderDate);
-        });
-        if (legacyOrders.length > 0) {
-            rawOrders = legacyOrders;
-            localStorage.setItem('cms_lab_orders', JSON.stringify(legacyOrders));
-        }
-    }
-
-    if (!Array.isArray(rawOrders)) {
-        return [];
-    }
-
-    var hasRepairs = false;
-    var normalizedOrders = rawOrders.map(function (order) {
-        var masterTest = findLabTestById(order.testId);
-        if (!masterTest && order.testName) {
-            var searchName = String(order.testName).trim().toLowerCase();
-            masterTest = getMasterLabTests().find(function (t) {
-                return t && String(t.name || t.testName || '').trim().toLowerCase() === searchName;
-            }) || null;
-            if (!masterTest) {
-                var cleanSearch = searchName.replace(/\(.*?\)/g, '').trim();
-                masterTest = getMasterLabTests().find(function (t) {
-                    var cleanName = String(t.name || t.testName || '').replace(/\(.*?\)/g, '').trim().toLowerCase();
-                    return cleanName === cleanSearch || cleanName.indexOf(cleanSearch) !== -1 || cleanSearch.indexOf(cleanName) !== -1;
-                }) || null;
-            }
-        }
-
-        var existingNormalRange = String(order.normalRange || '').trim();
-        var masterNormalRange = String((masterTest && masterTest.normalRange) || '').trim();
-        var resolvedNormalRange = existingNormalRange || masterNormalRange;
-
-        var existingUnit = String(order.unit || '').trim();
-        var masterUnit = String((masterTest && masterTest.unit) || '').trim();
-        var resolvedUnit = existingUnit || masterUnit;
-
-        if (
-            (!existingNormalRange && masterNormalRange) ||
-            (!existingUnit && masterUnit) ||
-            order.normalRange !== resolvedNormalRange ||
-            order.unit !== resolvedUnit ||
-            (!order.testId && masterTest && masterTest.id)
-        ) {
-            hasRepairs = true;
-        }
-
-        var updated = Object.assign({}, order);
-        updated.normalRange = resolvedNormalRange;
-        updated.unit = resolvedUnit;
-        if (masterTest) {
-            if (!updated.testId) updated.testId = masterTest.id;
-            if (!updated.testName) updated.testName = masterTest.name;
-            if (!updated.category) updated.category = masterTest.category;
-            if (updated.price === undefined || updated.price === null || updated.price === '') {
-                updated.price = Number(masterTest.price || 0);
-            }
-        }
-        return updated;
-    });
-
-    if (hasRepairs && normalizedOrders.length > 0) {
-        localStorage.setItem('cms_lab_orders', JSON.stringify(normalizedOrders));
-    }
-
-    return normalizedOrders;
+    return allLabTests;
 }
 
-var DEFAULT_RX = [
-    {
-        id: 'RX-98201', date: TODAY,
-        patientId: 'PAT001', patientName: 'Rahul Menon',
-        doctorName: 'Dr. Arun Kumar', status: 'Pending Dispensation',
-        medicines: [
-            { medicineId: 'MED001', medicine:'Paracetamol 500mg', dosage:'1 Tab', frequency:'1-0-1', duration:'3 Days', quantity: 6, instructions:'After food' },
-            { medicineId: 'MED005', medicine:'Omeprazole 20mg', dosage:'1 Cap', frequency:'1-0-0', duration:'5 Days', quantity: 5, instructions:'Before food' }
-        ]
-    },
-    {
-        id: 'RX-98202', date: TODAY,
-        patientId: 'PAT002', patientName: 'Anu Thomas',
-        doctorName: 'Dr. Arun Kumar', status: 'Dispensed',
-        medicines: [
-            { medicineId: 'MED002', medicine:'Amoxicillin 500mg', dosage:'1 Cap', frequency:'1-0-1', duration:'5 Days', quantity: 10, instructions:'After food' },
-            { medicineId: 'MED003', medicine:'Cetirizine 10mg',   dosage:'1 Tab', frequency:'0-0-1', duration:'5 Days', quantity: 5, instructions:'Bedtime' }
-        ]
-    },
-    {
-        id: 'RX-98203', date: TODAY,
-        patientId: 'PAT003', patientName: 'Arjun Kumar',
-        doctorName: 'Dr. Arun Kumar', status: 'Pending Dispensation',
-        medicines: [
-            { medicineId: 'MED004', medicine:'Azithromycin 250mg', dosage:'1 Tab', frequency:'1-0-0', duration:'5 Days', quantity: 5, instructions:'Morning after food' },
-            { medicineId: 'MED007', medicine:'Vitamin C 500mg',   dosage:'1 Tab', frequency:'0-1-0', duration:'30 Days', quantity: 30, instructions:'Lunch' }
-        ]
-    },
-    {
-        id: 'RX-98190', date: '2026-02-14',
-        patientId: 'PAT005', patientName: 'Suresh Babu',
-        doctorName: 'Dr. Arun Kumar', status: 'Dispensed',
-        medicines: [
-            { medicineId: 'MED006', medicine:'Cough Syrup 100ml',  dosage:'10ml', frequency:'1-0-1', duration:'7 Days', quantity: 1, instructions:'With warm water' },
-            { medicineId: 'MED001', medicine:'Paracetamol 500mg',  dosage:'1 Tab', frequency:'1-0-0', duration:'3 Days', quantity: 3, instructions:'Before breakfast' }
-        ]
-    }
-];
-
-var DEFAULT_LABS = [
-    { id:'LABREQ-1001', orderNumber:'LABREQ-1001', orderDate:TODAY, patientId:'PAT001', patientName:'Rahul Menon', testId:'LAB001', testName:'Complete Blood Count (CBC)', category:'Hematology', price:350, priority:'Normal', status:'Completed', doctorId:'DOC001', doctorName:'Dr. Arun Kumar', appointmentId:'APT001', consultationId:'CNS-1001', summary:'Hb: 14.1 g/dL, WBC: 8,200/mcL, Platelets: 230,000/mcL.', result:'8,200', normalRange:'4,000–11,000', unit:'/µL', requestedAt: TODAY + ' 09:15:00', completedAt: TODAY + ' 10:30:00' },
-    { id:'LABREQ-1002', orderNumber:'LABREQ-1002', orderDate:TODAY, patientId:'PAT003', patientName:'Arjun Kumar', testId:'LAB004', testName:'Lipid Profile', category:'Biochemistry', price:500, priority:'Urgent', status:'Pending', doctorId:'DOC001', doctorName:'Dr. Arun Kumar', appointmentId:'APT003', consultationId:'CNS-1002', summary:'Sample received at pathology lab; awaiting biochemistry autoanalyzer processing.', normalRange:'< 200', unit:'mg/dL', requestedAt: TODAY + ' 10:10:00' },
-    { id:'LABREQ-1003', orderNumber:'LABREQ-1003', orderDate:TODAY, patientId:'PAT005', patientName:'Suresh Babu', testId:'LAB003', testName:'HbA1c Glycated Hemoglobin', category:'Biochemistry', price:450, priority:'Normal', status:'Completed', doctorId:'DOC001', doctorName:'Dr. Arun Kumar', appointmentId:'APT005', consultationId:'CNS-1003', summary:'HbA1c: 7.2% (Fair glycemic control).', result:'7.2', normalRange:'< 5.7', unit:'%', requestedAt: TODAY + ' 11:20:00', completedAt: TODAY + ' 12:45:00' },
-    { id:'LABREQ-1004', orderNumber:'LABREQ-1004', orderDate:TODAY, patientId:'PAT007', patientName:'Mohammed Rizwan', testId:'LAB008', testName:'Urine Routine Examination', category:'Pathology', price:180, priority:'Urgent', status:'Pending', doctorId:'DOC001', doctorName:'Dr. Arun Kumar', appointmentId:'APT007', consultationId:'CNS-1004', summary:'Sample collection underway in diagnostic wing.', normalRange:'Normal / Pale Yellow', unit:'', requestedAt: TODAY + ' 12:15:00' },
-    { id:'LABREQ-1005', orderNumber:'LABREQ-1005', orderDate:'2026-02-14', patientId:'PAT008', patientName:'Divya Krishnan', testId:'LAB007', testName:'Thyroid Profile (T3, T4, TSH)', category:'Endocrinology', price:600, priority:'Normal', status:'Completed', doctorId:'DOC001', doctorName:'Dr. Arun Kumar', appointmentId:'APT008', consultationId:'CNS-1005', summary:'TSH: 3.14 mIU/L (Euthyroid state). Free T4: 1.2 ng/dL.', result:'3.14', normalRange:'0.4–4.0', unit:'µIU/mL', requestedAt: '2026-02-14 10:45:00', completedAt: '2026-02-14 14:00:00' }
-];
-
+var DEFAULT_RX = [];
+var DEFAULT_LABS = [];
 
 function seedAllData() {
-    getMasterMedicines();
-    getMasterLabTests();
-
-    if (!localStorage.getItem('cms_appointments')) {
-        localStorage.setItem(
-            'cms_appointments',
-            JSON.stringify(SEED_APPOINTMENTS)
-        );
-    }
-
-    var patients = JSON.parse(
-        localStorage.getItem('cms_patients') || '[]'
-    );
-    if (!patients || patients.length === 0) {
-        localStorage.setItem(
-            'cms_patients',
-            JSON.stringify(DEFAULT_PATIENTS)
-        );
-    }
-
-    var rx = JSON.parse(
-        localStorage.getItem('cms_prescriptions') || '[]'
-    );
-    if (!rx || rx.length === 0) {
-        localStorage.setItem(
-            'cms_prescriptions',
-            JSON.stringify(DEFAULT_RX)
-        );
-    }
-
-    if (localStorage.getItem('cms_lab_orders') === null) {
-        localStorage.setItem(
-            'cms_lab_orders',
-            JSON.stringify(DEFAULT_LABS)
-        );
-    }
+    // MySQL database is the sole authoritative source of truth.
 }
+
 
 
 // ============================================================
@@ -910,30 +755,32 @@ function getCurrentPage() {
 
 var dashAllAppts = [];
 
-function initDashboard() {
-
+async function initDashboard() {
     var welcomeName = document.getElementById('welcomeName');
-    var name = loggedInUser.name ||
-               loggedInUser.username ||
-               'Doctor';
+    var name = loggedInUser.fullName || loggedInUser.name || loggedInUser.username || 'Doctor';
 
     if (welcomeName) {
         welcomeName.textContent = 'Welcome back, ' + name + '!';
     }
 
-    dashLoadData();
+    await dashLoadData();
 }
 
 
-function dashLoadData() {
-
-    var raw = JSON.parse(
-        localStorage.getItem('cms_appointments') || '[]'
-    );
-
-    dashAllAppts = raw.filter(function (a) {
-        return a.date === TODAY;
-    });
+async function dashLoadData() {
+    try {
+        if (window.CMS && window.CMS.api) {
+            var raw = await CMS.api.list('/doctor/appointments/');
+            dashAllAppts = (raw || []).map(CMSAdapters.adaptAppointment).filter(function (a) {
+                return a.date === TODAY;
+            });
+        } else {
+            dashAllAppts = [];
+        }
+    } catch (e) {
+        console.error('Failed to load doctor dashboard appointments:', e);
+        dashAllAppts = [];
+    }
 
     dashUpdateStats();
     dashRenderHero();
@@ -944,6 +791,7 @@ function dashLoadData() {
     dashRenderStatusBreakdown();
     dashRenderActivity();
 }
+
 
 
 function dashUpdateStats() {
@@ -1330,21 +1178,27 @@ function checkRedirectToast() {
 }
 
 
-function loadAppointments() {
-
-    var all = JSON.parse(
-        localStorage.getItem('cms_appointments') || '[]'
-    );
-
-    allAppointments = all.filter(function (a) {
-        return a.date === TODAY;
-    });
+async function loadAppointments() {
+    try {
+        if (window.CMS && window.CMS.api) {
+            var raw = await CMS.api.list('/doctor/appointments/');
+            allAppointments = (raw || []).map(CMSAdapters.adaptAppointment).filter(function (a) {
+                return a.date === TODAY;
+            });
+        } else {
+            allAppointments = [];
+        }
+    } catch (e) {
+        console.error('Failed to load appointments from API:', e);
+        allAppointments = [];
+    }
 
     apptApplyFilters();
     apptUpdateStats();
     apptRenderTokenQueue();
     apptRenderTypeBreakdown();
 }
+
 
 
 function apptApplyFilters() {
@@ -1952,53 +1806,31 @@ function startConsultation() {
 
 // Status changes
 
-function setStatus(id, newStatus, notify) {
-
+async function setStatus(id, newStatus, notify) {
     if (notify === undefined) notify = true;
 
-    var stored = JSON.parse(
-        localStorage.getItem('cms_appointments') || '[]'
-    );
+    try {
+        if (newStatus === 'Completed') {
+            await CMS.api.post('/doctor/appointments/' + id + '/complete/');
+        } else {
+            showToast('Doctors can only mark appointments as Completed.', 'warning');
+            return;
+        }
+    } catch (err) {
+        showToast(err.message || 'Status update failed.', 'danger');
+        return;
+    }
 
-    var idx = stored.findIndex(function (a) {
-        return a.id === id;
-    });
-
-    if (idx === -1) return;
-
-    stored[idx].status = newStatus;
-    localStorage.setItem(
-        'cms_appointments',
-        JSON.stringify(stored)
-    );
-
-    loadAppointments();
+    await loadAppointments();
 
     if (notify) {
-        showToast(
-            'Appointment marked as "' + newStatus + '"',
-            newStatus === 'Completed' ? 'success' : 'info'
-        );
+        showToast('Appointment marked as "Completed"', 'success');
     }
 }
 
 
 function cancelAppointment(id) {
-
-    var a = allAppointments.find(function (ap) {
-        return ap.id === id;
-    });
-    if (!a) return;
-
-    if (!confirm('Cancel appointment for ' + a.patientName + '?')) {
-        return;
-    }
-
-    setStatus(id, 'Cancelled');
-    showToast(
-        'Appointment for ' + a.patientName + ' cancelled',
-        'danger'
-    );
+    showToast('Appointments can only be cancelled by Receptionists.', 'warning');
 }
 
 
@@ -2072,7 +1904,7 @@ function toggleUserMenu() {
 
 var activeAppt = null;
 
-function initConsultation() {
+async function initConsultation() {
 
     var modalDocName = document.getElementById('modalDocName');
     if (modalDocName) {
@@ -2080,18 +1912,33 @@ function initConsultation() {
             loggedInUser.name || loggedInUser.username || 'Doctor';
     }
 
-    consultLoadData();
+    await consultLoadData();
     renderConsultationLabTests();
     renderQuickAddButtons();
     setupInitialMedications();
 }
 
 
-function consultLoadData() {
-
-    allAppointments = JSON.parse(
-        localStorage.getItem('cms_appointments') || '[]'
-    );
+async function consultLoadData() {
+    try {
+        if (window.CMS && window.CMS.api) {
+            var results = await Promise.all([
+                CMS.api.list('/doctor/appointments/').catch(function () { return []; }),
+                CMS.api.list('/doctor/consultations/').catch(function () { return []; })
+            ]);
+            var apptsRaw = results[0] || [];
+            var consultsRaw = results[1] || [];
+            allAppointments = apptsRaw.map(CMSAdapters.adaptAppointment);
+            cachedConsultations = consultsRaw;
+        } else {
+            allAppointments = [];
+            cachedConsultations = [];
+        }
+    } catch (e) {
+        console.error('Failed to load consultation queue:', e);
+        allAppointments = [];
+        cachedConsultations = [];
+    }
 
     updateSidebarBadge();
 
@@ -2103,7 +1950,7 @@ function consultLoadData() {
     // 1. Direct URL check for specified appointment
     if (requestedApptId) {
         var requestedAppt = allAppointments.find(function (a) {
-            return a.id === requestedApptId;
+            return String(a.id) === String(requestedApptId);
         });
 
         if (requestedAppt && (isAppointmentConsulted(requestedAppt) || isPatientConsultedToday(requestedAppt.patientId, requestedAppt.id))) {
@@ -2118,7 +1965,7 @@ function consultLoadData() {
     }
 
     // 2. Direct URL check for specified patient ID
-    if (requestedPatientId || (requestedApptId && requestedApptId.startsWith('PAT'))) {
+    if (requestedPatientId || (requestedApptId && String(requestedApptId).startsWith('PAT'))) {
         var checkPatId = requestedPatientId || requestedApptId;
         if (isPatientConsultedToday(checkPatId)) {
             localStorage.removeItem('cms_active_appointment');
@@ -2137,7 +1984,7 @@ function consultLoadData() {
 
     if (targetId) {
         var cand = todayAppts.find(function (a) {
-            return a.id === targetId;
+            return String(a.id) === String(targetId);
         });
         if (cand && !isAppointmentConsulted(cand)) {
             activeAppt = cand;
@@ -2183,6 +2030,11 @@ function consultLoadData() {
     if (activeAppt) {
         localStorage.setItem('cms_active_appointment', activeAppt.id);
         renderPatientHero(activeAppt);
+    } else {
+        var heroName = document.getElementById('pName');
+        if (heroName) heroName.textContent = 'No Patient Selected';
+        var heroComp = document.getElementById('pComplaint');
+        if (heroComp) heroComp.textContent = 'No active consultation queue today';
     }
 }
 
@@ -2190,7 +2042,7 @@ function consultLoadData() {
 function onSelectPatientChange(id) {
 
     if (!id) return;
-    var target = allAppointments.find(function (a) { return a.id === id; });
+    var target = allAppointments.find(function (a) { return String(a.id) === String(id); });
     if (target && isAppointmentConsulted(target)) {
         showToast('This appointment is already completed.', 'warning');
         return;
@@ -2203,7 +2055,7 @@ function onSelectPatientChange(id) {
 function callNextPatient() {
 
     var next = allAppointments.find(function (a) {
-        return a.date === TODAY && a.status === 'Waiting' && !isAppointmentConsulted(a);
+        return a.date === TODAY && (a.status === 'Waiting' || a.status === 'Confirmed') && !isAppointmentConsulted(a);
     });
 
     if (!next) {
@@ -2214,11 +2066,6 @@ function callNextPatient() {
         return;
     }
 
-    next.status = 'In Progress';
-    localStorage.setItem(
-        'cms_appointments',
-        JSON.stringify(allAppointments)
-    );
     localStorage.setItem('cms_active_appointment', next.id);
     window.location.href = 'consultation.html?id=' + next.id;
 }
@@ -2514,7 +2361,7 @@ function getPrescriptionData() {
 
 // Complete Consultation
 
-function completeConsultation() {
+async function completeConsultation() {
 
     if (!activeAppt) {
         showToast('No active patient to complete.', 'warning');
@@ -2557,136 +2404,115 @@ function completeConsultation() {
         };
     });
 
-    // 1. Update appointment status
-    var appts = JSON.parse(
-        localStorage.getItem('cms_appointments') || '[]'
-    );
-    var idx = appts.findIndex(function (a) {
-        return a.id === activeAppt.id;
-    });
-    if (idx !== -1) {
-        appts[idx].status = 'Completed';
-        localStorage.setItem(
-            'cms_appointments',
-            JSON.stringify(appts)
-        );
-    }
+    var secDiag = (document.getElementById('diagSecondary') || {}).value || '';
+    var diagNotes = (document.getElementById('diagNotes') || {}).value || '';
+    var advice = (document.getElementById('adviceNotes') || {}).value || '';
+    var followUp = (document.getElementById('followUpSelect') || {}).value || '';
 
-    // 2. Save consultation record
-    var consults = JSON.parse(
-        localStorage.getItem('cms_consultations') || '[]'
-    );
+    var bp = (document.getElementById('vitBP') || {}).value || '';
+    var pulse = (document.getElementById('vitPulse') || {}).value || '';
+    var temp = (document.getElementById('vitTemp') || {}).value || '';
+    var spo2 = (document.getElementById('vitSpo2') || {}).value || '';
+    var weight = (document.getElementById('vitWeight') || {}).value || '';
 
-    var consultRecord = {
-        id:                  'CNS-' + Date.now(),
-        appointmentId:       activeAppt.id,
-        patientId:           activeAppt.patientId || 'PAT-001',
-        patientName:         activeAppt.patientName,
-        doctorId:            (loggedInUser && loggedInUser.id) || 'DOC001',
-        doctorName:          loggedInUser.name || 'Dr. Arun Kumar',
-        date:                TODAY,
-        time:                new Date().toLocaleTimeString(
-                                 [], { hour:'2-digit', minute:'2-digit' }
-                             ),
-        diagnosis:           primaryDiag,
-        secondaryDiagnosis:  (document.getElementById('diagSecondary') || {}).value || '',
-        notes:               (document.getElementById('diagNotes') || {}).value || '',
-        vitals: {
-            bp:     (document.getElementById('vitBP')     || {}).value || '',
-            pulse:  (document.getElementById('vitPulse')  || {}).value || '',
-            temp:   (document.getElementById('vitTemp')   || {}).value || '',
-            spo2:   (document.getElementById('vitSpo2')   || {}).value || '',
-            weight: (document.getElementById('vitWeight') || {}).value || ''
-        },
-        medicines:  medicines,
-        labTests:   labOrdersToSave.map(function (l) { return l.testName; }),
-        advice:     (document.getElementById('adviceNotes') || {}).value || '',
-        followUp:   (document.getElementById('followUpSelect') || {}).value || ''
-    };
+    var clinicalNotesText = [
+        diagNotes ? ('Notes: ' + diagNotes) : '',
+        secDiag ? ('Secondary Diagnosis: ' + secDiag) : '',
+        (bp || pulse || temp || spo2 || weight) ? ('Vitals: ' + [bp ? 'BP: ' + bp : '', pulse ? 'Pulse: ' + pulse : '', temp ? 'Temp: ' + temp : '', spo2 ? 'SpO2: ' + spo2 : '', weight ? 'Weight: ' + weight : ''].filter(Boolean).join(', ')) : ''
+    ].filter(Boolean).join('\n');
 
-    consults.unshift(consultRecord);
-    localStorage.setItem(
-        'cms_consultations',
-        JSON.stringify(consults)
-    );
+    var treatmentPlanText = [
+        advice ? ('Advice: ' + advice) : '',
+        followUp ? ('Follow-up: ' + followUp) : ''
+    ].filter(Boolean).join('\n');
 
-    // 3. Save prescription
-    if (medicines.length > 0) {
-        var rxList = JSON.parse(
-            localStorage.getItem('cms_prescriptions') || '[]'
-        );
-        rxList.unshift({
-            id:             'RX-' + Date.now(),
-            consultationId: consultRecord.id,
-            patientId:      consultRecord.patientId,
-            patientName:    consultRecord.patientName,
-            doctorId:       consultRecord.doctorId,
-            doctorName:     consultRecord.doctorName,
-            date:           TODAY,
-            medicines:      medicines,
-            status:         'Pending Dispensation'
-        });
-        localStorage.setItem(
-            'cms_prescriptions',
-            JSON.stringify(rxList)
-        );
-    }
+    try {
+        var patId = activeAppt.patientNumericId || activeAppt.patientId;
+        var apptId = activeAppt.rawId || activeAppt.id;
 
-    // 4. Save lab requests (Doctor creates requests only, NOT bills or results)
-    if (labOrdersToSave.length > 0) {
-        var orderList = JSON.parse(
-            localStorage.getItem('cms_lab_orders') || '[]'
-        );
-        var reqTime = getToday() + ' ' + new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+        // 1. Create Consultation via API
+        var consultPayload = {
+            appointment: apptId,
+            patient: patId,
+            symptoms: activeAppt.complaint || 'General Consultation',
+            diagnosis: primaryDiag,
+            clinical_notes: clinicalNotesText || 'Consultation completed.',
+            treatment_plan: treatmentPlanText || 'General care.'
+        };
+        var createdConsult = await CMS.api.post('/doctor/consultations/', consultPayload);
 
-        labOrdersToSave.forEach(function (t, i) {
-            var orderId = 'LABREQ-' + (Date.now() + i);
-            orderList.unshift({
-                id:             orderId,
-                orderNumber:    orderId,
-                testId:         t.testId,
-                testName:       t.testName,
-                category:       t.category,
-                price:          t.price,
-                normalRange:    t.normalRange || '',
-                unit:           t.unit || '',
-                patientId:      consultRecord.patientId,
-                patientName:    consultRecord.patientName,
-                doctorId:       consultRecord.doctorId,
-                doctorName:     consultRecord.doctorName,
-                appointmentId:  activeAppt.id,
-                consultationId: consultRecord.id,
-                orderDate:      getToday(),
-                requestedAt:    reqTime,
-                status:         'Pending',
-                priority:       'Normal',
-                summary:        'Requested during clinical consultation'
-            });
-        });
-        localStorage.setItem(
-            'cms_lab_orders',
-            JSON.stringify(orderList)
-        );
-    }
+        // 2. Save Prescription if medications added
+        if (medicines && medicines.length > 0) {
+            var rxPayload = {
+                consultation: createdConsult.id,
+                patient: patId,
+                notes: advice || 'Prescribed medications'
+            };
+            var createdRx = await CMS.api.post('/doctor/prescriptions/', rxPayload);
 
-    localStorage.removeItem('cms_active_appointment');
+            var defDosage = (cachedMasterDosages && cachedMasterDosages.length > 0) ? cachedMasterDosages[0].id : 1;
+            for (var m = 0; m < medicines.length; m++) {
+                var med = medicines[m];
+                var medId = med.medicineId || med.id;
+                var foundMed = findMedicineById(medId);
+                var actualMedId = foundMed ? foundMed.id : (cachedMasterMedicines.length > 0 ? cachedMasterMedicines[0].id : 1);
 
-    showToast(
-        'Consultation for ' + activeAppt.patientName + ' saved!',
-        'success'
-    );
-
-    setTimeout(function () {
-        if (confirm(
-            'Consultation completed for ' +
-            activeAppt.patientName +
-            '.\n\nWould you like to call the next patient in queue?'
-        )) {
-            callNextPatient();
-        } else {
-            window.location.href = 'appointments.html';
+                await CMS.api.post('/doctor/prescription-items/', {
+                    prescription: createdRx.id,
+                    medicine: actualMedId,
+                    dosage: med.dosageId || defDosage,
+                    frequency: med.frequency || '1-0-1',
+                    duration: med.duration || '3 Days',
+                    quantity: parseInt(med.quantity, 10) || 6,
+                    instructions: med.instructions || 'After food'
+                }).catch(function(e) { console.warn('Failed to add prescription item:', e); });
+            }
         }
-    }, 600);
+
+        // 3. Save Lab orders if requested
+        if (labOrdersToSave && labOrdersToSave.length > 0) {
+            for (var l = 0; l < labOrdersToSave.length; l++) {
+                var lo = labOrdersToSave[l];
+                var testId = lo.testId;
+                if (!testId && cachedMasterLabTests.length > 0) testId = cachedMasterLabTests[0].id;
+
+                await CMS.api.post('/doctor/lab-orders/', {
+                    consultation: createdConsult.id,
+                    patient: patId,
+                    test: testId,
+                    status: 'ORDERED'
+                }).catch(function(e) { console.warn('Failed to add lab order:', e); });
+            }
+        }
+
+        // 4. Complete appointment in backend
+        await CMS.api.post('/doctor/appointments/' + apptId + '/complete/').catch(function(e) {
+            console.warn('Appointment status transition to COMPLETED:', e.message || e);
+        });
+
+        localStorage.removeItem('cms_active_appointment');
+
+        showToast(
+            'Consultation for ' + activeAppt.patientName + ' saved!',
+            'success'
+        );
+
+        setTimeout(function () {
+            if (confirm(
+                'Consultation completed for ' +
+                activeAppt.patientName +
+                '.\n\nWould you like to call the next patient in queue?'
+            )) {
+                callNextPatient();
+            } else {
+                window.location.href = 'appointments.html';
+            }
+        }, 600);
+
+    } catch (err) {
+        console.error('Error saving consultation:', err);
+        showToast(err.message || 'Failed to save consultation.', 'danger');
+    }
 }
 
 
@@ -2773,34 +2599,33 @@ var allPatients      = [];
 var filteredPatients = [];
 
 
-function initPatients() {
+async function initPatients() {
 
-    loadPatientsList();
+    await loadPatientsList();
 }
 
 
-function loadPatientsList() {
+async function loadPatientsList() {
 
-    var stored = JSON.parse(
-        localStorage.getItem('cms_patients') || '[]'
-    );
-
-    if (!stored || stored.length === 0) {
-        stored = DEFAULT_PATIENTS;
-        localStorage.setItem(
-            'cms_patients',
-            JSON.stringify(stored)
-        );
+    try {
+        if (window.CMS && window.CMS.api) {
+            var raw = await CMS.api.list('/doctor/patients/');
+            allPatients = (raw || []).map(CMSAdapters.adaptPatient);
+        } else {
+            allPatients = [];
+        }
+    } catch (e) {
+        console.error('Failed to load doctor patients:', e);
+        allPatients = [];
     }
 
-    allPatients = stored;
     patientsApplyFilters();
-    patientsUpdateStats();
+    await patientsUpdateStats();
     updateSidebarBadge();
 }
 
 
-function patientsUpdateStats() {
+async function patientsUpdateStats() {
 
     var el;
 
@@ -2821,12 +2646,16 @@ function patientsUpdateStats() {
     el = document.getElementById('statAllergies');
     if (el) el.textContent = allergyCount;
 
-    var consults = JSON.parse(
-        localStorage.getItem('cms_consultations') || '[]'
-    );
+    var consultsCount = 0;
+    try {
+        if (window.CMS && window.CMS.api) {
+            var cList = await CMS.api.list('/doctor/consultations/').catch(function () { return []; });
+            consultsCount = (cList || []).length;
+        }
+    } catch (e) {}
 
     el = document.getElementById('statSeenByDoc');
-    if (el) el.textContent = consults.length || 8;
+    if (el) el.textContent = consultsCount;
 }
 
 
@@ -2919,54 +2748,36 @@ function patientsRenderTable() {
 }
 
 
-function startConsultFor(patientId, patientName) {
+async function startConsultFor(patientId, patientName) {
 
     if (isPatientConsultedToday(patientId)) {
         showToast('This patient has already completed today\'s consultation.', 'warning');
         return;
     }
 
-    var appts = JSON.parse(
-        localStorage.getItem('cms_appointments') || '[]'
-    );
     var today = getToday();
-
-    var appt = appts.find(function (a) {
-        return a.patientId === patientId && a.date === today && a.status !== 'Completed';
-    });
-
-    if (!appt) {
-        var token = appts.filter(function (a) {
-            return a.date === today;
-        }).length + 1;
-
-        appt = {
-            id:          'APT-' + Date.now(),
-            token:       token,
-            patientId:   patientId,
-            patientName: patientName,
-            age:         30,
-            gender:      'Male',
-            blood:       'O+',
-            time:        new Date().toLocaleTimeString(
-                             [], { hour:'2-digit', minute:'2-digit' }
-                         ),
-            type:        'Walk-in',
-            status:      'In Progress',
-            complaint:   'Routine consultation',
-            date:        today
-        };
-        appts.push(appt);
-    } else {
-        appt.status = 'In Progress';
+    var appts = [];
+    try {
+        if (window.CMS && window.CMS.api) {
+            var raw = await CMS.api.list('/doctor/appointments/?date=' + today);
+            appts = (raw || []).map(CMSAdapters.adaptAppointment);
+        }
+    } catch (e) {
+        console.error('Failed to check appointments for patient:', e);
     }
 
-    localStorage.setItem(
-        'cms_appointments',
-        JSON.stringify(appts)
-    );
-    localStorage.setItem('cms_active_appointment', appt.id);
-    window.location.href = 'consultation.html?id=' + appt.id;
+    var appt = appts.find(function (a) {
+        var pId = a.patientId || a.patientNumericId;
+        return (pId === patientId || String(pId) === String(patientId) || String(a.patientNumericId) === String(patientId)) &&
+               a.status !== 'Completed';
+    });
+
+    if (appt) {
+        localStorage.setItem('cms_active_appointment', appt.id);
+        window.location.href = 'consultation.html?id=' + appt.id;
+    } else {
+        showToast('No active appointment for ' + (patientName || 'this patient') + ' today. Please have reception check in or schedule the patient.', 'warning');
+    }
 }
 
 
@@ -3008,40 +2819,57 @@ var patientPrescriptions   = [];
 var patientLabs            = [];
 
 
-function initPatientDetails() {
+async function initPatientDetails() {
 
-    loadPatientData();
+    await loadPatientData();
 }
 
 
-function loadPatientData() {
+async function loadPatientData() {
 
-    var patients  = JSON.parse(
-        localStorage.getItem('cms_patients') || '[]'
-    );
+    var patients = [];
+    try {
+        if (window.CMS && window.CMS.api) {
+            var raw = await CMS.api.list('/doctor/patients/');
+            patients = (raw || []).map(CMSAdapters.adaptPatient);
+        }
+    } catch (e) {
+        console.error('Failed to load patients for details:', e);
+    }
+
     var urlParams = new URLSearchParams(window.location.search);
-    var requestedId = urlParams.get('id') || 'PAT001';
+    var requestedId = urlParams.get('id');
 
     // Patient picker
     var picker = document.getElementById('quickPatientPicker');
     if (picker) {
-        picker.innerHTML = patients.map(function (p) {
-            return '<option value="' + p.id + '" ' +
-                (p.id === requestedId ? 'selected' : '') + '>' +
-                p.name + ' (' + p.id + ')</option>';
-        }).join('');
+        picker.innerHTML = patients.length === 0
+            ? '<option value="">No patients available</option>'
+            : patients.map(function (p) {
+                return '<option value="' + p.id + '" ' +
+                    ((p.id === requestedId || p.patientId === requestedId) ? 'selected' : '') + '>' +
+                    p.name + ' (' + (p.patientId || p.id) + ')</option>';
+            }).join('');
     }
 
-    currentPatient = patients.find(function (p) {
-        return p.id === requestedId;
-    }) || patients[0] || {
-        id: 'PAT001', name: 'Rahul Menon', age: 24,
-        gender: 'Male', blood: 'O+', phone: '9876543210',
-        allergies: 'None', chronic: 'None'
-    };
+    currentPatient = requestedId
+        ? (patients.find(function (p) {
+            return p.id === requestedId || p.patientId === requestedId || String(p.rawId) === String(requestedId);
+        }) || patients[0] || null)
+        : (patients[0] || null);
 
-    detailsRenderHeader(currentPatient);
-    detailsLoadClinical(currentPatient);
+    if (currentPatient) {
+        detailsRenderHeader(currentPatient);
+        await detailsLoadClinical(currentPatient);
+    } else {
+        var heroName = document.getElementById('pHeroName');
+        if (heroName) heroName.textContent = 'No Patient Selected';
+        var heroSub = document.getElementById('pHeroSub');
+        if (heroSub) heroSub.textContent = 'No patient records found in your database';
+        detailsRenderConsultations([]);
+        detailsRenderPrescriptions([]);
+        detailsRenderLabs([]);
+    }
     updateSidebarBadge();
 }
 
@@ -3062,7 +2890,7 @@ function detailsRenderHeader(p) {
 
     setEl('pHeroAvatar', initials);
     setEl('pHeroName',   p.name);
-    setEl('pHeroId',     p.id);
+    setEl('pHeroId',     p.patientId || p.id);
     setEl('pHeroSub',    (p.age || 28) + ' yrs · ' +
         (p.gender || 'Unknown') + ' · Blood: ' +
         (p.blood || '—') + ' · Phone: ' + (p.phone || '—'));
@@ -3107,69 +2935,40 @@ function detailsRenderHeader(p) {
 }
 
 
-function detailsLoadClinical(p) {
+async function detailsLoadClinical(p) {
+    if (!p) return;
 
-    // 1. Consultations
-    var allConsults = JSON.parse(
-        localStorage.getItem('cms_consultations') || '[]'
-    );
+    var patId = p.rawId || p.id;
 
-    patientConsultations = allConsults.filter(function (c) {
-        return c.patientId === p.id || c.patientName === p.name;
-    });
-
-    if (patientConsultations.length === 0) {
-        patientConsultations = [{
-            id: 'CNS-Sample', date: '2026-02-14', time: '10:30 AM',
-            doctorName: 'Dr. Arun Kumar',
-            diagnosis: 'Acute Upper Respiratory Tract Infection',
-            secondaryDiagnosis: 'None',
-            notes: 'Patient presented with 3-day history of dry cough and low-grade pyrexia. Throat examination revealed mild erythematous pharynx. Chest clear to auscultation.',
-            vitals: { bp:'118/76', pulse:'76', temp:'99.1', spo2:'98', weight:'67' },
-            medicines: [
-                { medicineId: 'MED002', medicine:'Amoxicillin 500mg', dosage:'1 Cap', frequency:'1-0-1', duration:'5 Days', quantity: 10, instructions:'After food' },
-                { medicineId: 'MED001', medicine:'Paracetamol 500mg', dosage:'1 Tab', frequency:'SOS / As needed', duration:'3 Days', quantity: 6, instructions:'For fever/body ache' }
-            ],
-            labTests: ['Complete Blood Count (CBC)'],
-            advice: 'Adequate hydration, warm saline gargles twice daily. Review if fever persists over 48 hours.',
-            followUp: '1 Week'
-        }];
+    try {
+        if (window.CMS && window.CMS.api) {
+            var results = await Promise.all([
+                CMS.api.list('/doctor/consultations/?patient=' + patId).catch(function () { return []; }),
+                CMS.api.list('/doctor/prescriptions/?patient=' + patId).catch(function () { return []; }),
+                CMS.api.list('/doctor/lab-orders/?patient=' + patId).catch(function () { return []; })
+            ]);
+            patientConsultations = (results[0] || []).map(CMSAdapters.adaptConsultation);
+            patientPrescriptions = (results[1] || []).map(CMSAdapters.adaptPrescription);
+            patientLabs = (results[2] || []).map(CMSAdapters.adaptLabOrder);
+        } else {
+            patientConsultations = [];
+            patientPrescriptions = [];
+            patientLabs = [];
+        }
+    } catch (e) {
+        console.error('Error loading clinical history for patient:', e);
+        patientConsultations = [];
+        patientPrescriptions = [];
+        patientLabs = [];
     }
 
     var countConsults = document.getElementById('countConsults');
     if (countConsults) countConsults.textContent = patientConsultations.length;
     detailsRenderConsultations(patientConsultations);
 
-    // 2. Prescriptions
-    var allRx = JSON.parse(
-        localStorage.getItem('cms_prescriptions') || '[]'
-    );
-
-    patientPrescriptions = allRx.filter(function (r) {
-        return r.patientId === p.id || r.patientName === p.name;
-    });
-
-    if (patientPrescriptions.length === 0) {
-        patientPrescriptions = [{
-            id: 'RX-98210', date: '2026-02-14',
-            doctorName: 'Dr. Arun Kumar', status: 'Dispensed',
-            medicines: [
-                { medicineId: 'MED002', medicine:'Amoxicillin 500mg', dosage:'1 Cap', frequency:'1-0-1', duration:'5 Days', quantity: 10, instructions: 'After food' },
-                { medicineId: 'MED001', medicine:'Paracetamol 500mg', dosage:'1 Tab', frequency:'SOS', duration:'3 Days', quantity: 6, instructions: 'As needed' }
-            ]
-        }];
-    }
-
     var countRx = document.getElementById('countPrescriptions');
     if (countRx) countRx.textContent = patientPrescriptions.length;
     detailsRenderPrescriptions(patientPrescriptions);
-
-    // 3. Lab Tests & Completed Results
-    var allLabOrders = getLabOrders();
-
-    patientLabs = allLabOrders.filter(function (l) {
-        return l.patientId === p.id || l.patientName === p.name;
-    });
 
     var countLabs = document.getElementById('countLabs');
     if (countLabs) countLabs.textContent = patientLabs.length;
@@ -3181,6 +2980,11 @@ function detailsRenderConsultations(consults) {
 
     var container = document.getElementById('consultationsContainer');
     if (!container) return;
+
+    if (!consults || consults.length === 0) {
+        container.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-muted);">No consultation history recorded for this patient.</div>';
+        return;
+    }
 
     container.innerHTML = consults.map(function (c) {
 
@@ -3340,7 +3144,7 @@ function setTab(tab, btn) {
 }
 
 
-function startConsultationForPatient() {
+async function startConsultationForPatient() {
 
     if (!currentPatient) return;
 
@@ -3349,48 +3153,30 @@ function startConsultationForPatient() {
         return;
     }
 
-    var appts = JSON.parse(
-        localStorage.getItem('cms_appointments') || '[]'
-    );
     var today = getToday();
-
-    var appt = appts.find(function (a) {
-        return a.patientId === currentPatient.id &&
-               a.date === today && a.status !== 'Completed';
-    });
-
-    if (!appt) {
-        var token = appts.filter(function (a) {
-            return a.date === today;
-        }).length + 1;
-
-        appt = {
-            id:          'APT-' + Date.now(),
-            token:       token,
-            patientId:   currentPatient.id,
-            patientName: currentPatient.name,
-            age:         currentPatient.age || 30,
-            gender:      currentPatient.gender || 'Male',
-            blood:       currentPatient.blood || 'O+',
-            time:        new Date().toLocaleTimeString(
-                             [], { hour:'2-digit', minute:'2-digit' }
-                         ),
-            type:        'Follow-up',
-            status:      'In Progress',
-            complaint:   'Clinical follow-up consultation',
-            date:        today
-        };
-        appts.push(appt);
-    } else {
-        appt.status = 'In Progress';
+    var appts = [];
+    try {
+        if (window.CMS && window.CMS.api) {
+            var raw = await CMS.api.list('/doctor/appointments/?date=' + today);
+            appts = (raw || []).map(CMSAdapters.adaptAppointment);
+        }
+    } catch (e) {
+        console.error('Failed to check appointments:', e);
     }
 
-    localStorage.setItem(
-        'cms_appointments',
-        JSON.stringify(appts)
-    );
-    localStorage.setItem('cms_active_appointment', appt.id);
-    window.location.href = 'consultation.html?id=' + appt.id;
+    var appt = appts.find(function (a) {
+        var pId = a.patientId || a.patientNumericId;
+        var curId = currentPatient.patientId || currentPatient.id || currentPatient.rawId;
+        return (pId === curId || String(pId) === String(curId) || String(a.patientNumericId) === String(curId)) &&
+               a.status !== 'Completed';
+    });
+
+    if (appt) {
+        localStorage.setItem('cms_active_appointment', appt.id);
+        window.location.href = 'consultation.html?id=' + appt.id;
+    } else {
+        showToast('No active appointment for ' + (currentPatient.name || 'this patient') + ' today. Please have reception check in or schedule the patient.', 'warning');
+    }
 }
 
 
@@ -3402,27 +3188,26 @@ var allRx      = [];
 var filteredRx = [];
 
 
-function initPrescriptions() {
+async function initPrescriptions() {
 
-    loadRxData();
+    await loadRxData();
 }
 
 
-function loadRxData() {
+async function loadRxData() {
 
-    var stored = JSON.parse(
-        localStorage.getItem('cms_prescriptions') || '[]'
-    );
-
-    if (!stored || stored.length === 0) {
-        stored = DEFAULT_RX;
-        localStorage.setItem(
-            'cms_prescriptions',
-            JSON.stringify(stored)
-        );
+    try {
+        if (window.CMS && window.CMS.api) {
+            var raw = await CMS.api.list('/doctor/prescriptions/');
+            allRx = (raw || []).map(CMSAdapters.adaptPrescription);
+        } else {
+            allRx = [];
+        }
+    } catch (e) {
+        console.error('Failed to load doctor prescriptions:', e);
+        allRx = [];
     }
 
-    allRx = stored;
     filterRx();
     rxUpdateStats();
     updateSidebarBadge();
@@ -3593,22 +3378,24 @@ var allLabTests      = [];
 var filteredLabTests = [];
 
 
-function initLabTests() {
+async function initLabTests() {
 
-    loadLabsData();
+    await loadLabsData();
 }
 
 
-function loadLabsData() {
+async function loadLabsData() {
 
-    allLabTests = getLabOrders();
-
-    if (localStorage.getItem('cms_lab_orders') === null && (!allLabTests || allLabTests.length === 0)) {
-        allLabTests = DEFAULT_LABS;
-        localStorage.setItem(
-            'cms_lab_orders',
-            JSON.stringify(DEFAULT_LABS)
-        );
+    try {
+        if (window.CMS && window.CMS.api) {
+            var raw = await CMS.api.list('/doctor/lab-orders/');
+            allLabTests = (raw || []).map(CMSAdapters.adaptLabOrder);
+        } else {
+            allLabTests = [];
+        }
+    } catch (e) {
+        console.error('Failed to load doctor lab orders:', e);
+        allLabTests = [];
     }
 
     filterLabTests();
@@ -3825,18 +3612,23 @@ function populateOrderModalLabTests() {
 }
 
 
-function openOrderModal() {
+async function openOrderModal() {
 
-    var patients = JSON.parse(
-        localStorage.getItem('cms_patients') || '[]'
-    );
+    var patients = [];
+    try {
+        if (window.CMS && window.CMS.api) {
+            var raw = await CMS.api.list('/doctor/patients/').catch(function () { return []; });
+            patients = (raw || []).map(CMSAdapters.adaptPatient);
+        }
+    } catch (e) {}
 
     var sel = document.getElementById('mPatientSelect');
     if (sel) {
-        sel.innerHTML = patients.map(function (p) {
-            return '<option value="' + p.id + '|' + p.name +
-                '">' + p.name + ' (' + p.id + ')</option>';
-        }).join('');
+        sel.innerHTML = patients.length === 0
+            ? '<option value="">No patients available</option>'
+            : patients.map(function (p) {
+                return '<option value="' + (p.rawId || p.id) + '|' + p.name + '">' + p.name + ' (' + (p.patientId || p.id) + ')</option>';
+            }).join('');
     }
 
     populateOrderModalLabTests();
@@ -3853,7 +3645,7 @@ function closeOrderModal() {
 }
 
 
-function submitNewLabOrder(e) {
+async function submitNewLabOrder(e) {
 
     e.preventDefault();
 
@@ -3879,48 +3671,20 @@ function submitNewLabOrder(e) {
     var notes    = (document.getElementById('mIndication') || {}).value || '';
     notes = notes.trim();
 
-    var masterTest = findLabTestById(testId);
-    if (!masterTest || (masterTest.status || 'Active').toLowerCase() !== 'active') {
-        showToast('Selected lab test is inactive or invalid.', 'warning');
-        return;
+    try {
+        await CMS.api.post('/doctor/lab-orders/', {
+            patient: parseInt(patId, 10) || patId,
+            test: parseInt(testId, 10) || testId,
+            status: 'ORDERED'
+        });
+
+        closeOrderModal();
+        await loadLabsData();
+        showToast('Lab request for ' + testName + ' submitted!', 'success');
+    } catch (err) {
+        console.error('Failed to submit lab order:', err);
+        showToast(err.message || 'Failed to submit lab order.', 'danger');
     }
-
-    var orderId = 'LABREQ-' + Date.now();
-    var newOrder = {
-        id:          orderId,
-        orderNumber: orderId,
-        testId:      masterTest.id,
-        testName:    masterTest.name || testName,
-        category:    masterTest.category || category,
-        price:       Number(masterTest.price || 0),
-        normalRange: String(masterTest.normalRange || '').trim(),
-        unit:        String(masterTest.unit || '').trim(),
-        orderDate:   getToday(),
-        requestedAt: getToday() + ' ' + new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' }),
-        patientId:   patId,
-        patientName: patName,
-        priority:    priority,
-        status:      'Pending',
-        doctorId:    (loggedInUser && loggedInUser.id) || 'DOC001',
-        doctorName:  (loggedInUser && (loggedInUser.name || loggedInUser.username)) || 'Dr. Arun Kumar',
-        summary:     notes
-            ? 'Clinical note: ' + notes
-            : 'Order requested by physician; awaiting diagnostic lab collection.'
-    };
-
-    var rawOrders = JSON.parse(localStorage.getItem('cms_lab_orders') || '[]');
-    rawOrders.unshift(newOrder);
-    localStorage.setItem(
-        'cms_lab_orders',
-        JSON.stringify(rawOrders)
-    );
-
-    allLabTests = rawOrders;
-
-    closeOrderModal();
-    filterLabTests();
-    labUpdateStats();
-    showToast('Lab request for ' + (masterTest.name || testName) + ' submitted!', 'success');
 }
 
 
@@ -3928,10 +3692,7 @@ function submitNewLabOrder(e) {
 // 17. AUTO-INIT ON PAGE LOAD
 // ============================================================
 
-document.addEventListener('DOMContentLoaded', function () {
-
-    // Seed data if needed
-    seedAllData();
+document.addEventListener('DOMContentLoaded', async function () {
 
     // Common UI
     initDoctorUI();
@@ -3947,37 +3708,39 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    await loadMasterData();
+
     // Detect page and run the correct initializer
     var page = getCurrentPage();
 
     switch (page) {
 
         case 'dashboard.html':
-            initDashboard();
+            await initDashboard();
             break;
 
         case 'appointments.html':
-            initAppointments();
+            await initAppointments();
             break;
 
         case 'consultation.html':
-            initConsultation();
+            await initConsultation();
             break;
 
         case 'patients.html':
-            initPatients();
+            await initPatients();
             break;
 
         case 'patient-details.html':
-            initPatientDetails();
+            await initPatientDetails();
             break;
 
         case 'prescriptions.html':
-            initPrescriptions();
+            await initPrescriptions();
             break;
 
         case 'lab-tests.html':
-            initLabTests();
+            await initLabTests();
             break;
 
         default:
