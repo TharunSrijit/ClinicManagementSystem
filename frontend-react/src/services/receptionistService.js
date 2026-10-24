@@ -26,6 +26,10 @@ export const receptionistService = {
     return apiClient.list('/receptionist/doctors/');
   },
 
+  getDoctorSlots(doctorId, type, date) {
+    return apiClient.get(`/receptionist/doctors/${doctorId}/slots/?type=${encodeURIComponent(type)}&date=${encodeURIComponent(date)}`);
+  },
+
   getAppointments(date = null, doctorId = null, status = null) {
     const params = [];
     if (date) params.push(`date=${encodeURIComponent(date)}`);
@@ -39,8 +43,12 @@ export const receptionistService = {
     return apiClient.post('/receptionist/appointments/', data);
   },
 
-  updateAppointmentStatus(id, status) {
-    return apiClient.patch(`/receptionist/appointments/${id}/`, { status });
+  checkInAppointment(id) {
+    return apiClient.post(`/receptionist/appointments/${id}/check_in/`);
+  },
+
+  cancelAppointment(id) {
+    return apiClient.post(`/receptionist/appointments/${id}/cancel/`);
   },
 
   getTokens(date = null, status = null) {

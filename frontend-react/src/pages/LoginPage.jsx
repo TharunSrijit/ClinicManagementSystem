@@ -5,10 +5,10 @@ import { ROLE_DASHBOARDS, ROLES } from '../utils/constants';
 
 const DEMO_USERS = [
   { label: 'Admin', username: 'admin', role: ROLES.ADMIN },
-  { label: 'Doctor', username: 'dr_sharma', role: ROLES.DOCTOR },
-  { label: 'Receptionist', username: 'receptionist_priya', role: ROLES.RECEPTIONIST },
-  { label: 'Lab Tech', username: 'lab_tech_arun', role: ROLES.LAB_TECHNICIAN },
-  { label: 'Pharmacist', username: 'pharmacist_anita', role: ROLES.PHARMACIST }
+  { label: 'Doctor', username: 'doctor', role: ROLES.DOCTOR },
+  { label: 'Receptionist', username: 'reception', role: ROLES.RECEPTIONIST },
+  { label: 'Lab Tech', username: 'lab', role: ROLES.LAB_TECHNICIAN },
+  { label: 'Pharmacist', username: 'pharmacy', role: ROLES.PHARMACIST }
 ];
 
 export const LoginPage = () => {

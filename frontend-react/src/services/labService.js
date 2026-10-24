@@ -5,12 +5,29 @@ export const labService = {
     return apiClient.get('/lab/profile/');
   },
 
-  getLabOrders() {
-    return apiClient.list('/lab/lab-orders/');
+  getLabOrders(status = null, patientId = null) {
+    const params = [];
+    if (status) params.push(`status=${encodeURIComponent(status)}`);
+    if (patientId) params.push(`patient=${encodeURIComponent(patientId)}`);
+    const query = params.length ? `?${params.join('&')}` : '';
+    return apiClient.list(`/lab/lab-orders/${query}`);
   },
 
-  getLabResults() {
-    return apiClient.list('/lab/lab-results/');
+  collectSample(id) {
+    return apiClient.post(`/lab/lab-orders/${id}/collect_sample/`);
+  },
+
+  startProcessing(id) {
+    return apiClient.post(`/lab/lab-orders/${id}/start_processing/`);
+  },
+
+  completeOrder(id) {
+    return apiClient.post(`/lab/lab-orders/${id}/complete/`);
+  },
+
+  getLabResults(orderId = null) {
+    const query = orderId ? `?order=${encodeURIComponent(orderId)}` : '';
+    return apiClient.list(`/lab/lab-results/${query}`);
   },
 
   createLabResult(resultData) {

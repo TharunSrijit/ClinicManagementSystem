@@ -2,71 +2,95 @@ import apiClient from './apiClient';
 
 export const adminService = {
   getDashboardStats() {
-    return apiClient.get('/adminapp/dashboard/');
+    return apiClient.get('/admin/dashboard/');
   },
 
   getUsers() {
-    return apiClient.list('/adminapp/users/');
+    return apiClient.list('/admin/users/');
   },
 
   createUser(userData) {
-    return apiClient.post('/adminapp/users/', userData);
+    return apiClient.post('/admin/users/', userData);
   },
 
   getDoctors() {
-    return apiClient.list('/adminapp/doctors/');
+    return apiClient.list('/admin/doctors/');
   },
 
   createDoctor(doctorData) {
-    return apiClient.post('/adminapp/doctors/', doctorData);
+    return apiClient.post('/admin/doctors/', doctorData);
   },
 
   getReceptionists() {
-    return apiClient.list('/adminapp/receptionists/');
+    return apiClient.list('/admin/receptionists/');
   },
 
   createReceptionist(data) {
-    return apiClient.post('/adminapp/receptionists/', data);
+    return apiClient.post('/admin/receptionists/', data);
   },
 
   getLabTechnicians() {
-    return apiClient.list('/adminapp/lab-technicians/');
+    return apiClient.list('/admin/lab-technicians/');
   },
 
   createLabTechnician(data) {
-    return apiClient.post('/adminapp/lab-technicians/', data);
+    return apiClient.post('/admin/lab-technicians/', data);
   },
 
   getPharmacists() {
-    return apiClient.list('/adminapp/pharmacists/');
+    return apiClient.list('/admin/pharmacists/');
   },
 
   createPharmacist(data) {
-    return apiClient.post('/adminapp/pharmacists/', data);
+    return apiClient.post('/admin/pharmacists/', data);
+  },
+
+  getPatients() {
+    return apiClient.list('/admin/patients/');
+  },
+
+  getAppointments() {
+    return apiClient.list('/admin/appointments/');
   },
 
   getMedicines() {
-    return apiClient.list('/adminapp/medicines/');
+    return apiClient.list('/admin/medicines/');
   },
 
   createMedicine(medicineData) {
-    return apiClient.post('/adminapp/medicines/', medicineData);
+    return apiClient.post('/admin/medicines/', medicineData);
   },
 
   getLabTests() {
-    return apiClient.list('/adminapp/lab-tests/');
+    return apiClient.list('/admin/lab-tests/');
   },
 
   createLabTest(labTestData) {
-    return apiClient.post('/adminapp/lab-tests/', labTestData);
+    return apiClient.post('/admin/lab-tests/', labTestData);
   },
 
   getPriceList() {
-    return apiClient.list('/adminapp/price-list/');
+    return apiClient.list('/admin/price-list/');
   },
 
   getStock() {
-    return apiClient.list('/adminapp/stock/');
+    return apiClient.list('/admin/stock/');
+  },
+
+  getStockTransactions() {
+    return apiClient.list('/admin/stock-transactions/');
+  },
+
+  getConsultationInvoices() {
+    return apiClient.list('/admin/consultation-invoices/');
+  },
+
+  getLabInvoices() {
+    return apiClient.list('/admin/lab-invoices/');
+  },
+
+  getPharmacyInvoices() {
+    return apiClient.list('/admin/pharmacy-invoices/');
   }
 };
 
