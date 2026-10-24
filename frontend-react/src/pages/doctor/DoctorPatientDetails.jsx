@@ -84,7 +84,12 @@ export const DoctorPatientDetails = () => {
   const handleStartConsultation = () => {
     const todayAppt = getTodayAppointment();
 
-    if (todayAppt && ['CONFIRMED', 'BOOKED', 'SCHEDULED', 'IN_CONSULTATION'].includes(todayAppt.status)) {
+    if (
+      todayAppt &&
+      ['CONFIRMED', 'BOOKED', 'SCHEDULED', 'IN_CONSULTATION'].includes(todayAppt.status) &&
+      todayAppt.token_number &&
+      todayAppt.token_status !== 'CANCELLED'
+    ) {
       navigate(`/doctor/consultations?appointment=${todayAppt.id}`);
       return;
     }
@@ -113,11 +118,19 @@ export const DoctorPatientDetails = () => {
       navigate(`/doctor/consultations?consultation=${res.id}`);
     } catch (err) {
       console.error('Failed to start unscheduled consultation:', err);
-      const errMsg =
-        err.response?.data?.detail ||
-        err.response?.data?.patient ||
-        err.message ||
-        'Failed to initiate unscheduled consultation.';
+      const data = err?.data || err?.response?.data;
+      let errMsg = err?.message || 'Failed to initiate unscheduled consultation.';
+      if (data) {
+        if (typeof data === 'string') errMsg = data;
+        else if (data.detail) errMsg = data.detail;
+        else if (data.message) errMsg = data.message;
+        else {
+          const fieldMsgs = Object.entries(data).map(
+            ([f, m]) => `${f}: ${Array.isArray(m) ? m.join(' ') : String(m)}`
+          );
+          if (fieldMsgs.length > 0) errMsg = fieldMsgs.join(' | ');
+        }
+      }
       setUnscheduledModal((prev) => ({ ...prev, submitting: false, error: errMsg }));
     }
   };
@@ -209,11 +222,14 @@ export const DoctorPatientDetails = () => {
           <Link to="/doctor/patients" className="btn btn-outline">
             ← Back to Patients
           </Link>
-          {todayAppt && ['CONFIRMED', 'BOOKED', 'SCHEDULED', 'IN_CONSULTATION'].includes(todayAppt.status) ? (
+          {todayAppt &&
+          ['CONFIRMED', 'BOOKED', 'SCHEDULED', 'IN_CONSULTATION'].includes(todayAppt.status) &&
+          todayAppt.token_number &&
+          todayAppt.token_status !== 'CANCELLED' ? (
             <button
               className="btn btn-primary"
               onClick={() => navigate(`/doctor/consultations?appointment=${todayAppt.id}`)}
-              title="Start token-based consultation for today's appointment"
+              title={`Start token-based consultation (Token #${todayAppt.token_number})`}
             >
               🎫 Start Consultation
             </button>
@@ -226,7 +242,11 @@ export const DoctorPatientDetails = () => {
               className="btn"
               style={{ background: '#f59e0b', color: '#ffffff', border: 'none', fontWeight: 500 }}
               onClick={handleStartConsultation}
-              title="Start unscheduled consultation directly without a queue token"
+              title={
+                todayAppt && !todayAppt.token_number
+                  ? 'Patient has an appointment today but no queue token yet. Click to start unscheduled consultation.'
+                  : 'Start unscheduled consultation directly without a queue token'
+              }
             >
               ⚡ Start Unscheduled
             </button>

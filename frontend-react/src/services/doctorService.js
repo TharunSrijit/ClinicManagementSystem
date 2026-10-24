@@ -24,6 +24,10 @@ export const doctorService = {
     return apiClient.post(`/doctor/appointments/${id}/complete/`);
   },
 
+  startConsultation(id) {
+    return apiClient.post(`/doctor/appointments/${id}/start_consultation/`);
+  },
+
   getPatients(params = '') {
     if (typeof params === 'string') {
       const query = params ? `?search=${encodeURIComponent(params)}` : '';

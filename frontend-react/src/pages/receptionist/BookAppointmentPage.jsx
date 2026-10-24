@@ -131,13 +131,15 @@ export const BookAppointmentPage = () => {
       };
 
       const result = await receptionistService.bookAppointment(payload);
+      const invParam = result.invoice_number || result.invoice_id || '';
+      const apptParam = result.id || '';
       setFeedback({
-        message: `Appointment booked successfully! Appointment #${result.id} is confirmed.`,
+        message: `Appointment #${result.id} created! Redirecting to Billing to record consultation fee payment...`,
         type: 'success'
       });
       setTimeout(() => {
-        navigate('/receptionist/appointments');
-      }, 1500);
+        navigate(`/receptionist/billing?invoice=${encodeURIComponent(invParam)}&appointment=${encodeURIComponent(apptParam)}`);
+      }, 1200);
     } catch (err) {
       console.error('Booking failed:', err);
       setFeedback({

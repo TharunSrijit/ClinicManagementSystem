@@ -223,10 +223,12 @@ def validate_status_transition(current_status, new_status, role):
 
     allowed_transitions = {
         'RECEPTIONIST': {
+            'PENDING': ['BOOKED', 'CONFIRMED', 'CANCELLED'],
             'BOOKED': ['CONFIRMED', 'CANCELLED', 'NO_SHOW'],
             'CONFIRMED': ['CANCELLED'],
         },
         'ADMIN': {
+            'PENDING': ['BOOKED', 'CONFIRMED', 'CANCELLED'],
             'BOOKED': ['CONFIRMED', 'CANCELLED', 'NO_SHOW'],
             'CONFIRMED': ['CANCELLED'],
         },

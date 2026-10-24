@@ -1,4 +1,5 @@
 import datetime
+from decimal import Decimal
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
@@ -70,7 +71,8 @@ class DoctorProfile(models.Model):
     slot_minutes = models.PositiveSmallIntegerField(default=15)
 
     def __str__(self):
-        return f"Dr. {self.user.get_full_name()}"
+        name = self.user.get_full_name().strip() or self.user.username
+        return f"Dr. {name}"
 
 
 class LabTechnicianProfile(models.Model):
@@ -222,6 +224,7 @@ class MedicalHistory(models.Model):
 class Appointment(models.Model):
 
     STATUS_CHOICES = [
+        ('PENDING', 'Pending Payment'),
         ('BOOKED', 'Booked'),
         ('CONFIRMED', 'Confirmed'),
         ('COMPLETED', 'Completed'),
@@ -276,7 +279,7 @@ class Appointment(models.Model):
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
-        default='BOOKED'
+        default='PENDING'
     )
 
     created_at = models.DateTimeField(
@@ -292,8 +295,40 @@ class Appointment(models.Model):
 
 
 # ---------------------------------------------------------------------------
-# 4. CONSULTATION BILLING
+# 4. CLINIC CONFIGURATION & CONSULTATION BILLING
 # ---------------------------------------------------------------------------
+
+class ClinicConfiguration(models.Model):
+    """
+    Clinic-wide configuration for clinic identity and administrative fees.
+    """
+    clinic_name = models.CharField(max_length=150, default="City Health Clinic")
+    clinic_address = models.TextField(blank=True, default="123 Health Ave, Medical District, City - 560001")
+    clinic_phone = models.CharField(max_length=50, blank=True, default="+91 98765 43210")
+    clinic_email = models.EmailField(blank=True, default="contact@cityhealthclinic.com")
+    registration_fee = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('100.00'))
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Clinic Configuration"
+        verbose_name_plural = "Clinic Configuration"
+
+    @classmethod
+    def get_instance(cls):
+        obj = cls.objects.first()
+        if not obj:
+            obj = cls.objects.create(
+                clinic_name="City Health Clinic",
+                clinic_address="123 Health Ave, Medical District, City - 560001",
+                clinic_phone="+91 98765 43210",
+                clinic_email="contact@cityhealthclinic.com",
+                registration_fee=Decimal('100.00'),
+            )
+        return obj
+
+    def __str__(self):
+        return f"{self.clinic_name} (Registration Fee: ₹{self.registration_fee})"
+
 
 class ConsultationInvoice(models.Model):
 
@@ -334,6 +369,12 @@ class ConsultationInvoice(models.Model):
     consultation_fee = models.DecimalField(
         max_digits=10,
         decimal_places=2
+    )
+
+    registration_fee = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0
     )
 
     discount = models.DecimalField(

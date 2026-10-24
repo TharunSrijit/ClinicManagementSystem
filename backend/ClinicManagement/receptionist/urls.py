@@ -12,6 +12,7 @@ router.register(r'appointments', views.ReceptionistAppointmentViewSet, basename=
 router.register(r'tokens', views.ReceptionistTokenViewSet, basename='receptionist-tokens')
 router.register(r'consultation-invoices', views.ReceptionistConsultationInvoiceViewSet, basename='receptionist-consultation-invoices')
 router.register(r'consultation-payments', views.ReceptionistConsultationPaymentViewSet, basename='receptionist-consultation-payments')
+router.register(r'clinic-configuration', views.ReceptionistClinicConfigurationViewSet, basename='receptionist-clinic-configuration')
 
 urlpatterns = [
     path('', include(router.urls)),

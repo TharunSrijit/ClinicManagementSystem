@@ -1,3 +1,4 @@
+from decimal import Decimal
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -17,6 +18,7 @@ from .models import (
     PriceList,
     StockMaster,
     StockTransaction,
+    ClinicConfiguration,
     ConsultationInvoice,
     ConsultationPayment,
     LabInvoice,
@@ -243,6 +245,66 @@ class AppointmentSerializer(serializers.ModelSerializer):
         source='doctor.__str__', read_only=True
     )
     appointment_time = serializers.TimeField(required=True)
+    token_number = serializers.SerializerMethodField()
+    token_status = serializers.SerializerMethodField()
+    token_id = serializers.SerializerMethodField()
+    invoice_id = serializers.SerializerMethodField()
+    invoice_number = serializers.SerializerMethodField()
+    invoice_status = serializers.SerializerMethodField()
+    consultation_fee = serializers.SerializerMethodField()
+    total_amount = serializers.SerializerMethodField()
+    is_paid = serializers.SerializerMethodField()
+    arrival_status = serializers.SerializerMethodField()
+
+    def get_token_number(self, obj):
+        if hasattr(obj, 'token') and obj.token:
+            return obj.token.token_number
+        return None
+
+    def get_token_status(self, obj):
+        if hasattr(obj, 'token') and obj.token:
+            return obj.token.status
+        return None
+
+    def get_token_id(self, obj):
+        if hasattr(obj, 'token') and obj.token:
+            return obj.token.id
+        return None
+
+    def get_invoice_id(self, obj):
+        inv = getattr(obj, 'consultation_invoice', None)
+        return inv.id if inv else None
+
+    def get_invoice_number(self, obj):
+        inv = getattr(obj, 'consultation_invoice', None)
+        return inv.invoice_number if inv else None
+
+    def get_invoice_status(self, obj):
+        inv = getattr(obj, 'consultation_invoice', None)
+        return inv.status if inv else None
+
+    def get_consultation_fee(self, obj):
+        inv = getattr(obj, 'consultation_invoice', None)
+        if inv:
+            return str(inv.consultation_fee)
+        if obj.doctor:
+            return str(obj.doctor.consultation_fee)
+        return "0.00"
+
+    def get_total_amount(self, obj):
+        inv = getattr(obj, 'consultation_invoice', None)
+        if inv:
+            return str(inv.total_amount)
+        if obj.doctor:
+            return str(obj.doctor.consultation_fee)
+        return "0.00"
+
+    def get_is_paid(self, obj):
+        inv = getattr(obj, 'consultation_invoice', None)
+        return bool(inv and inv.status == 'PAID')
+
+    def get_arrival_status(self, obj):
+        return 'ARRIVED' if obj.status == 'CONFIRMED' else obj.status
 
     class Meta:
         model  = Appointment
@@ -251,9 +313,17 @@ class AppointmentSerializer(serializers.ModelSerializer):
             'doctor', 'doctor_name',
             'appointment_type', 'visit_category',
             'appointment_date', 'appointment_time',
-            'reason', 'status', 'created_at',
+            'reason', 'status',
+            'token_number', 'token_status', 'token_id',
+            'invoice_id', 'invoice_number', 'invoice_status',
+            'consultation_fee', 'total_amount', 'is_paid', 'arrival_status',
+            'created_at',
         ]
-        read_only_fields = ['created_at']
+        read_only_fields = [
+            'created_at', 'token_number', 'token_status', 'token_id',
+            'invoice_id', 'invoice_number', 'invoice_status',
+            'consultation_fee', 'total_amount', 'is_paid', 'arrival_status',
+        ]
 
     def validate(self, attrs):
         doctor = attrs.get('doctor') or (self.instance.doctor if self.instance else None)
@@ -303,11 +373,19 @@ class TokenSerializer(serializers.ModelSerializer):
     doctor_name = serializers.CharField(
         source='appointment.doctor.__str__', read_only=True
     )
+    appointment_type = serializers.CharField(
+        source='appointment.appointment_type', read_only=True
+    )
+    appointment_time = serializers.TimeField(
+        source='appointment.appointment_time', read_only=True
+    )
+    token_date = serializers.DateField(required=False)
 
     class Meta:
         model  = Token
         fields = [
             'id', 'appointment', 'patient_name', 'doctor_name',
+            'appointment_type', 'appointment_time',
             'token_number', 'token_date', 'status', 'created_at',
         ]
         read_only_fields = ['token_number', 'created_at']
@@ -390,15 +468,42 @@ class StockTransactionSerializer(serializers.ModelSerializer):
 
 
 # ---------------------------------------------------------------------------
-# 6. CONSULTATION BILLING
+# ---------------------------------------------------------------------------
+# 6. CLINIC CONFIGURATION & CONSULTATION BILLING
 # Used by: receptionist (create invoices & payments), adminapp (oversight)
 # ---------------------------------------------------------------------------
+
+class ClinicConfigurationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClinicConfiguration
+        fields = [
+            'id', 'clinic_name', 'clinic_address',
+            'clinic_phone', 'clinic_email',
+            'registration_fee', 'updated_at',
+        ]
+
 
 class ConsultationInvoiceSerializer(serializers.ModelSerializer):
     patient_name = serializers.CharField(
         source='patient.__str__', read_only=True
     )
+    patient_id = serializers.CharField(
+        source='patient.patient_id', read_only=True
+    )
+    patient_phone = serializers.CharField(
+        source='patient.phone', read_only=True
+    )
+    patient_gender = serializers.CharField(
+        source='patient.gender', read_only=True
+    )
     doctor_name = serializers.SerializerMethodField()
+    doctor_specialization = serializers.SerializerMethodField()
+    appointment_date = serializers.SerializerMethodField()
+    appointment_time = serializers.SerializerMethodField()
+    amount_paid = serializers.SerializerMethodField()
+    balance_due = serializers.SerializerMethodField()
+    payments = serializers.SerializerMethodField()
+    clinic_info = serializers.SerializerMethodField()
 
     def get_doctor_name(self, obj):
         if obj.appointment and obj.appointment.doctor:
@@ -407,15 +512,74 @@ class ConsultationInvoiceSerializer(serializers.ModelSerializer):
             return str(obj.consultation.doctor)
         return '—'
 
+    def get_doctor_specialization(self, obj):
+        doc = None
+        if obj.appointment and obj.appointment.doctor:
+            doc = obj.appointment.doctor
+        elif obj.consultation and obj.consultation.doctor:
+            doc = obj.consultation.doctor
+        return doc.specialization if doc else ''
+
+    def get_appointment_date(self, obj):
+        if obj.appointment and obj.appointment.appointment_date:
+            return str(obj.appointment.appointment_date)
+        if obj.consultation and obj.consultation.created_at:
+            return str(obj.consultation.created_at.date())
+        return str(obj.created_at.date())
+
+    def get_appointment_time(self, obj):
+        if obj.appointment and obj.appointment.appointment_time:
+            return str(obj.appointment.appointment_time)
+        return None
+
+    def get_amount_paid(self, obj):
+        paid = sum(p.amount for p in obj.payments.all())
+        return f"{paid:.2f}"
+
+    def get_balance_due(self, obj):
+        paid = sum(p.amount for p in obj.payments.all())
+        balance = obj.total_amount - paid
+        return f"{max(Decimal('0.00'), balance):.2f}"
+
+    def get_payments(self, obj):
+        payments_qs = obj.payments.all().order_by('-payment_date')
+        return [
+            {
+                'id': p.id,
+                'amount': str(p.amount),
+                'payment_method': p.payment_method,
+                'transaction_id': p.transaction_id,
+                'payment_date': p.payment_date.isoformat(),
+            }
+            for p in payments_qs
+        ]
+
+    def get_clinic_info(self, obj):
+        cfg = ClinicConfiguration.get_instance()
+        return {
+            'clinic_name': cfg.clinic_name,
+            'name': cfg.clinic_name,
+            'clinic_address': cfg.clinic_address,
+            'address': cfg.clinic_address,
+            'clinic_phone': cfg.clinic_phone,
+            'phone': cfg.clinic_phone,
+            'clinic_email': cfg.clinic_email,
+            'email': cfg.clinic_email,
+        }
+
     class Meta:
-        model  = ConsultationInvoice
+        model = ConsultationInvoice
         fields = [
             'id', 'invoice_number',
-            'patient', 'patient_name',
+            'patient', 'patient_id', 'patient_name', 'patient_phone', 'patient_gender',
             'appointment', 'consultation',
-            'doctor_name',
-            'consultation_fee', 'discount', 'tax', 'total_amount',
+            'doctor_name', 'doctor_specialization',
+            'appointment_date', 'appointment_time',
+            'consultation_fee', 'registration_fee',
+            'discount', 'tax', 'total_amount',
+            'amount_paid', 'balance_due',
             'status', 'created_at',
+            'payments', 'clinic_info',
         ]
         read_only_fields = ['invoice_number', 'patient', 'total_amount', 'created_at']
 
@@ -425,8 +589,13 @@ class ConsultationPaymentSerializer(serializers.ModelSerializer):
         source='invoice.invoice_number', read_only=True
     )
 
+    def validate_amount(self, value):
+        if value <= Decimal('0.00'):
+            raise serializers.ValidationError("Payment amount must be greater than zero.")
+        return value
+
     class Meta:
-        model  = ConsultationPayment
+        model = ConsultationPayment
         fields = [
             'id', 'invoice', 'invoice_number',
             'amount', 'payment_method',

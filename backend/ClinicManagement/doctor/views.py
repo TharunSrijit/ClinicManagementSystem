@@ -86,7 +86,7 @@ class DoctorAppointmentViewSet(viewsets.ReadOnlyModelViewSet):
             return Appointment.objects.none()
 
         queryset = Appointment.objects.filter(doctor=doctor).select_related(
-            'patient', 'doctor', 'receptionist'
+            'patient', 'doctor', 'receptionist', 'token', 'consultation_invoice'
         )
 
         status_param = self.request.query_params.get('status')
@@ -103,6 +103,62 @@ class DoctorAppointmentViewSet(viewsets.ReadOnlyModelViewSet):
             queryset = queryset.filter(patient_id=patient_param)
 
         return queryset
+
+    @action(detail=True, methods=['post'])
+    def start_consultation(self, request, pk=None):
+        """
+        POST /api/doctor/appointments/{id}/start_consultation/
+        Doctor explicitly calls the patient into consultation.
+        Enforces:
+        - Doctor authorization (must be assigned to this appointment).
+        - Arrival confirmed (status == 'CONFIRMED').
+        - Fee paid (invoice.status == 'PAID').
+        - Valid token exists (status in ['WAITING', 'CALLED']).
+        Sets token.status = 'CALLED'.
+        """
+        doctor = get_doctor_profile(request)
+        if not doctor:
+            return Response({"detail": "Doctor profile required."}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            appointment = Appointment.objects.select_related(
+                'doctor', 'token', 'consultation_invoice'
+            ).get(pk=pk)
+        except Appointment.DoesNotExist:
+            return Response({"detail": "Appointment not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if appointment.doctor != doctor:
+            return Response(
+                {"detail": "You are not authorized to start a consultation for another doctor's patient."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if appointment.status == 'CANCELLED':
+            return Response({"detail": "Cannot start consultation for a cancelled appointment."}, status=status.HTTP_400_BAD_REQUEST)
+        if appointment.status == 'COMPLETED':
+            return Response({"detail": "Consultation has already been completed for this appointment."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Arrival verification
+        if appointment.status != 'CONFIRMED':
+            return Response({"detail": "Patient arrival must be confirmed before starting consultation."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Fee verification
+        invoice = getattr(appointment, 'consultation_invoice', None)
+        if not invoice or invoice.status != 'PAID':
+            return Response({"detail": "Consultation fee must be paid before starting consultation."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Token verification
+        if not hasattr(appointment, 'token') or not appointment.token or appointment.token.status == 'CANCELLED':
+            return Response({"detail": "A valid queue token is required to start consultation."}, status=status.HTTP_400_BAD_REQUEST)
+
+        with transaction.atomic():
+            appointment.token.status = 'CALLED'
+            appointment.token.save(update_fields=['status'])
+
+        return Response({
+            "detail": f"Consultation started for Token #{appointment.token.token_number}.",
+            "appointment": self.get_serializer(appointment).data,
+        }, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'])
     def complete(self, request, pk=None):
@@ -181,16 +237,23 @@ class DoctorConsultationViewSet(viewsets.ModelViewSet):
                     visit_type='UNSCHEDULED',
                     status=serializer.validated_data.get('status', 'COMPLETED')
                 )
-                from apibackendapp.models import ConsultationInvoice
+                from decimal import Decimal
+                from apibackendapp.models import ConsultationInvoice, ClinicConfiguration
                 from receptionist.views import generate_invoice_number
-                fee = doctor.consultation_fee
+                fee = Decimal(str(doctor.consultation_fee))
+                has_prior_reg = ConsultationInvoice.objects.filter(
+                    patient=patient, registration_fee__gt=0
+                ).exclude(status='CANCELLED').exists()
+                reg_fee = Decimal('0.00') if has_prior_reg else Decimal(str(ClinicConfiguration.get_instance().registration_fee))
+                total = fee + reg_fee
                 ConsultationInvoice.objects.create(
                     invoice_number=generate_invoice_number(),
                     patient=patient,
                     consultation=consultation,
                     consultation_fee=fee,
-                    total_amount=fee,
-                    status='PENDING'
+                    registration_fee=reg_fee,
+                    total_amount=total,
+                    status='PAID' if total == 0 else 'PENDING'
                 )
         else:
             # WORKFLOW A: TOKEN-BASED CONSULTATION
@@ -263,16 +326,23 @@ class DoctorConsultationViewSet(viewsets.ModelViewSet):
                 status='IN_PROGRESS',
                 visit_reason=visit_reason,
             )
-            from apibackendapp.models import ConsultationInvoice
+            from decimal import Decimal
+            from apibackendapp.models import ConsultationInvoice, ClinicConfiguration
             from receptionist.views import generate_invoice_number
-            fee = doctor.consultation_fee
+            fee = Decimal(str(doctor.consultation_fee))
+            has_prior_reg = ConsultationInvoice.objects.filter(
+                patient=patient, registration_fee__gt=0
+            ).exclude(status='CANCELLED').exists()
+            reg_fee = Decimal('0.00') if has_prior_reg else Decimal(str(ClinicConfiguration.get_instance().registration_fee))
+            total = fee + reg_fee
             ConsultationInvoice.objects.create(
                 invoice_number=generate_invoice_number(),
                 patient=patient,
                 consultation=consultation,
                 consultation_fee=fee,
-                total_amount=fee,
-                status='PENDING'
+                registration_fee=reg_fee,
+                total_amount=total,
+                status='PAID' if total == 0 else 'PENDING'
             )
 
         return Response(self.get_serializer(consultation).data, status=status.HTTP_201_CREATED)

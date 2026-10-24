@@ -70,14 +70,17 @@ class ApiClient {
       if (!response.ok) {
         let errorMsg = data.detail || data.message || `Request failed with status ${response.status}`;
         if (typeof data === 'object' && !data.detail && !data.message) {
-          const firstKey = Object.keys(data)[0];
-          if (firstKey && Array.isArray(data[firstKey])) {
-            errorMsg = `${firstKey}: ${data[firstKey][0]}`;
+          const messages = Object.entries(data).map(([field, errs]) => {
+            return `${field}: ${Array.isArray(errs) ? errs.join(' ') : String(errs)}`;
+          });
+          if (messages.length > 0) {
+            errorMsg = messages.join(' | ');
           }
         }
         const error = new Error(errorMsg);
         error.status = response.status;
         error.data = data;
+        error.response = { data, status: response.status };
         throw error;
       }
 

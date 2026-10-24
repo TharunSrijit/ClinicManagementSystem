@@ -124,7 +124,7 @@ class MedicalHistorySerializer(serializers.ModelSerializer):
 
 class AppointmentSerializer(serializers.ModelSerializer):
     """
-    On READ  → shows patient name, doctor name as readable strings.
+    On READ  → shows patient name, doctor name, token number, and token status as readable fields.
     Read-only for doctors.
     """
     patient_name = serializers.CharField(
@@ -133,6 +133,46 @@ class AppointmentSerializer(serializers.ModelSerializer):
     doctor_name = serializers.CharField(
         source='doctor.__str__', read_only=True
     )
+    token_number = serializers.SerializerMethodField()
+    token_status = serializers.SerializerMethodField()
+    token_id = serializers.SerializerMethodField()
+    invoice_status = serializers.SerializerMethodField()
+    is_paid = serializers.SerializerMethodField()
+    arrival_status = serializers.SerializerMethodField()
+    arrival_time = serializers.SerializerMethodField()
+
+    def get_token_number(self, obj):
+        if hasattr(obj, 'token') and obj.token:
+            return obj.token.token_number
+        return None
+
+    def get_token_status(self, obj):
+        if hasattr(obj, 'token') and obj.token:
+            return obj.token.status
+        return None
+
+    def get_token_id(self, obj):
+        if hasattr(obj, 'token') and obj.token:
+            return obj.token.id
+        return None
+
+    def get_invoice_status(self, obj):
+        inv = getattr(obj, 'consultation_invoice', None)
+        return inv.status if inv else None
+
+    def get_is_paid(self, obj):
+        inv = getattr(obj, 'consultation_invoice', None)
+        return bool(inv and inv.status == 'PAID')
+
+    def get_arrival_status(self, obj):
+        return 'ARRIVED' if obj.status == 'CONFIRMED' else obj.status
+
+    def get_arrival_time(self, obj):
+        if hasattr(obj, 'token') and obj.token and obj.token.created_at:
+            return obj.token.created_at.strftime("%H:%M")
+        if obj.created_at:
+            return obj.created_at.strftime("%H:%M")
+        return None
 
     class Meta:
         model  = Appointment
@@ -141,7 +181,10 @@ class AppointmentSerializer(serializers.ModelSerializer):
             'doctor', 'doctor_name',
             'appointment_type',
             'appointment_date', 'appointment_time',
-            'reason', 'status', 'created_at',
+            'reason', 'status',
+            'token_number', 'token_status', 'token_id',
+            'invoice_status', 'is_paid', 'arrival_status', 'arrival_time',
+            'created_at',
         ]
         read_only_fields = fields
 
@@ -235,7 +278,7 @@ class PrescriptionSerializer(serializers.ModelSerializer):
             'notes', 'prescription_date',
             'items',
         ]
-        read_only_fields = ['prescription_number', 'prescription_date']
+        read_only_fields = ['prescription_number', 'prescription_date', 'doctor', 'doctor_name', 'patient_name']
 
 
 # ---------------------------------------------------------------------------
@@ -290,4 +333,4 @@ class LabTestOrderSerializer(serializers.ModelSerializer):
             'ordered_date', 'sample_collected_at',
             'result',
         ]
-        read_only_fields = ['order_number', 'ordered_date']
+        read_only_fields = ['order_number', 'ordered_date', 'doctor', 'patient_name', 'test_name']

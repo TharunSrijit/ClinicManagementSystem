@@ -5,6 +5,22 @@ import DataTable from '../../components/DataTable';
 import Modal from '../../components/Modal';
 import { formatDate } from '../../utils/formatters';
 
+// Helper to extract clear backend validation error messages
+const extractErrorMessage = (err, fallback = 'Consultation submission failed.') => {
+  const data = err?.data || err?.response?.data;
+  if (!data) return err?.message || fallback;
+  if (typeof data === 'string') return data;
+  if (data.detail) return data.detail;
+  if (data.message) return data.message;
+  if (typeof data === 'object') {
+    const fieldMsgs = Object.entries(data).map(
+      ([field, msg]) => `${field}: ${Array.isArray(msg) ? msg.join(' ') : String(msg)}`
+    );
+    if (fieldMsgs.length > 0) return fieldMsgs.join(' | ');
+  }
+  return err?.message || fallback;
+};
+
 export const DoctorConsultationsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const preselectedConsultId = searchParams.get('consultation') || '';
@@ -58,7 +74,7 @@ export const DoctorConsultationsPage = () => {
 
   const showFeedback = (message, type = 'success') => {
     setFeedback({ message, type });
-    setTimeout(() => setFeedback({ message: '', type: '' }), 5000);
+    setTimeout(() => setFeedback({ message: '', type: '' }), 6000);
   };
 
   const loadData = useCallback(async () => {
@@ -105,7 +121,19 @@ export const DoctorConsultationsPage = () => {
           setSelectedApptId(String(found.id));
           setPatientId(String(found.patient?.id || found.patient));
           setSymptoms(found.reason || '');
-          setWorkflowType('TOKEN_BASED');
+
+          // Check if appointment has a genuinely issued, active token
+          if (found.token_number && found.token_status !== 'CANCELLED') {
+            setWorkflowType('TOKEN_BASED');
+          } else {
+            // Patient has appointment but no active token issued at reception
+            setWorkflowType('UNSCHEDULED');
+            setVisitReason(found.reason || 'Walk-in visit');
+            showFeedback(
+              `Notice: Appointment #${found.id} has no active queue token from Reception. Switched to Workflow B (Unscheduled).`,
+              'warning'
+            );
+          }
           setIsModalOpen(true);
         }
       }
@@ -302,12 +330,7 @@ export const DoctorConsultationsPage = () => {
       await loadData();
     } catch (err) {
       console.error('Failed to submit consultation:', err);
-      const errMsg =
-        err.response?.data?.detail ||
-        err.response?.data?.token ||
-        err.response?.data?.appointment ||
-        err.message ||
-        'Consultation submission failed.';
+      const errMsg = extractErrorMessage(err, 'Consultation submission failed.');
       showFeedback(errMsg, 'danger');
     } finally {
       setSubmitting(false);
@@ -546,16 +569,23 @@ export const DoctorConsultationsPage = () => {
                 onChange={(e) => handleApptSelect(e.target.value)}
                 required
               >
-                <option value="">-- Choose Assigned Appointment --</option>
+                <option value="">-- Choose Assigned Appointment with Active Token --</option>
                 {appointments
                   .filter((a) => a.status !== 'COMPLETED' && a.status !== 'CANCELLED')
-                  .map((a) => (
-                    <option key={a.id} value={a.id}>
-                      Appt #{a.id} (Tkn #{a.token_number || a.token?.token_number || 'N/A'}) —{' '}
-                      {a.patient_name || `Patient #${a.patient}`} ({a.appointment_date} {a.appointment_time})
-                    </option>
-                  ))}
+                  .map((a) => {
+                    const hasToken = Boolean(a.token_number && a.token_status !== 'CANCELLED');
+                    return (
+                      <option key={a.id} value={a.id} disabled={!hasToken}>
+                        {hasToken ? `🎫 Token #${a.token_number}` : '⚠️ [No Queue Token]'} — Appt #{a.id} — {a.patient_name || `Patient #${a.patient}`} ({a.appointment_date} {a.appointment_time})
+                      </option>
+                    );
+                  })}
               </select>
+              {appointments.filter((a) => a.status !== 'COMPLETED' && a.status !== 'CANCELLED' && a.token_number && a.token_status !== 'CANCELLED').length === 0 && (
+                <div style={{ fontSize: '0.82rem', color: '#b45309', marginTop: '6px', background: '#fef3c7', padding: '8px 12px', borderRadius: '6px' }}>
+                  ⚠️ No appointments with active queue tokens found. For walk-ins or unscheduled patients, select <strong>⚡ Workflow B: Unscheduled</strong> above.
+                </div>
+              )}
             </div>
           )}
 

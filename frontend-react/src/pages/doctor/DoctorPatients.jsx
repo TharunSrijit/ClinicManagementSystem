@@ -114,15 +114,31 @@ export const DoctorPatients = () => {
       return { type: 'COMPLETED', label: 'Consulted Today', appointment: completedAppt };
     }
 
-    // Check for active booked/confirmed/in_consultation appointment
-    const activeAppt = appts.find((a) => ['CONFIRMED', 'BOOKED', 'SCHEDULED', 'IN_CONSULTATION'].includes(a.status));
-    if (activeAppt) {
-      const tokenNumber = activeAppt.token_number || activeAppt.token?.token_number;
+    // Check for appointment with genuinely issued, non-cancelled token
+    const apptWithToken = appts.find(
+      (a) =>
+        ['CONFIRMED', 'BOOKED', 'SCHEDULED', 'IN_CONSULTATION'].includes(a.status) &&
+        a.token_number &&
+        a.token_status !== 'CANCELLED'
+    );
+    if (apptWithToken) {
       return {
         type: 'ACTIVE_TOKEN',
-        label: tokenNumber ? `Token #${tokenNumber}` : 'Token Assigned',
-        tokenNumber,
-        appointment: activeAppt
+        label: `Token #${apptWithToken.token_number}`,
+        tokenNumber: apptWithToken.token_number,
+        appointment: apptWithToken
+      };
+    }
+
+    // Appointment exists today, but NO token has been issued yet by reception
+    const pendingTokenAppt = appts.find(
+      (a) => ['CONFIRMED', 'BOOKED', 'SCHEDULED', 'IN_CONSULTATION'].includes(a.status)
+    );
+    if (pendingTokenAppt) {
+      return {
+        type: 'APPOINTMENT_AWAITING_TOKEN',
+        label: `Appt #${pendingTokenAppt.id} (Awaiting Token)`,
+        appointment: pendingTokenAppt
       };
     }
 
@@ -132,10 +148,11 @@ export const DoctorPatients = () => {
   }, [todayAppointments]);
 
   // Open unscheduled consultation confirmation modal
-  const handleOpenUnscheduledModal = (patient) => {
+  const handleOpenUnscheduledModal = (patient, pendingAppt = null) => {
     setUnscheduledModal({
       isOpen: true,
       patient,
+      pendingAppt,
       visitReason: '',
       submitting: false,
       error: null
@@ -155,15 +172,23 @@ export const DoctorPatients = () => {
       });
 
       // Close modal and navigate directly to consultation recording page
-      setUnscheduledModal({ isOpen: false, patient: null, visitReason: '', submitting: false, error: null });
+      setUnscheduledModal({ isOpen: false, patient: null, pendingAppt: null, visitReason: '', submitting: false, error: null });
       navigate(`/doctor/consultations?consultation=${res.id}`);
     } catch (err) {
       console.error('Failed to start unscheduled consultation:', err);
-      const errMsg =
-        err.response?.data?.detail ||
-        err.response?.data?.patient ||
-        err.message ||
-        'Failed to initiate unscheduled consultation. Please verify permissions.';
+      const data = err?.data || err?.response?.data;
+      let errMsg = err?.message || 'Failed to initiate unscheduled consultation.';
+      if (data) {
+        if (typeof data === 'string') errMsg = data;
+        else if (data.detail) errMsg = data.detail;
+        else if (data.message) errMsg = data.message;
+        else {
+          const fieldMsgs = Object.entries(data).map(
+            ([f, m]) => `${f}: ${Array.isArray(m) ? m.join(' ') : String(m)}`
+          );
+          if (fieldMsgs.length > 0) errMsg = fieldMsgs.join(' | ');
+        }
+      }
       setUnscheduledModal((prev) => ({ ...prev, submitting: false, error: errMsg }));
     }
   };
@@ -256,6 +281,22 @@ export const DoctorPatients = () => {
             </span>
           );
         }
+        if (status?.type === 'APPOINTMENT_AWAITING_TOKEN') {
+          return (
+            <span
+              className="badge"
+              style={{
+                background: '#fffbeb',
+                color: '#b45309',
+                border: '1px solid #fde68a',
+                fontSize: '0.78rem'
+              }}
+              title="Appointment scheduled today, but queue token not issued yet at reception"
+            >
+              ⏳ {status.label}
+            </span>
+          );
+        }
         if (status?.type === 'COMPLETED') {
           return (
             <span
@@ -301,7 +342,7 @@ export const DoctorPatients = () => {
             </button>
 
             {hasToken ? (
-              // Workflow A: Token-Based Consultation
+              // Workflow A: Token-Based Consultation (only when valid token genuinely exists)
               <button
                 className="btn btn-primary btn-sm"
                 onClick={() => navigate(`/doctor/consultations?appointment=${status.appointment.id}`)}
@@ -328,8 +369,17 @@ export const DoctorPatients = () => {
                   border: 'none',
                   fontWeight: 500
                 }}
-                onClick={() => handleOpenUnscheduledModal(row)}
-                title="Start unscheduled consultation directly without a queue token"
+                onClick={() =>
+                  handleOpenUnscheduledModal(
+                    row,
+                    status?.type === 'APPOINTMENT_AWAITING_TOKEN' ? status.appointment : null
+                  )
+                }
+                title={
+                  status?.type === 'APPOINTMENT_AWAITING_TOKEN'
+                    ? 'Patient has an appointment but no queue token yet. Click to start unscheduled consultation.'
+                    : 'Start unscheduled consultation directly without a queue token'
+                }
               >
                 ⚡ Start Unscheduled
               </button>
