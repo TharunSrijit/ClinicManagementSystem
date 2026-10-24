@@ -5,16 +5,22 @@ import { ROLES } from '../utils/constants';
 
 const NAV_ITEMS = {
   [ROLES.DOCTOR]: [
-    { label: 'Appointments', path: '/doctor', icon: '📅' },
-    { label: 'Patient Queue', path: '/doctor/queue', icon: '👥' },
+    { label: 'Dashboard', path: '/doctor', icon: '📊' },
+    { label: 'My Appointments', path: '/doctor/appointments', icon: '📅' },
+    { label: "Today's Queue", path: '/doctor/queue', icon: '👥' },
+    { label: 'Patients', path: '/doctor/patients', icon: '👤' },
     { label: 'Consultations', path: '/doctor/consultations', icon: '🩺' },
+    { label: 'Prescriptions', path: '/doctor/prescriptions', icon: '📋' },
     { label: 'Lab Orders', path: '/doctor/lab-orders', icon: '🧪' },
     { label: 'Reference Meds', path: '/doctor/medicines', icon: '💊' }
   ],
   [ROLES.RECEPTIONIST]: [
-    { label: 'Appointments', path: '/receptionist', icon: '📅' },
+    { label: 'Dashboard', path: '/receptionist', icon: '📊' },
+    { label: 'Appointments', path: '/receptionist/appointments', icon: '📅' },
+    { label: 'Book Appointment', path: '/receptionist/appointments/book', icon: '➕' },
     { label: 'Token Queue', path: '/receptionist/tokens', icon: '🎫' },
-    { label: 'Patients', path: '/receptionist/patients', icon: '👤' },
+    { label: 'Patients', path: '/receptionist/patients', icon: '👥' },
+    { label: 'Register Patient', path: '/receptionist/patients/register', icon: '📝' },
     { label: 'Billing & Invoices', path: '/receptionist/billing', icon: '🧾' }
   ],
   [ROLES.ADMIN]: [
@@ -26,14 +32,17 @@ const NAV_ITEMS = {
     { label: 'Lab Tests Master', path: '/admin/lab-tests', icon: '🔬' }
   ],
   [ROLES.LAB_TECHNICIAN]: [
-    { label: 'Lab Test Orders', path: '/lab', icon: '🧪' },
+    { label: 'Dashboard', path: '/lab', icon: '📊' },
+    { label: 'Lab Test Orders', path: '/lab/orders', icon: '🧪' },
     { label: 'Test Results', path: '/lab/results', icon: '📝' },
     { label: 'Lab Billing', path: '/lab/billing', icon: '💳' }
   ],
   [ROLES.PHARMACIST]: [
-    { label: 'Prescriptions Queue', path: '/pharmacy', icon: '📋' },
+    { label: 'Dashboard', path: '/pharmacy', icon: '📊' },
+    { label: 'Prescriptions Queue', path: '/pharmacy/prescriptions', icon: '📋' },
     { label: 'Dispense History', path: '/pharmacy/dispenses', icon: '💊' },
-    { label: 'Medicine Stock', path: '/pharmacy/stock', icon: '📦' }
+    { label: 'Medicine Stock', path: '/pharmacy/stock', icon: '📦' },
+    { label: 'Pharmacy Billing', path: '/pharmacy/billing', icon: '🧾' }
   ]
 };
 

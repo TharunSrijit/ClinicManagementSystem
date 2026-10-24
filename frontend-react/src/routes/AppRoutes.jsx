@@ -9,17 +9,53 @@ import AuthLayout from '../layouts/AuthLayout';
 // Components
 import ProtectedRoute from '../components/ProtectedRoute';
 
-// Pages
+// Public & Error Pages
 import LoginPage from '../pages/LoginPage';
 import DashboardRedirect from '../pages/DashboardRedirect';
 import UnauthorizedPage from '../pages/UnauthorizedPage';
 import NotFoundPage from '../pages/NotFoundPage';
 
-import DoctorDashboard from '../pages/doctor/DoctorDashboard';
+// Receptionist Pages
 import ReceptionistDashboard from '../pages/receptionist/ReceptionistDashboard';
+import ReceptionistAppointmentsPage from '../pages/receptionist/ReceptionistAppointmentsPage';
+import BookAppointmentPage from '../pages/receptionist/BookAppointmentPage';
+import ReceptionistTokensPage from '../pages/receptionist/ReceptionistTokensPage';
+import ReceptionistPatientsPage from '../pages/receptionist/ReceptionistPatientsPage';
+import RegisterPatientPage from '../pages/receptionist/RegisterPatientPage';
+import PatientDetailsPage from '../pages/receptionist/PatientDetailsPage';
+import ReceptionistBillingPage from '../pages/receptionist/ReceptionistBillingPage';
+
+// Doctor Pages
+import DoctorDashboard from '../pages/doctor/DoctorDashboard';
+import DoctorAppointmentsPage from '../pages/doctor/DoctorAppointmentsPage';
+import DoctorQueuePage from '../pages/doctor/DoctorQueuePage';
+import DoctorPatientsPage from '../pages/doctor/DoctorPatientsPage';
+import DoctorPatientDetailsPage from '../pages/doctor/DoctorPatientDetailsPage';
+import DoctorConsultationsPage from '../pages/doctor/DoctorConsultationsPage';
+import DoctorPrescriptionsPage from '../pages/doctor/DoctorPrescriptionsPage';
+import DoctorLabOrdersPage from '../pages/doctor/DoctorLabOrdersPage';
+import DoctorMedicinesPage from '../pages/doctor/DoctorMedicinesPage';
+
+// Admin Pages
 import AdminDashboard from '../pages/admin/AdminDashboard';
+import AdminUsersPage from '../pages/admin/AdminUsersPage';
+import AdminDoctorsPage from '../pages/admin/AdminDoctorsPage';
+import AdminStaffPage from '../pages/admin/AdminStaffPage';
+import AdminMedicinesPage from '../pages/admin/AdminMedicinesPage';
+import AdminLabTestsPage from '../pages/admin/AdminLabTestsPage';
+
+// Lab Pages
 import LabDashboard from '../pages/lab/LabDashboard';
+import LabOrdersPage from '../pages/lab/LabOrdersPage';
+import LabResultsPage from '../pages/lab/LabResultsPage';
+import LabBillingPage from '../pages/lab/LabBillingPage';
+
+// Pharmacy Pages
 import PharmacyDashboard from '../pages/pharmacy/PharmacyDashboard';
+import PharmacyPrescriptionsPage from '../pages/pharmacy/PharmacyPrescriptionsPage';
+import PharmacyDispensesPage from '../pages/pharmacy/PharmacyDispensesPage';
+import PharmacyStockPage from '../pages/pharmacy/PharmacyStockPage';
+import PharmacyBillingPage from '../pages/pharmacy/PharmacyBillingPage';
 
 export const AppRoutes = () => {
   return (
@@ -32,19 +68,6 @@ export const AppRoutes = () => {
         <Route path="/login" element={<LoginPage />} />
       </Route>
 
-      {/* Protected Doctor routes */}
-      <Route
-        path="/doctor"
-        element={
-          <ProtectedRoute allowedRoles={[ROLES.DOCTOR, ROLES.ADMIN]}>
-            <DashboardLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<DoctorDashboard />} />
-        <Route path="*" element={<DoctorDashboard />} />
-      </Route>
-
       {/* Protected Receptionist routes */}
       <Route
         path="/receptionist"
@@ -55,7 +78,36 @@ export const AppRoutes = () => {
         }
       >
         <Route index element={<ReceptionistDashboard />} />
-        <Route path="*" element={<ReceptionistDashboard />} />
+        <Route path="appointments" element={<ReceptionistAppointmentsPage />} />
+        <Route path="appointments/book" element={<BookAppointmentPage />} />
+        <Route path="tokens" element={<ReceptionistTokensPage />} />
+        <Route path="queue" element={<ReceptionistTokensPage />} />
+        <Route path="patients" element={<ReceptionistPatientsPage />} />
+        <Route path="patients/register" element={<RegisterPatientPage />} />
+        <Route path="patients/:id" element={<PatientDetailsPage />} />
+        <Route path="billing" element={<ReceptionistBillingPage />} />
+        <Route path="*" element={<NotFoundPage />} />
+      </Route>
+
+      {/* Protected Doctor routes */}
+      <Route
+        path="/doctor"
+        element={
+          <ProtectedRoute allowedRoles={[ROLES.DOCTOR, ROLES.ADMIN]}>
+            <DashboardLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<DoctorDashboard />} />
+        <Route path="appointments" element={<DoctorAppointmentsPage />} />
+        <Route path="queue" element={<DoctorQueuePage />} />
+        <Route path="patients" element={<DoctorPatientsPage />} />
+        <Route path="patients/:id" element={<DoctorPatientDetailsPage />} />
+        <Route path="consultations" element={<DoctorConsultationsPage />} />
+        <Route path="prescriptions" element={<DoctorPrescriptionsPage />} />
+        <Route path="lab-orders" element={<DoctorLabOrdersPage />} />
+        <Route path="medicines" element={<DoctorMedicinesPage />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Route>
 
       {/* Protected Admin routes */}
@@ -68,7 +120,12 @@ export const AppRoutes = () => {
         }
       >
         <Route index element={<AdminDashboard />} />
-        <Route path="*" element={<AdminDashboard />} />
+        <Route path="users" element={<AdminUsersPage />} />
+        <Route path="doctors" element={<AdminDoctorsPage />} />
+        <Route path="staff" element={<AdminStaffPage />} />
+        <Route path="medicines" element={<AdminMedicinesPage />} />
+        <Route path="lab-tests" element={<AdminLabTestsPage />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Route>
 
       {/* Protected Lab routes */}
@@ -81,7 +138,10 @@ export const AppRoutes = () => {
         }
       >
         <Route index element={<LabDashboard />} />
-        <Route path="*" element={<LabDashboard />} />
+        <Route path="orders" element={<LabOrdersPage />} />
+        <Route path="results" element={<LabResultsPage />} />
+        <Route path="billing" element={<LabBillingPage />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Route>
 
       {/* Protected Pharmacy routes */}
@@ -94,7 +154,11 @@ export const AppRoutes = () => {
         }
       >
         <Route index element={<PharmacyDashboard />} />
-        <Route path="*" element={<PharmacyDashboard />} />
+        <Route path="prescriptions" element={<PharmacyPrescriptionsPage />} />
+        <Route path="dispenses" element={<PharmacyDispensesPage />} />
+        <Route path="stock" element={<PharmacyStockPage />} />
+        <Route path="billing" element={<PharmacyBillingPage />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Route>
 
       {/* Error / Fallback routes */}
