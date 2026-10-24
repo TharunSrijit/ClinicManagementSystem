@@ -306,7 +306,7 @@ class AdminConsultationInvoiceViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdminRole]
 
     def get_queryset(self):
-        queryset = ConsultationInvoice.objects.all().select_related('patient', 'appointment')
+        queryset = ConsultationInvoice.objects.all().select_related('patient', 'appointment', 'consultation')
         status_param = self.request.query_params.get('status')
         patient = self.request.query_params.get('patient')
         if status_param:

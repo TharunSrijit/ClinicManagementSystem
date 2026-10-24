@@ -387,7 +387,7 @@ class ReceptionistConsultationInvoiceViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = ConsultationInvoice.objects.all().select_related(
-            'patient', 'appointment'
+            'patient', 'appointment', 'consultation'
         )
 
         patient = self.request.query_params.get('patient')
@@ -402,15 +402,24 @@ class ReceptionistConsultationInvoiceViewSet(viewsets.ModelViewSet):
         return queryset.order_by('-created_at')
 
     def perform_create(self, serializer):
-        appointment = serializer.validated_data['appointment']
-        fee = serializer.validated_data.get('consultation_fee') or appointment.doctor.consultation_fee
+        appointment = serializer.validated_data.get('appointment')
+        consultation = serializer.validated_data.get('consultation')
+        if appointment:
+            fee = serializer.validated_data.get('consultation_fee') or appointment.doctor.consultation_fee
+            patient = appointment.patient
+        elif consultation:
+            fee = serializer.validated_data.get('consultation_fee') or consultation.doctor.consultation_fee
+            patient = consultation.patient
+        else:
+            raise serializers.ValidationError({"detail": "Either appointment or consultation is required."})
+
         discount = serializer.validated_data.get('discount', 0)
         tax = serializer.validated_data.get('tax', 0)
         total = fee - discount + tax
 
         serializer.save(
             invoice_number=generate_invoice_number(),
-            patient=appointment.patient,
+            patient=patient,
             consultation_fee=fee,
             total_amount=total,
         )

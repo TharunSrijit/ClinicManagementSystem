@@ -318,6 +318,16 @@ class ConsultationInvoice(models.Model):
     appointment = models.OneToOneField(
         Appointment,
         on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='consultation_invoice'
+    )
+
+    consultation = models.OneToOneField(
+        'Consultation',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name='consultation_invoice'
     )
 
@@ -430,9 +440,22 @@ class Token(models.Model):
 
 class Consultation(models.Model):
 
+    VISIT_TYPE_CHOICES = [
+        ('TOKEN_BASED', 'Token-Based'),
+        ('UNSCHEDULED', 'Unscheduled'),
+    ]
+
+    STATUS_CHOICES = [
+        ('IN_PROGRESS', 'In Progress'),
+        ('COMPLETED', 'Completed'),
+        ('CANCELLED', 'Cancelled'),
+    ]
+
     appointment = models.OneToOneField(
         Appointment,
         on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name='consultation'
     )
 
@@ -446,6 +469,23 @@ class Consultation(models.Model):
         Patient,
         on_delete=models.PROTECT,
         related_name='consultations'
+    )
+
+    visit_type = models.CharField(
+        max_length=20,
+        choices=VISIT_TYPE_CHOICES,
+        default='TOKEN_BASED'
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='COMPLETED'
+    )
+
+    visit_reason = models.TextField(
+        blank=True,
+        default=''
     )
 
     symptoms = models.TextField(

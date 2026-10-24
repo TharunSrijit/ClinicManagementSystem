@@ -398,13 +398,22 @@ class ConsultationInvoiceSerializer(serializers.ModelSerializer):
     patient_name = serializers.CharField(
         source='patient.__str__', read_only=True
     )
+    doctor_name = serializers.SerializerMethodField()
+
+    def get_doctor_name(self, obj):
+        if obj.appointment and obj.appointment.doctor:
+            return str(obj.appointment.doctor)
+        if obj.consultation and obj.consultation.doctor:
+            return str(obj.consultation.doctor)
+        return '—'
 
     class Meta:
         model  = ConsultationInvoice
         fields = [
             'id', 'invoice_number',
             'patient', 'patient_name',
-            'appointment',
+            'appointment', 'consultation',
+            'doctor_name',
             'consultation_fee', 'discount', 'tax', 'total_amount',
             'status', 'created_at',
         ]

@@ -153,7 +153,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
 class ConsultationSerializer(serializers.ModelSerializer):
     """
     Doctors fill in symptoms, diagnosis, clinical_notes, treatment_plan.
-    appointment, doctor, patient are set by the view based on context.
+    Supports both token-based and unscheduled consultations.
     """
     patient_name = serializers.CharField(
         source='patient.__str__', read_only=True
@@ -161,6 +161,12 @@ class ConsultationSerializer(serializers.ModelSerializer):
     doctor_name = serializers.CharField(
         source='doctor.__str__', read_only=True
     )
+    token_number = serializers.SerializerMethodField()
+
+    def get_token_number(self, obj):
+        if obj.appointment and hasattr(obj.appointment, 'token') and obj.appointment.token:
+            return obj.appointment.token.token_number
+        return None
 
     class Meta:
         model  = Consultation
@@ -168,11 +174,13 @@ class ConsultationSerializer(serializers.ModelSerializer):
             'id', 'appointment',
             'patient', 'patient_name',
             'doctor', 'doctor_name',
+            'visit_type', 'status', 'visit_reason',
+            'token_number',
             'symptoms', 'diagnosis',
             'clinical_notes', 'treatment_plan',
             'consultation_date',
         ]
-        read_only_fields = ['consultation_date']
+        read_only_fields = ['consultation_date', 'doctor', 'doctor_name', 'patient_name']
 
 
 # ---------------------------------------------------------------------------

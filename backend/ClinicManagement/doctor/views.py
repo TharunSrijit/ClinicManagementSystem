@@ -1,3 +1,5 @@
+from django.db import transaction
+from django.utils import timezone
 from rest_framework import viewsets, status, serializers
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -89,12 +91,16 @@ class DoctorAppointmentViewSet(viewsets.ReadOnlyModelViewSet):
 
         status_param = self.request.query_params.get('status')
         date_param = self.request.query_params.get('date')
+        patient_param = self.request.query_params.get('patient')
 
         if status_param:
             queryset = queryset.filter(status=status_param)
 
         if date_param:
             queryset = queryset.filter(appointment_date=date_param)
+
+        if patient_param:
+            queryset = queryset.filter(patient_id=patient_param)
 
         return queryset
 
@@ -145,17 +151,131 @@ class DoctorConsultationViewSet(viewsets.ModelViewSet):
         doctor = get_doctor_profile(self.request)
         if not doctor:
             raise serializers.ValidationError({"detail": "Doctor profile required."})
+
+        visit_type = serializer.validated_data.get('visit_type', 'TOKEN_BASED')
         appointment = serializer.validated_data.get('appointment')
         patient = serializer.validated_data.get('patient')
-        if not appointment:
-            raise serializers.ValidationError({"appointment": "Appointment is required."})
-        if appointment.doctor != doctor:
-            raise serializers.ValidationError({"appointment": "This appointment does not belong to you."})
-        if appointment.status == 'CANCELLED':
-            raise serializers.ValidationError({"appointment": "Cannot create consultation for a cancelled appointment."})
-        if patient and appointment.patient != patient:
-            raise serializers.ValidationError({"patient": "Patient does not match the appointment patient."})
-        serializer.save(doctor=doctor, patient=appointment.patient)
+
+        if visit_type == 'UNSCHEDULED':
+            # WORKFLOW B: UNSCHEDULED / TOKENLESS CONSULTATION
+            if not patient:
+                raise serializers.ValidationError({"patient": "Patient is required for an unscheduled consultation."})
+            if appointment is not None:
+                raise serializers.ValidationError({"appointment": "Unscheduled consultations must not have an appointment."})
+
+            existing_active = Consultation.objects.filter(
+                doctor=doctor,
+                patient=patient,
+                status='IN_PROGRESS'
+            ).first()
+            if existing_active:
+                raise serializers.ValidationError({
+                    "detail": f"An active unscheduled consultation (#{existing_active.id}) is already in progress for this patient."
+                })
+
+            with transaction.atomic():
+                consultation = serializer.save(
+                    doctor=doctor,
+                    patient=patient,
+                    appointment=None,
+                    visit_type='UNSCHEDULED',
+                    status=serializer.validated_data.get('status', 'COMPLETED')
+                )
+                from apibackendapp.models import ConsultationInvoice
+                from receptionist.views import generate_invoice_number
+                fee = doctor.consultation_fee
+                ConsultationInvoice.objects.create(
+                    invoice_number=generate_invoice_number(),
+                    patient=patient,
+                    consultation=consultation,
+                    consultation_fee=fee,
+                    total_amount=fee,
+                    status='PENDING'
+                )
+        else:
+            # WORKFLOW A: TOKEN-BASED CONSULTATION
+            if not appointment:
+                raise serializers.ValidationError({"appointment": "Appointment is required."})
+            if appointment.doctor != doctor:
+                raise serializers.ValidationError({"appointment": "This appointment does not belong to you."})
+            if appointment.status in ['CANCELLED', 'NO_SHOW']:
+                raise serializers.ValidationError({"appointment": "Cannot create consultation for a cancelled appointment."})
+            if patient and appointment.patient != patient:
+                raise serializers.ValidationError({"patient": "Patient does not match the appointment patient."})
+
+            # Token validation
+            if not hasattr(appointment, 'token') or not appointment.token:
+                raise serializers.ValidationError({
+                    "token": "A valid queue token is required for a token-based consultation. Patient must check in at reception first."
+                })
+            if appointment.token.status == 'CANCELLED':
+                raise serializers.ValidationError({"token": "Cannot start consultation with a cancelled token."})
+
+            # Prevent duplicate consultation for same appointment
+            if hasattr(appointment, 'consultation') and appointment.consultation:
+                raise serializers.ValidationError({"appointment": "A consultation has already been recorded for this appointment."})
+
+            with transaction.atomic():
+                serializer.save(
+                    doctor=doctor,
+                    patient=appointment.patient,
+                    appointment=appointment,
+                    visit_type='TOKEN_BASED',
+                    status=serializer.validated_data.get('status', 'COMPLETED')
+                )
+
+    @action(detail=False, methods=['post'])
+    def start_unscheduled(self, request):
+        """
+        POST /api/doctor/consultations/start_unscheduled/
+        Doctor explicitly initiates an unscheduled consultation for a registered patient without a token.
+        Body: { patient: <id>, visit_reason: "..." }
+        """
+        doctor = get_doctor_profile(request)
+        if not doctor:
+            return Response({"detail": "Doctor profile required."}, status=status.HTTP_403_FORBIDDEN)
+
+        patient_id = request.data.get('patient')
+        if not patient_id:
+            return Response({"patient": "Patient is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            patient = Patient.objects.get(pk=patient_id)
+        except Patient.DoesNotExist:
+            return Response({"patient": "Patient not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        existing_active = Consultation.objects.filter(
+            doctor=doctor,
+            patient=patient,
+            status='IN_PROGRESS'
+        ).first()
+        if existing_active:
+            return Response(self.get_serializer(existing_active).data, status=status.HTTP_200_OK)
+
+        visit_reason = request.data.get('visit_reason', '').strip()
+
+        with transaction.atomic():
+            consultation = Consultation.objects.create(
+                doctor=doctor,
+                patient=patient,
+                appointment=None,
+                visit_type='UNSCHEDULED',
+                status='IN_PROGRESS',
+                visit_reason=visit_reason,
+            )
+            from apibackendapp.models import ConsultationInvoice
+            from receptionist.views import generate_invoice_number
+            fee = doctor.consultation_fee
+            ConsultationInvoice.objects.create(
+                invoice_number=generate_invoice_number(),
+                patient=patient,
+                consultation=consultation,
+                consultation_fee=fee,
+                total_amount=fee,
+                status='PENDING'
+            )
+
+        return Response(self.get_serializer(consultation).data, status=status.HTTP_201_CREATED)
 
 
 # ============================================================================
@@ -201,11 +321,12 @@ class DoctorPrescriptionViewSet(viewsets.ModelViewSet):
             patient = consultation.patient
         if not patient:
             raise serializers.ValidationError({"patient": "Patient is required."})
-        has_active = Appointment.objects.filter(
-            patient=patient, doctor=doctor
-        ).exclude(status='CANCELLED').exists()
-        if not has_active:
-            raise serializers.ValidationError({"patient": "You do not have an active appointment with this patient."})
+        if not (consultation and consultation.visit_type == 'UNSCHEDULED'):
+            has_active = Appointment.objects.filter(
+                patient=patient, doctor=doctor
+            ).exclude(status='CANCELLED').exists()
+            if not has_active:
+                raise serializers.ValidationError({"patient": "You do not have an active appointment with this patient."})
         serializer.save(doctor=doctor, patient=patient)
 
 
@@ -290,11 +411,12 @@ class DoctorLabTestOrderViewSet(viewsets.ModelViewSet):
             patient = consultation.patient
         if not patient:
             raise serializers.ValidationError({"patient": "Patient is required."})
-        has_active = Appointment.objects.filter(
-            patient=patient, doctor=doctor
-        ).exclude(status='CANCELLED').exists()
-        if not has_active:
-            raise serializers.ValidationError({"patient": "You do not have an active appointment with this patient."})
+        if not (consultation and consultation.visit_type == 'UNSCHEDULED'):
+            has_active = Appointment.objects.filter(
+                patient=patient, doctor=doctor
+            ).exclude(status='CANCELLED').exists()
+            if not has_active:
+                raise serializers.ValidationError({"patient": "You do not have an active appointment with this patient."})
         serializer.save(doctor=doctor, patient=patient)
 
 
@@ -376,6 +498,52 @@ class DoctorMedicalHistoryViewSet(viewsets.ReadOnlyModelViewSet):
             queryset = queryset.filter(patient_id=patient)
 
         return queryset
+
+
+class DoctorPatientDirectoryViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Doctor can search and view all registered clinic patients (read-only directory).
+    Allows doctor to look up walk-in patients arriving without prior appointments.
+    Supports search by patient_id, first_name, last_name, or phone via ?search= or ?name=.
+    """
+    serializer_class = PatientSerializer
+    permission_classes = [IsDoctor]
+
+    def get_queryset(self):
+        doctor = get_doctor_profile(self.request)
+        if not doctor:
+            return Patient.objects.none()
+
+        queryset = Patient.objects.all().order_by('-id')
+
+        search = self.request.query_params.get('search') or self.request.query_params.get('name')
+        if search:
+            search = search.strip()
+            from django.db.models import Q
+            queryset = queryset.filter(
+                Q(patient_id__icontains=search) |
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search) |
+                Q(phone__icontains=search)
+            )
+
+        phone = self.request.query_params.get('phone')
+        if phone:
+            queryset = queryset.filter(phone__icontains=phone.strip())
+
+        patient_id = self.request.query_params.get('patient_id')
+        if patient_id:
+            queryset = queryset.filter(patient_id__icontains=patient_id.strip())
+
+        return queryset
+
+    @action(detail=True, methods=['get'])
+    def medical_history(self, request, pk=None):
+        """Allows doctor to view clinical conditions/allergies for a directory patient."""
+        patient = self.get_object()
+        histories = MedicalHistory.objects.filter(patient=patient)
+        return Response(MedicalHistorySerializer(histories, many=True).data)
+
 
 
 # ============================================================================

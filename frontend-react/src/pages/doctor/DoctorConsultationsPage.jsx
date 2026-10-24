@@ -6,21 +6,36 @@ import Modal from '../../components/Modal';
 import { formatDate } from '../../utils/formatters';
 
 export const DoctorConsultationsPage = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const preselectedConsultId = searchParams.get('consultation') || '';
   const preselectedApptId = searchParams.get('appointment') || '';
   const preselectedPatientId = searchParams.get('patient') || '';
 
   const [consultations, setConsultations] = useState([]);
   const [appointments, setAppointments] = useState([]);
+  const [patients, setPatients] = useState([]);
   const [medicines, setMedicines] = useState([]);
   const [dosages, setDosages] = useState([]);
   const [labTests, setLabTests] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Modal State
-  const [isModalOpen, setIsModalOpen] = useState(Boolean(preselectedApptId || preselectedPatientId));
+  const [isModalOpen, setIsModalOpen] = useState(
+    Boolean(preselectedConsultId || preselectedApptId || preselectedPatientId)
+  );
+
+  // Workflow: 'TOKEN_BASED' or 'UNSCHEDULED'
+  const [workflowType, setWorkflowType] = useState(
+    preselectedConsultId ? 'UNSCHEDULED' : preselectedApptId ? 'TOKEN_BASED' : 'TOKEN_BASED'
+  );
+
+  // Active existing consultation ID (if resuming/completing an in-progress consultation)
+  const [activeConsultationId, setActiveConsultationId] = useState(preselectedConsultId);
+  const [activeConsultationData, setActiveConsultationData] = useState(null);
+
   const [selectedApptId, setSelectedApptId] = useState(preselectedApptId);
   const [patientId, setPatientId] = useState(preselectedPatientId);
+  const [visitReason, setVisitReason] = useState('');
   const [symptoms, setSymptoms] = useState('');
   const [diagnosis, setDiagnosis] = useState('');
   const [clinicalNotes, setClinicalNotes] = useState('');
@@ -49,25 +64,49 @@ export const DoctorConsultationsPage = () => {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [consults, appts, meds, dsgs, tests] = await Promise.all([
+      const [consults, appts, pts, meds, dsgs, tests] = await Promise.all([
         doctorService.getConsultations().catch(() => []),
         doctorService.getAppointments().catch(() => []),
+        doctorService.getPatients().catch(() => []),
         doctorService.getMedicines().catch(() => []),
         doctorService.getDosages().catch(() => []),
         doctorService.getLabTests().catch(() => [])
       ]);
       setConsultations(Array.isArray(consults) ? consults : []);
       setAppointments(Array.isArray(appts) ? appts : []);
+      setPatients(Array.isArray(pts) ? pts : []);
       setMedicines(Array.isArray(meds) ? meds : []);
       setDosages(Array.isArray(dsgs) ? dsgs : []);
       setLabTests(Array.isArray(tests) ? tests : []);
 
-      // If preselected appointment was passed, set patient and reason
-      if (preselectedApptId && Array.isArray(appts)) {
-        const found = appts.find(a => String(a.id) === String(preselectedApptId));
+      // Handle preselected consultation if provided in query string
+      if (preselectedConsultId) {
+        try {
+          const consultObj = await doctorService.getConsultation(preselectedConsultId);
+          if (consultObj) {
+            setActiveConsultationId(consultObj.id);
+            setActiveConsultationData(consultObj);
+            setWorkflowType(consultObj.visit_type || 'UNSCHEDULED');
+            setPatientId(String(consultObj.patient));
+            setVisitReason(consultObj.visit_reason || '');
+            setSymptoms(consultObj.symptoms || consultObj.visit_reason || '');
+            setDiagnosis(consultObj.diagnosis || '');
+            setClinicalNotes(consultObj.clinical_notes || '');
+            setTreatmentPlan(consultObj.treatment_plan || '');
+            setIsModalOpen(true);
+          }
+        } catch (e) {
+          console.warn('Could not fetch preselected consultation:', e);
+        }
+      } else if (preselectedApptId && Array.isArray(appts)) {
+        // Preselected appointment
+        const found = appts.find((a) => String(a.id) === String(preselectedApptId));
         if (found) {
-          setPatientId(String(found.patient));
+          setSelectedApptId(String(found.id));
+          setPatientId(String(found.patient?.id || found.patient));
           setSymptoms(found.reason || '');
+          setWorkflowType('TOKEN_BASED');
+          setIsModalOpen(true);
         }
       }
     } catch (err) {
@@ -76,7 +115,7 @@ export const DoctorConsultationsPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [preselectedApptId]);
+  }, [preselectedConsultId, preselectedApptId]);
 
   useEffect(() => {
     loadData();
@@ -84,11 +123,47 @@ export const DoctorConsultationsPage = () => {
 
   const handleApptSelect = (apptId) => {
     setSelectedApptId(apptId);
-    const found = appointments.find(a => String(a.id) === String(apptId));
+    const found = appointments.find((a) => String(a.id) === String(apptId));
     if (found) {
-      setPatientId(String(found.patient));
+      setPatientId(String(found.patient?.id || found.patient));
       setSymptoms(found.reason || '');
     }
+  };
+
+  const handleResumeConsultation = (consult) => {
+    setActiveConsultationId(consult.id);
+    setActiveConsultationData(consult);
+    setWorkflowType(consult.visit_type || 'UNSCHEDULED');
+    setPatientId(String(consult.patient));
+    setVisitReason(consult.visit_reason || '');
+    setSymptoms(consult.symptoms || consult.visit_reason || '');
+    setDiagnosis(consult.diagnosis || '');
+    setClinicalNotes(consult.clinical_notes || '');
+    setTreatmentPlan(consult.treatment_plan || '');
+    setIsModalOpen(true);
+  };
+
+  const handleOpenNewModal = () => {
+    setActiveConsultationId('');
+    setActiveConsultationData(null);
+    setSelectedApptId('');
+    setPatientId('');
+    setVisitReason('');
+    setSymptoms('');
+    setDiagnosis('');
+    setClinicalNotes('');
+    setTreatmentPlan('');
+    setPrescribedItems([]);
+    setSelectedLabTestId('');
+    setWorkflowType('TOKEN_BASED');
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setActiveConsultationId('');
+    setActiveConsultationData(null);
+    setSearchParams({});
   };
 
   const handleAddItem = () => {
@@ -96,8 +171,8 @@ export const DoctorConsultationsPage = () => {
       alert('Please choose both a medicine and a dosage.');
       return;
     }
-    const med = medicines.find(m => String(m.id) === String(curMedId));
-    const dsg = dosages.find(d => String(d.id) === String(curDosageId));
+    const med = medicines.find((m) => String(m.id) === String(curMedId));
+    const dsg = dosages.find((d) => String(d.id) === String(curDosageId));
 
     setPrescribedItems([
       ...prescribedItems,
@@ -124,32 +199,74 @@ export const DoctorConsultationsPage = () => {
 
   const handleSubmitConsultation = async (e) => {
     e.preventDefault();
-    if (!selectedApptId || !patientId) {
-      alert('Please select an active appointment.');
-      return;
-    }
+
     if (!diagnosis.trim()) {
       alert('Please enter a clinical diagnosis.');
       return;
     }
 
+    if (workflowType === 'TOKEN_BASED' && !activeConsultationId && !selectedApptId) {
+      alert('Please select an active appointment with a queue token.');
+      return;
+    }
+
+    if (workflowType === 'UNSCHEDULED' && !activeConsultationId && !patientId) {
+      alert('Please select a registered patient for this unscheduled consultation.');
+      return;
+    }
+
     setSubmitting(true);
     try {
-      // 1. Create Consultation
-      const consultData = {
-        appointment: Number(selectedApptId),
-        patient: Number(patientId),
-        diagnosis: diagnosis.trim(),
-        symptoms: symptoms.trim() || 'General presentation',
-        clinical_notes: clinicalNotes.trim(),
-        treatment_plan: treatmentPlan.trim()
-      };
-      const consultRes = await doctorService.createConsultation(consultData);
+      let finalConsultationId = activeConsultationId;
 
-      // 2. If prescription items exist, create Prescription and PrescriptionItems
-      if (prescribedItems.length > 0) {
+      if (activeConsultationId) {
+        // 1A. Update existing active unscheduled consultation
+        const updatePayload = {
+          diagnosis: diagnosis.trim(),
+          symptoms: symptoms.trim() || 'General presentation',
+          clinical_notes: clinicalNotes.trim(),
+          treatment_plan: treatmentPlan.trim(),
+          status: 'COMPLETED'
+        };
+        const updated = await doctorService.updateConsultation(activeConsultationId, updatePayload);
+        finalConsultationId = updated.id;
+      } else if (workflowType === 'UNSCHEDULED') {
+        // 1B. Create new unscheduled consultation
+        const consultData = {
+          patient: Number(patientId),
+          visit_type: 'UNSCHEDULED',
+          visit_reason: visitReason.trim() || symptoms.trim(),
+          diagnosis: diagnosis.trim(),
+          symptoms: symptoms.trim() || 'General presentation',
+          clinical_notes: clinicalNotes.trim(),
+          treatment_plan: treatmentPlan.trim(),
+          status: 'COMPLETED'
+        };
+        const res = await doctorService.createConsultation(consultData);
+        finalConsultationId = res.id;
+      } else {
+        // 1C. Create token-based consultation
+        const consultData = {
+          appointment: Number(selectedApptId),
+          patient: Number(patientId),
+          visit_type: 'TOKEN_BASED',
+          diagnosis: diagnosis.trim(),
+          symptoms: symptoms.trim() || 'General presentation',
+          clinical_notes: clinicalNotes.trim(),
+          treatment_plan: treatmentPlan.trim(),
+          status: 'COMPLETED'
+        };
+        const res = await doctorService.createConsultation(consultData);
+        finalConsultationId = res.id;
+
+        // Mark appointment completed
+        await doctorService.completeAppointment(selectedApptId).catch(() => {});
+      }
+
+      // 2. Prescriptions
+      if (prescribedItems.length > 0 && finalConsultationId) {
         const rxRes = await doctorService.createPrescription({
-          consultation: consultRes.id,
+          consultation: finalConsultationId,
           patient: Number(patientId),
           notes: clinicalNotes || 'Prescribed during consultation'
         });
@@ -167,32 +284,31 @@ export const DoctorConsultationsPage = () => {
         }
       }
 
-      // 3. If lab test selected, order it
-      if (selectedLabTestId) {
+      // 3. Lab Test Order
+      if (selectedLabTestId && finalConsultationId) {
         await doctorService.createLabOrder({
-          consultation: consultRes.id,
+          consultation: finalConsultationId,
           patient: Number(patientId),
           test: Number(selectedLabTestId)
         });
       }
 
-      // 4. Mark appointment completed
-      await doctorService.completeAppointment(selectedApptId).catch(() => {});
-
-      showFeedback('Consultation, prescription, and lab orders saved successfully!');
-      setIsModalOpen(false);
-      // Reset form
-      setDiagnosis('');
-      setSymptoms('');
-      setClinicalNotes('');
-      setTreatmentPlan('');
-      setPrescribedItems([]);
-      setSelectedLabTestId('');
-      setSelectedApptId('');
+      showFeedback(
+        workflowType === 'UNSCHEDULED'
+          ? 'Unscheduled consultation completed and invoiced successfully!'
+          : 'Token-based consultation completed and appointment closed successfully!'
+      );
+      handleCloseModal();
       await loadData();
     } catch (err) {
       console.error('Failed to submit consultation:', err);
-      showFeedback(err.message || 'Consultation submission failed.', 'danger');
+      const errMsg =
+        err.response?.data?.detail ||
+        err.response?.data?.token ||
+        err.response?.data?.appointment ||
+        err.message ||
+        'Consultation submission failed.';
+      showFeedback(errMsg, 'danger');
     } finally {
       setSubmitting(false);
     }
@@ -212,26 +328,103 @@ export const DoctorConsultationsPage = () => {
     {
       header: 'Patient Name',
       key: 'patient_name',
-      render: (row) => <span style={{ fontWeight: 600, color: 'var(--primary)' }}>{row.patient_name || `Patient #${row.patient}`}</span>
+      render: (row) => (
+        <span style={{ fontWeight: 600, color: 'var(--primary)' }}>
+          {row.patient_name || `Patient #${row.patient}`}
+        </span>
+      )
+    },
+    {
+      header: 'Workflow / Visit Type',
+      key: 'visit_type',
+      render: (row) => {
+        if (row.visit_type === 'UNSCHEDULED') {
+          return (
+            <span
+              className="badge"
+              style={{
+                background: '#fef3c7',
+                color: '#92400e',
+                border: '1px solid #fde68a',
+                fontSize: '0.78rem'
+              }}
+              title="Tokenless unscheduled direct consultation"
+            >
+              ⚡ Unscheduled
+            </span>
+          );
+        }
+        return (
+          <span
+            className="badge"
+            style={{
+              background: '#e0e7ff',
+              color: '#3730a3',
+              border: '1px solid #c7d2fe',
+              fontSize: '0.78rem'
+            }}
+            title="Scheduled appointment with queue token"
+          >
+            🎫 Token #{row.token_number || '—'}
+          </span>
+        );
+      }
+    },
+    {
+      header: 'Status',
+      key: 'status',
+      render: (row) => (
+        <span
+          className={`badge ${row.status === 'IN_PROGRESS' ? 'badge-warning' : 'badge-success'}`}
+          style={{ fontSize: '0.75rem' }}
+        >
+          {row.status === 'IN_PROGRESS' ? '● In Progress' : '✓ Completed'}
+        </span>
+      )
     },
     {
       header: 'Clinical Diagnosis',
       key: 'diagnosis',
       render: (row) => (
-        <span style={{ fontWeight: 600, color: 'var(--text-main)', background: '#f1f5f9', padding: '2px 8px', borderRadius: '4px' }}>
-          {row.diagnosis}
+        <span
+          style={{
+            fontWeight: 600,
+            color: 'var(--text-main)',
+            background: '#f1f5f9',
+            padding: '2px 8px',
+            borderRadius: '4px'
+          }}
+        >
+          {row.diagnosis || '—'}
         </span>
       )
     },
     {
       header: 'Reported Symptoms',
       key: 'symptoms',
-      render: (row) => <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{row.symptoms || '—'}</span>
+      render: (row) => (
+        <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+          {row.symptoms || row.visit_reason || '—'}
+        </span>
+      )
     },
     {
-      header: 'Clinical Notes',
-      key: 'clinical_notes',
-      render: (row) => <span style={{ fontSize: '0.85rem' }}>{row.clinical_notes || row.treatment_plan || '—'}</span>
+      header: 'Actions',
+      key: 'actions',
+      render: (row) => {
+        if (row.status === 'IN_PROGRESS') {
+          return (
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => handleResumeConsultation(row)}
+              title="Resume and complete in-progress clinical consultation"
+            >
+              Resume 🩺
+            </button>
+          );
+        }
+        return null;
+      }
     }
   ];
 
@@ -240,15 +433,11 @@ export const DoctorConsultationsPage = () => {
       <div className="page-header">
         <div>
           <h1 className="page-title">Clinical Consultations</h1>
-          <p className="page-subtitle">Medical examination notes, primary diagnoses, and treatment plans recorded by you.</p>
+          <p className="page-subtitle">
+            Medical examination notes, primary diagnoses, and treatment plans for token-based and unscheduled consultations.
+          </p>
         </div>
-        <button
-          className="btn btn-primary"
-          onClick={() => {
-            setSelectedApptId(preselectedApptId || '');
-            setIsModalOpen(true);
-          }}
-        >
+        <button className="btn btn-primary" onClick={handleOpenNewModal}>
           + Record New Consultation
         </button>
       </div>
@@ -264,33 +453,143 @@ export const DoctorConsultationsPage = () => {
         emptyMessage="No consultation records logged yet."
       />
 
-      {/* New Consultation Modal */}
+      {/* New / Resume Consultation Modal */}
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Record Clinical Consultation & Prescriptions"
-        maxWidth="800px"
+        onClose={handleCloseModal}
+        title={
+          activeConsultationId
+            ? `Complete Consultation #${activeConsultationId} (${workflowType})`
+            : 'Record Clinical Consultation & Prescriptions'
+        }
+        maxWidth="840px"
       >
         <form onSubmit={handleSubmitConsultation}>
-          {/* Appointment Selection */}
-          <div className="form-group">
-            <label className="form-label">Select Patient / Appointment *</label>
-            <select
-              className="form-select"
-              value={selectedApptId}
-              onChange={(e) => handleApptSelect(e.target.value)}
-              required
+          {/* Active consultation resume banner */}
+          {activeConsultationId && (
+            <div
+              style={{
+                background: workflowType === 'UNSCHEDULED' ? '#fffbeb' : '#e0e7ff',
+                border: `1px solid ${workflowType === 'UNSCHEDULED' ? '#fde68a' : '#c7d2fe'}`,
+                color: workflowType === 'UNSCHEDULED' ? '#92400e' : '#3730a3',
+                padding: '12px 16px',
+                borderRadius: '6px',
+                marginBottom: '16px',
+                fontSize: '0.88rem'
+              }}
             >
-              <option value="">-- Choose Assigned Appointment --</option>
-              {appointments
-                .filter(a => a.status !== 'COMPLETED' && a.status !== 'CANCELLED')
-                .map((a) => (
-                  <option key={a.id} value={a.id}>
-                    Appt #{a.id} (Tkn #{a.token_number || 'N/A'}) — {a.patient_name || `Patient #${a.patient}`} ({a.appointment_date} {a.appointment_time})
-                  </option>
-                ))}
-            </select>
-          </div>
+              <strong>
+                {workflowType === 'UNSCHEDULED'
+                  ? '⚡ Active Unscheduled Consultation (Tokenless)'
+                  : '🎫 Active Token-Based Consultation'}
+              </strong>
+              <div style={{ marginTop: '4px' }}>
+                Patient: <strong>{activeConsultationData?.patient_name || `Patient #${patientId}`}</strong>{' '}
+                {visitReason && `• Visit Reason: "${visitReason}"`}
+              </div>
+            </div>
+          )}
+
+          {/* Workflow Selector when creating fresh */}
+          {!activeConsultationId && (
+            <div style={{ marginBottom: '16px' }}>
+              <label className="form-label" style={{ fontWeight: 600 }}>
+                Select Consultation Workflow *
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div
+                  style={{
+                    border: `2px solid ${workflowType === 'TOKEN_BASED' ? 'var(--primary)' : 'var(--border-subtle)'}`,
+                    borderRadius: '8px',
+                    padding: '12px',
+                    cursor: 'pointer',
+                    background: workflowType === 'TOKEN_BASED' ? 'var(--primary-light, #f0fdf4)' : '#fff'
+                  }}
+                  onClick={() => setWorkflowType('TOKEN_BASED')}
+                >
+                  <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>
+                    🎫 Workflow A: Token-Based
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                    Scheduled appointment with a validated queue token from reception.
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    border: `2px solid ${workflowType === 'UNSCHEDULED' ? '#f59e0b' : 'var(--border-subtle)'}`,
+                    borderRadius: '8px',
+                    padding: '12px',
+                    cursor: 'pointer',
+                    background: workflowType === 'UNSCHEDULED' ? '#fffbeb' : '#fff'
+                  }}
+                  onClick={() => setWorkflowType('UNSCHEDULED')}
+                >
+                  <div style={{ fontWeight: 600, color: '#92400e' }}>
+                    ⚡ Workflow B: Unscheduled
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                    Direct clinical entry for registered patient without queue token.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Patient / Appointment Selection */}
+          {!activeConsultationId && workflowType === 'TOKEN_BASED' && (
+            <div className="form-group" style={{ marginBottom: '16px' }}>
+              <label className="form-label">Select Appointment with Token *</label>
+              <select
+                className="form-select"
+                value={selectedApptId}
+                onChange={(e) => handleApptSelect(e.target.value)}
+                required
+              >
+                <option value="">-- Choose Assigned Appointment --</option>
+                {appointments
+                  .filter((a) => a.status !== 'COMPLETED' && a.status !== 'CANCELLED')
+                  .map((a) => (
+                    <option key={a.id} value={a.id}>
+                      Appt #{a.id} (Tkn #{a.token_number || a.token?.token_number || 'N/A'}) —{' '}
+                      {a.patient_name || `Patient #${a.patient}`} ({a.appointment_date} {a.appointment_time})
+                    </option>
+                  ))}
+              </select>
+            </div>
+          )}
+
+          {!activeConsultationId && workflowType === 'UNSCHEDULED' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+              <div className="form-group">
+                <label className="form-label">Select Registered Patient *</label>
+                <select
+                  className="form-select"
+                  value={patientId}
+                  onChange={(e) => setPatientId(e.target.value)}
+                  required
+                >
+                  <option value="">-- Choose Registered Patient --</option>
+                  {patients.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.patient_id || `#${p.id}`} — {p.first_name} {p.last_name} ({p.phone || 'No phone'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Visit Reason / Chief Complaint</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="e.g. Walk-in urgent checkup"
+                  value={visitReason}
+                  onChange={(e) => setVisitReason(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div className="form-group">
@@ -411,7 +710,7 @@ export const DoctorConsultationsPage = () => {
             </div>
 
             {prescribedItems.length > 0 && (
-              <div style={{ background: '#f8fafc', padding: '10px', borderRadius: 'var(--radius-sm)', marginBottom: '16px' }}>
+              <div style={{ background: '#f8fafc', padding: '10px', borderRadius: 'var(--radius-sm, 6px)', marginBottom: '16px' }}>
                 <table style={{ width: '100%', fontSize: '0.85rem' }}>
                   <thead>
                     <tr style={{ textAlign: 'left', color: 'var(--text-muted)' }}>
@@ -432,7 +731,7 @@ export const DoctorConsultationsPage = () => {
                         <td style={{ textAlign: 'right' }}>
                           <button
                             type="button"
-                            style={{ color: 'var(--danger)', fontWeight: 600, cursor: 'pointer' }}
+                            style={{ color: 'var(--danger)', fontWeight: 600, cursor: 'pointer', background: 'none', border: 'none' }}
                             onClick={() => handleRemoveItem(idx)}
                           >
                             ✕
@@ -468,18 +767,10 @@ export const DoctorConsultationsPage = () => {
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
-            <button
-              type="button"
-              className="btn btn-outline"
-              onClick={() => setIsModalOpen(false)}
-            >
+            <button type="button" className="btn btn-outline" onClick={handleCloseModal}>
               Cancel
             </button>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={submitting}
-            >
+            <button type="submit" className="btn btn-primary" disabled={submitting}>
               {submitting ? 'Saving Consultation...' : 'Complete & Save Consultation'}
             </button>
           </div>

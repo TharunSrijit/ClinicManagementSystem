@@ -5,10 +5,17 @@ export const doctorService = {
     return apiClient.get('/doctor/profile/');
   },
 
-  getAppointments(date = null, status = null) {
+  getAppointments(date = null, status = null, patient = null) {
     const params = [];
-    if (date) params.push(`date=${encodeURIComponent(date)}`);
-    if (status) params.push(`status=${encodeURIComponent(status)}`);
+    if (typeof date === 'object' && date !== null) {
+      if (date.date) params.push(`date=${encodeURIComponent(date.date)}`);
+      if (date.status) params.push(`status=${encodeURIComponent(date.status)}`);
+      if (date.patient) params.push(`patient=${encodeURIComponent(date.patient)}`);
+    } else {
+      if (date) params.push(`date=${encodeURIComponent(date)}`);
+      if (status) params.push(`status=${encodeURIComponent(status)}`);
+      if (patient) params.push(`patient=${encodeURIComponent(patient)}`);
+    }
     const query = params.length ? `?${params.join('&')}` : '';
     return apiClient.list(`/doctor/appointments/${query}`);
   },
@@ -17,18 +24,29 @@ export const doctorService = {
     return apiClient.post(`/doctor/appointments/${id}/complete/`);
   },
 
-  getPatients(name = '') {
-    const query = name ? `?name=${encodeURIComponent(name)}` : '';
-    return apiClient.list(`/doctor/patients/${query}`);
+  getPatients(params = '') {
+    if (typeof params === 'string') {
+      const query = params ? `?search=${encodeURIComponent(params)}` : '';
+      return apiClient.list(`/doctor/patients-directory/${query}`);
+    }
+    const searchParams = new URLSearchParams();
+    if (params?.search) searchParams.append('search', params.search);
+    if (params?.name) searchParams.append('name', params.name);
+    if (params?.phone) searchParams.append('phone', params.phone);
+    if (params?.patient_id) searchParams.append('patient_id', params.patient_id);
+    const query = searchParams.toString() ? `?${searchParams.toString()}` : '';
+    return apiClient.list(`/doctor/patients-directory/${query}`);
   },
 
   getPatient(id) {
-    return apiClient.get(`/doctor/patients/${id}/`);
+    return apiClient.get(`/doctor/patients-directory/${id}/`);
   },
 
   getMedicalHistory(patientId) {
-    const query = patientId ? `?patient=${encodeURIComponent(patientId)}` : '';
-    return apiClient.list(`/doctor/medical-history/${query}`);
+    return apiClient.list(`/doctor/patients-directory/${patientId}/medical_history/`).catch(() => {
+      const query = patientId ? `?patient=${encodeURIComponent(patientId)}` : '';
+      return apiClient.list(`/doctor/medical-history/${query}`);
+    });
   },
 
   getConsultations(patientId = null) {
@@ -36,8 +54,20 @@ export const doctorService = {
     return apiClient.list(`/doctor/consultations/${query}`);
   },
 
+  getConsultation(id) {
+    return apiClient.get(`/doctor/consultations/${id}/`);
+  },
+
   createConsultation(consultationData) {
     return apiClient.post('/doctor/consultations/', consultationData);
+  },
+
+  updateConsultation(id, consultationData) {
+    return apiClient.patch(`/doctor/consultations/${id}/`, consultationData);
+  },
+
+  startUnscheduledConsultation(data) {
+    return apiClient.post('/doctor/consultations/start_unscheduled/', data);
   },
 
   getPrescriptions(patientId = null) {
