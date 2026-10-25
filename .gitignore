@@ -13,5 +13,5 @@ jarvis/
 .venv/
 
 # Django settings
-**/settings.py
-settings.py
+# **/settings.py
+# settings.py
