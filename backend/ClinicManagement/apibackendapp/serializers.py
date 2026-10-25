@@ -523,13 +523,17 @@ class ConsultationInvoiceSerializer(serializers.ModelSerializer):
     def get_appointment_date(self, obj):
         if obj.appointment and obj.appointment.appointment_date:
             return str(obj.appointment.appointment_date)
-        if obj.consultation and obj.consultation.created_at:
-            return str(obj.consultation.created_at.date())
-        return str(obj.created_at.date())
+        if obj.consultation and getattr(obj.consultation, 'consultation_date', None):
+            return str(obj.consultation.consultation_date.date())
+        if getattr(obj, 'created_at', None):
+            return str(obj.created_at.date())
+        return None
 
     def get_appointment_time(self, obj):
         if obj.appointment and obj.appointment.appointment_time:
             return str(obj.appointment.appointment_time)
+        if obj.consultation and getattr(obj.consultation, 'consultation_date', None):
+            return obj.consultation.consultation_date.strftime('%H:%M:%S')
         return None
 
     def get_amount_paid(self, obj):

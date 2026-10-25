@@ -841,6 +841,106 @@ class ReceptionistBillingAndReceiptTests(APITestCase):
         self.assertEqual(len(data['payments']), 1)
         self.assertEqual(data['payments'][0]['payment_method'], 'CARD')
 
+    def test_consultation_invoice_list_with_consultation_only_invoice(self):
+        """Invoice list retrieves invoices successfully even when linked to a Consultation instead of an Appointment."""
+        consult = Consultation.objects.create(
+            doctor=self.doctor,
+            patient=self.new_patient,
+            visit_type='UNSCHEDULED',
+            status='COMPLETED',
+            diagnosis='Checkup notes',
+        )
+        inv = ConsultationInvoice.objects.create(
+            invoice_number='CINV-TEST-CONSULT',
+            patient=self.new_patient,
+            consultation=consult,
+            consultation_fee=Decimal('650.00'),
+            registration_fee=Decimal('0.00'),
+            total_amount=Decimal('650.00'),
+            status='PENDING',
+        )
+
+        resp = self.client.get('/api/receptionist/consultation-invoices/')
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        # Verify invoice is present in list
+        inv_ids = [item['id'] for item in resp.data]
+        self.assertIn(inv.id, inv_ids)
+        target = next(item for item in resp.data if item['id'] == inv.id)
+        self.assertEqual(target['invoice_number'], 'CINV-TEST-CONSULT')
+        self.assertEqual(target['doctor_name'], 'Dr. doc_bill')
+        self.assertEqual(target['status'], 'PENDING')
+        self.assertIsNotNone(target['appointment_date'])
+
+    def test_consultation_payment_settlement_and_appointment_status_update(self):
+        """Recording payment via /api/receptionist/consultation-payments/ marks invoice PAID and confirms appointment."""
+        appt = Appointment.objects.create(
+            doctor=self.doctor,
+            patient=self.new_patient,
+            appointment_type='WALK_IN',
+            appointment_date=self.today,
+            appointment_time=datetime.time(15, 0),
+            status='PENDING',
+        )
+        from receptionist.views import get_or_create_consultation_invoice
+        inv, _ = get_or_create_consultation_invoice(appt)
+        self.assertEqual(inv.status, 'PENDING')
+
+        # Settle payment via receptionist consultation-payments endpoint
+        pay_resp = self.client.post('/api/receptionist/consultation-payments/', {
+            'invoice': inv.id,
+            'amount': str(inv.total_amount),
+            'payment_method': 'UPI',
+            'transaction_id': 'UPI-TEST-PAY-01',
+        })
+        self.assertEqual(pay_resp.status_code, status.HTTP_201_CREATED)
+
+        inv.refresh_from_db()
+        appt.refresh_from_db()
+        self.assertEqual(inv.status, 'PAID')
+        self.assertEqual(appt.status, 'CONFIRMED')
+        self.assertEqual(inv.payments.count(), 1)
+
+    def test_consultation_payment_rejects_overpayment_and_duplicate(self):
+        """Consultation payment endpoint rejects payments exceeding balance or duplicate transaction IDs."""
+        appt = Appointment.objects.create(
+            doctor=self.doctor,
+            patient=self.new_patient,
+            appointment_type='WALK_IN',
+            appointment_date=self.today,
+            appointment_time=datetime.time(15, 30),
+            status='PENDING',
+        )
+        from receptionist.views import get_or_create_consultation_invoice
+        inv, _ = get_or_create_consultation_invoice(appt)
+
+        # 1. Overpayment attempt
+        overpay_resp = self.client.post('/api/receptionist/consultation-payments/', {
+            'invoice': inv.id,
+            'amount': str(inv.total_amount + Decimal('100.00')),
+            'payment_method': 'CASH',
+        })
+        self.assertEqual(overpay_resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('cannot exceed', overpay_resp.data['detail'])
+
+        # 2. Valid payment
+        valid_pay = self.client.post('/api/receptionist/consultation-payments/', {
+            'invoice': inv.id,
+            'amount': str(inv.total_amount),
+            'payment_method': 'UPI',
+            'transaction_id': 'UPI-DUP-CHECK',
+        })
+        self.assertEqual(valid_pay.status_code, status.HTTP_201_CREATED)
+
+        # 3. Duplicate payment attempt
+        dup_pay = self.client.post('/api/receptionist/consultation-payments/', {
+            'invoice': inv.id,
+            'amount': '10.00',
+            'payment_method': 'UPI',
+            'transaction_id': 'UPI-DUP-CHECK',
+        })
+        self.assertEqual(dup_pay.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('already fully paid', dup_pay.data['detail'])
+
 
 class AppointmentBookingAndPaymentWorkflowTests(APITestCase):
     @classmethod

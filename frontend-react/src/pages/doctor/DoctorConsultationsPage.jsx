@@ -289,7 +289,7 @@ export const DoctorConsultationsPage = () => {
         finalConsultationId = res.id;
 
         // Mark appointment completed
-        await doctorService.completeAppointment(selectedApptId).catch(() => {});
+        await doctorService.completeAppointment(selectedApptId).catch(() => { });
       }
 
       // 2. Prescriptions
@@ -311,7 +311,7 @@ export const DoctorConsultationsPage = () => {
               frequency: item.frequency,
               duration: item.duration,
               instructions: item.instructions
-            }).catch(() => {});
+            }).catch(() => { });
           }
         }
       }
@@ -998,7 +998,7 @@ export const DoctorConsultationsPage = () => {
                   )}
 
                   {Array.isArray(viewConsultationModal.consultation.prescription.items) &&
-                  viewConsultationModal.consultation.prescription.items.length > 0 ? (
+                    viewConsultationModal.consultation.prescription.items.length > 0 ? (
                     <div style={{ overflowX: 'auto' }}>
                       <table className="table" style={{ fontSize: '0.85rem', width: '100%', margin: 0 }}>
                         <thead>

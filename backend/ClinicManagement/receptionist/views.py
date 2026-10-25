@@ -801,23 +801,45 @@ class ReceptionistConsultationInvoiceViewSet(viewsets.ModelViewSet):
         appointment = serializer.validated_data.get('appointment')
         consultation = serializer.validated_data.get('consultation')
         if appointment:
+            if hasattr(appointment, 'consultation_invoice') and appointment.consultation_invoice:
+                raise serializers.ValidationError({"detail": "An invoice already exists for this appointment."})
+            if ConsultationInvoice.objects.filter(appointment=appointment).exists():
+                raise serializers.ValidationError({"detail": "An invoice already exists for this appointment."})
             fee = serializer.validated_data.get('consultation_fee') or appointment.doctor.consultation_fee
             patient = appointment.patient
         elif consultation:
+            if hasattr(consultation, 'consultation_invoice') and consultation.consultation_invoice:
+                raise serializers.ValidationError({"detail": "An invoice already exists for this consultation."})
+            if ConsultationInvoice.objects.filter(consultation=consultation).exists():
+                raise serializers.ValidationError({"detail": "An invoice already exists for this consultation."})
             fee = serializer.validated_data.get('consultation_fee') or consultation.doctor.consultation_fee
             patient = consultation.patient
         else:
             raise serializers.ValidationError({"detail": "Either appointment or consultation is required."})
 
-        discount = serializer.validated_data.get('discount', 0)
-        tax = serializer.validated_data.get('tax', 0)
-        total = fee - discount + tax
+        reg_fee = serializer.validated_data.get('registration_fee')
+        if reg_fee is None:
+            has_prior_reg = ConsultationInvoice.objects.filter(
+                patient=patient,
+                registration_fee__gt=0
+            ).exclude(status='CANCELLED').exists()
+            if not has_prior_reg:
+                config = ClinicConfiguration.get_instance()
+                reg_fee = Decimal(str(config.registration_fee))
+            else:
+                reg_fee = Decimal('0.00')
+
+        discount = serializer.validated_data.get('discount', Decimal('0.00')) or Decimal('0.00')
+        tax = serializer.validated_data.get('tax', Decimal('0.00')) or Decimal('0.00')
+        total = fee + reg_fee - discount + tax
 
         serializer.save(
             invoice_number=generate_invoice_number(),
             patient=patient,
             consultation_fee=fee,
+            registration_fee=reg_fee,
             total_amount=total,
+            status='PAID' if total == Decimal('0.00') else 'PENDING',
         )
 
 
@@ -846,12 +868,20 @@ class ReceptionistConsultationPaymentViewSet(viewsets.ModelViewSet):
 
         total_paid_before = sum(p.amount for p in invoice.payments.all())
         balance = invoice.total_amount - total_paid_before
-        if balance <= Decimal('0.00') and invoice.status == 'PAID':
+        if balance <= Decimal('0.00') or invoice.status == 'PAID':
             raise serializers.ValidationError({"detail": "This invoice is already fully paid."})
+
+        amount = serializer.validated_data.get('amount')
+        if amount and amount > balance:
+            raise serializers.ValidationError({"detail": f"Payment amount (₹{amount}) cannot exceed the remaining balance of ₹{balance}."})
+
+        transaction_id = str(serializer.validated_data.get('transaction_id', '') or '').strip()
+        if transaction_id and ConsultationPayment.objects.filter(invoice=invoice, transaction_id=transaction_id).exists():
+            raise serializers.ValidationError({"detail": f"A payment with transaction ID '{transaction_id}' has already been recorded for this invoice."})
 
         with transaction.atomic():
             payment = serializer.save()
-            total_paid = sum(p.amount for p in invoice.payments.all())
+            total_paid = sum(p.amount for p in ConsultationPayment.objects.filter(invoice=invoice))
 
             if total_paid >= invoice.total_amount:
                 invoice.status = 'PAID'

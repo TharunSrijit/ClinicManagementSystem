@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import receptionistService from '../../services/receptionistService';
 import DataTable from '../../components/DataTable';
 import Badge from '../../components/Badge';
 import Modal from '../../components/Modal';
+import ConsultationReceipt from '../../components/ConsultationReceipt';
 import { formatDate, formatTime } from '../../utils/formatters';
 
 export const ReceptionistBillingPage = () => {
@@ -29,6 +31,7 @@ export const ReceptionistBillingPage = () => {
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [loadingReceipt, setLoadingReceipt] = useState(false);
 
+  const [loadError, setLoadError] = useState(null);
   const [feedback, setFeedback] = useState({ message: '', type: '' });
 
   const showFeedback = (message, type = 'success') => {
@@ -38,12 +41,15 @@ export const ReceptionistBillingPage = () => {
 
   const loadInvoices = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const data = await receptionistService.getConsultationInvoices();
       setInvoices(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error('Failed to load consultation invoices:', err);
-      showFeedback('Could not retrieve consultation invoices from server.', 'danger');
+      console.error('Failed to load consultation invoices:', err.response?.data || err);
+      const errorDetail = err.response?.data?.detail || err.message || 'Could not retrieve consultation invoices from server.';
+      setLoadError(errorDetail);
+      showFeedback(`Could not retrieve consultation invoices: ${errorDetail}`, 'danger');
     } finally {
       setLoading(false);
     }
@@ -134,6 +140,7 @@ export const ReceptionistBillingPage = () => {
   };
 
   const handlePrintReceipt = () => {
+    if (!receiptInvoice) return;
     window.print();
   };
 
@@ -275,8 +282,8 @@ export const ReceptionistBillingPage = () => {
           <h1 className="page-title">Consultation Invoices & Billing</h1>
           <p className="page-subtitle">Track consultation billing statements, record fee collections, and print receipts.</p>
         </div>
-        <button className="btn btn-outline" onClick={loadInvoices}>
-          🔄 Refresh Invoices
+        <button className="btn btn-outline" onClick={loadInvoices} disabled={loading}>
+          {loading ? '🔄 Refreshing...' : '🔄 Refresh Invoices'}
         </button>
       </div>
 
@@ -285,6 +292,18 @@ export const ReceptionistBillingPage = () => {
           <div>
             💳 <strong>Appointment #{targetAppointmentQuery} Created:</strong> Please record the patient fee payment below to transition the appointment to booked/confirmed status and enable queue token issuance.
           </div>
+        </div>
+      )}
+
+      {loadError && (
+        <div className="alert alert-danger" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+          <div>
+            <strong>⚠️ Could not retrieve consultation invoices from server:</strong> {loadError}
+            <div style={{ fontSize: '0.8rem', marginTop: '4px', opacity: 0.85 }}>Check the browser developer console or server logs for full details.</div>
+          </div>
+          <button className="btn btn-sm btn-outline" onClick={loadInvoices} style={{ borderColor: 'currentColor', color: 'inherit' }}>
+            Retry
+          </button>
         </div>
       )}
 
@@ -473,220 +492,19 @@ export const ReceptionistBillingPage = () => {
               </div>
             </div>
 
-            {/* Printable Receipt Card */}
-            <div id="printable-receipt-portal">
-              <div className="receipt-card">
-                {/* Header */}
-                <div className="receipt-header">
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                      <span style={{ fontSize: '1.4rem' }}>🏥</span>
-                      <h2 className="receipt-clinic-title">
-                        {receiptInvoice.clinic_info?.clinic_name || 'Clinic Management System'}
-                      </h2>
-                    </div>
-                    {receiptInvoice.clinic_info?.clinic_address && (
-                      <p className="receipt-clinic-sub">{receiptInvoice.clinic_info.clinic_address}</p>
-                    )}
-                    <p className="receipt-clinic-sub">
-                      {receiptInvoice.clinic_info?.clinic_phone && `Phone: ${receiptInvoice.clinic_info.clinic_phone}`}
-                      {receiptInvoice.clinic_info?.clinic_email && ` | Email: ${receiptInvoice.clinic_info.clinic_email}`}
-                    </p>
-                  </div>
-                  <div className="receipt-doc-title">
-                    <div className="receipt-doc-name">
-                      {receiptInvoice.status === 'PAID' ? 'TAX INVOICE & RECEIPT' : 'BILLING STATEMENT'}
-                    </div>
-                    <div>
-                      {receiptInvoice.status === 'PAID' && (
-                        <span className="receipt-stamp-badge stamp-paid">✓ PAID IN FULL</span>
-                      )}
-                      {receiptInvoice.status === 'PARTIAL' && (
-                        <span className="receipt-stamp-badge stamp-partial">⚠ PARTIALLY PAID</span>
-                      )}
-                      {receiptInvoice.status === 'PENDING' && (
-                        <span className="receipt-stamp-badge stamp-pending">⏳ PENDING PAYMENT</span>
-                      )}
-                      {receiptInvoice.status === 'CANCELLED' && (
-                        <span className="receipt-stamp-badge stamp-pending">CANCELLED</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Metadata Details Grid */}
-                <div className="receipt-meta-grid">
-                  <div>
-                    <div className="receipt-meta-item">
-                      <span className="receipt-meta-label">Invoice No:</span>
-                      <span className="receipt-meta-value">{receiptInvoice.invoice_number}</span>
-                    </div>
-                    <div className="receipt-meta-item">
-                      <span className="receipt-meta-label">Date:</span>
-                      <span className="receipt-meta-value">
-                        {formatDate(receiptInvoice.appointment_date || receiptInvoice.created_at)}
-                      </span>
-                    </div>
-                    <div className="receipt-meta-item">
-                      <span className="receipt-meta-label">Appointment Ref:</span>
-                      <span className="receipt-meta-value">Appt #{receiptInvoice.appointment}</span>
-                    </div>
-                    <div className="receipt-meta-item">
-                      <span className="receipt-meta-label">Consulting Doctor:</span>
-                      <span className="receipt-meta-value">
-                        {receiptInvoice.doctor_name || '—'}
-                        {receiptInvoice.doctor_specialization && ` (${receiptInvoice.doctor_specialization})`}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="receipt-meta-item">
-                      <span className="receipt-meta-label">Patient ID:</span>
-                      <span className="receipt-meta-value">{receiptInvoice.patient_id || `P-${receiptInvoice.patient}`}</span>
-                    </div>
-                    <div className="receipt-meta-item">
-                      <span className="receipt-meta-label">Patient Name:</span>
-                      <span className="receipt-meta-value">{receiptInvoice.patient_name}</span>
-                    </div>
-                    <div className="receipt-meta-item">
-                      <span className="receipt-meta-label">Phone:</span>
-                      <span className="receipt-meta-value">{receiptInvoice.patient_phone || '—'}</span>
-                    </div>
-                    <div className="receipt-meta-item">
-                      <span className="receipt-meta-label">Gender:</span>
-                      <span className="receipt-meta-value">{receiptInvoice.patient_gender || '—'}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Itemized Table */}
-                <table className="receipt-table">
-                  <thead>
-                    <tr>
-                      <th style={{ width: '40px' }}>#</th>
-                      <th>Service / Item Description</th>
-                      <th>Category</th>
-                      <th style={{ textAlign: 'right', width: '120px' }}>Amount (₹)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Number(receiptInvoice.registration_fee) > 0 && (
-                      <tr>
-                        <td>1</td>
-                        <td>
-                          <strong>Patient Registration Fee</strong>
-                          <div style={{ fontSize: '0.8rem', color: '#64748b' }}>One-time registration and patient file creation</div>
-                        </td>
-                        <td>Administrative</td>
-                        <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                          ₹{Number(receiptInvoice.registration_fee).toFixed(2)}
-                        </td>
-                      </tr>
-                    )}
-                    <tr>
-                      <td>{Number(receiptInvoice.registration_fee) > 0 ? 2 : 1}</td>
-                      <td>
-                        <strong>Doctor Consultation Fee</strong>
-                        <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                          Outpatient consultation ({receiptInvoice.doctor_specialization || 'General'})
-                        </div>
-                      </td>
-                      <td>Clinical</td>
-                      <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                        ₹{Number(receiptInvoice.consultation_fee).toFixed(2)}
-                      </td>
-                    </tr>
-                  </tbody>
-                  <tfoot>
-                    <tr className="receipt-table-totals">
-                      <td colSpan="3" style={{ textAlign: 'right', fontWeight: 600, color: '#64748b' }}>
-                        Subtotal:
-                      </td>
-                      <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                        ₹{Number(receiptInvoice.total_amount).toFixed(2)}
-                      </td>
-                    </tr>
-                    <tr className="receipt-table-totals grand-total">
-                      <td colSpan="3" style={{ textAlign: 'right' }}>Total Invoice Amount:</td>
-                      <td style={{ textAlign: 'right' }}>
-                        ₹{Number(receiptInvoice.total_amount).toFixed(2)}
-                      </td>
-                    </tr>
-                    <tr className="receipt-table-totals">
-                      <td colSpan="3" style={{ textAlign: 'right', fontWeight: 600, color: 'var(--success)' }}>
-                        Amount Paid:
-                      </td>
-                      <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--success)' }}>
-                        ₹{Number(receiptInvoice.amount_paid || 0).toFixed(2)}
-                      </td>
-                    </tr>
-                    <tr className="receipt-table-totals">
-                      <td colSpan="3" style={{ textAlign: 'right', fontWeight: 700, color: Number(receiptInvoice.balance_due) > 0 ? '#b91c1c' : '#64748b' }}>
-                        Outstanding Balance:
-                      </td>
-                      <td style={{ textAlign: 'right', fontWeight: 700, color: Number(receiptInvoice.balance_due) > 0 ? '#b91c1c' : '#64748b' }}>
-                        ₹{Number(receiptInvoice.balance_due != null ? receiptInvoice.balance_due : (receiptInvoice.total_amount - (receiptInvoice.amount_paid || 0))).toFixed(2)}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-
-                {/* Recorded Payments History */}
-                <div style={{ marginBottom: '20px' }}>
-                  <div style={{ fontWeight: 600, fontSize: '0.88rem', color: '#0f172a', marginBottom: '6px' }}>
-                    Payment Transaction History:
-                  </div>
-                  {receiptInvoice.payments && receiptInvoice.payments.length > 0 ? (
-                    <table className="receipt-payments-table">
-                      <thead>
-                        <tr>
-                          <th>Payment Date</th>
-                          <th>Payment Mode</th>
-                          <th>Transaction ID / Reference</th>
-                          <th style={{ textAlign: 'right' }}>Amount Paid (₹)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {receiptInvoice.payments.map((p, idx) => (
-                          <tr key={p.id || idx}>
-                            <td>{formatDate(p.payment_date)} {formatTime(p.payment_date)}</td>
-                            <td><strong>{p.payment_method}</strong></td>
-                            <td>{p.transaction_id || '—'}</td>
-                            <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                              ₹{Number(p.amount).toFixed(2)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  ) : (
-                    <div style={{ fontSize: '0.82rem', color: '#64748b', fontStyle: 'italic', padding: '8px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px' }}>
-                      No payment has been recorded for this invoice yet.
-                    </div>
-                  )}
-                </div>
-
-                {/* Footer Notes & Signatures */}
-                <div className="receipt-footer-notes">
-                  <div>
-                    <div>• Computer-generated receipt; no manual signature required.</div>
-                    <div>• Please keep this receipt for future reference and follow-up consultations.</div>
-                    <div style={{ marginTop: '4px', fontSize: '0.74rem', color: '#94a3b8' }}>
-                      Printed on: {new Date().toLocaleString()}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="receipt-signature-line">
-                      Authorized Reception Desk
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            {/* Receipt Content */}
+            <ConsultationReceipt invoice={receiptInvoice} />
           </div>
         )}
       </Modal>
+
+      {/* Dedicated Portal for Browser Print & Save as PDF directly in document.body */}
+      {isReceiptModalOpen && receiptInvoice && createPortal(
+        <div id="receipt-print-portal" className="printable-receipt-portal">
+          <ConsultationReceipt invoice={receiptInvoice} />
+        </div>,
+        document.body
+      )}
     </div>
   );
 };
