@@ -48,6 +48,7 @@ export const DoctorConsultationsPage = () => {
   // Active existing consultation ID (if resuming/completing an in-progress consultation)
   const [activeConsultationId, setActiveConsultationId] = useState(preselectedConsultId);
   const [activeConsultationData, setActiveConsultationData] = useState(null);
+  const [viewConsultationModal, setViewConsultationModal] = useState({ isOpen: false, consultation: null });
 
   const [selectedApptId, setSelectedApptId] = useState(preselectedApptId);
   const [patientId, setPatientId] = useState(preselectedPatientId);
@@ -296,19 +297,22 @@ export const DoctorConsultationsPage = () => {
         const rxRes = await doctorService.createPrescription({
           consultation: finalConsultationId,
           patient: Number(patientId),
-          notes: clinicalNotes || 'Prescribed during consultation'
+          notes: clinicalNotes || 'Prescribed during consultation',
+          items: prescribedItems
         });
 
-        for (const item of prescribedItems) {
-          await doctorService.createPrescriptionItem({
-            prescription: rxRes.id,
-            medicine: item.medicine,
-            dosage: item.dosage,
-            quantity: item.quantity,
-            frequency: item.frequency,
-            duration: item.duration,
-            instructions: item.instructions
-          });
+        if (rxRes?.id) {
+          for (const item of prescribedItems) {
+            await doctorService.createPrescriptionItem({
+              prescription: rxRes.id,
+              medicine: item.medicine,
+              dosage: item.dosage,
+              quantity: item.quantity,
+              frequency: item.frequency,
+              duration: item.duration,
+              instructions: item.instructions
+            }).catch(() => {});
+          }
         }
       }
 
@@ -432,11 +436,38 @@ export const DoctorConsultationsPage = () => {
       )
     },
     {
+      header: 'Prescription',
+      key: 'prescription',
+      render: (row) => {
+        if (row.prescription) {
+          const count = row.prescription.items?.length || 0;
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <span style={{ fontWeight: 600, color: 'var(--primary)', fontSize: '0.85rem' }}>
+                💊 {row.prescription.prescription_number || `Rx #${row.prescription.id}`}
+              </span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                {count} medication{count === 1 ? '' : 's'}
+              </span>
+            </div>
+          );
+        }
+        return <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>—</span>;
+      }
+    },
+    {
       header: 'Actions',
       key: 'actions',
-      render: (row) => {
-        if (row.status === 'IN_PROGRESS') {
-          return (
+      render: (row) => (
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button
+            className="btn btn-outline btn-sm"
+            onClick={() => setViewConsultationModal({ isOpen: true, consultation: row })}
+            title="View consultation notes and prescribed medications"
+          >
+            👁️ Details
+          </button>
+          {row.status === 'IN_PROGRESS' && (
             <button
               className="btn btn-primary btn-sm"
               onClick={() => handleResumeConsultation(row)}
@@ -444,10 +475,9 @@ export const DoctorConsultationsPage = () => {
             >
               Resume 🩺
             </button>
-          );
-        }
-        return null;
-      }
+          )}
+        </div>
+      )
     }
   ];
 
@@ -805,6 +835,234 @@ export const DoctorConsultationsPage = () => {
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* View Consultation & Prescription Details Modal */}
+      <Modal
+        isOpen={viewConsultationModal.isOpen}
+        onClose={() => setViewConsultationModal({ isOpen: false, consultation: null })}
+        title={`Consultation #${viewConsultationModal.consultation?.id || ''} — Clinical Details`}
+        maxWidth="750px"
+      >
+        {viewConsultationModal.consultation && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            {/* Header info */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                gap: '12px',
+                background: 'var(--surface-muted, #f8fafc)',
+                padding: '12px 16px',
+                borderRadius: '8px',
+                border: '1px solid var(--border-subtle, #e2e8f0)',
+                fontSize: '0.88rem'
+              }}
+            >
+              <div>
+                <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.78rem' }}>PATIENT</span>
+                <strong>{viewConsultationModal.consultation.patient_name || `Patient #${viewConsultationModal.consultation.patient}`}</strong>
+                {viewConsultationModal.consultation.patient_uhid && (
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block' }}>
+                    UHID: {viewConsultationModal.consultation.patient_uhid}
+                  </span>
+                )}
+              </div>
+              <div>
+                <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.78rem' }}>CONSULTATION DATE</span>
+                <strong>{formatDate(viewConsultationModal.consultation.consultation_date)}</strong>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block' }}>
+                  {viewConsultationModal.consultation.consultation_time || ''}
+                </span>
+              </div>
+              <div>
+                <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.78rem' }}>VISIT TYPE</span>
+                <span
+                  style={{
+                    display: 'inline-block',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    background: '#e0f2fe',
+                    color: '#0369a1'
+                  }}
+                >
+                  {viewConsultationModal.consultation.visit_type || 'OUTPATIENT'}
+                </span>
+              </div>
+              <div>
+                <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.78rem' }}>STATUS</span>
+                <span
+                  style={{
+                    display: 'inline-block',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    background:
+                      viewConsultationModal.consultation.status === 'COMPLETED' ? '#dcfce7' : '#fef9c3',
+                    color:
+                      viewConsultationModal.consultation.status === 'COMPLETED' ? '#166534' : '#854d0e'
+                  }}
+                >
+                  {viewConsultationModal.consultation.status || 'COMPLETED'}
+                </span>
+              </div>
+            </div>
+
+            {/* Clinical Assessment */}
+            <div>
+              <h4 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '8px', color: 'var(--text-main)' }}>
+                📋 Clinical Assessment & Notes
+              </h4>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border-subtle, #e2e8f0)',
+                  borderRadius: '6px',
+                  padding: '12px',
+                  fontSize: '0.88rem'
+                }}
+              >
+                <div>
+                  <strong style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Diagnosis: </strong>
+                  <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>
+                    {viewConsultationModal.consultation.diagnosis || '—'}
+                  </span>
+                </div>
+                {viewConsultationModal.consultation.symptoms && (
+                  <div>
+                    <strong style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Symptoms: </strong>
+                    <span>{viewConsultationModal.consultation.symptoms}</span>
+                  </div>
+                )}
+                {viewConsultationModal.consultation.examination_notes && (
+                  <div>
+                    <strong style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Examination Notes: </strong>
+                    <span>{viewConsultationModal.consultation.examination_notes}</span>
+                  </div>
+                )}
+                {viewConsultationModal.consultation.treatment_plan && (
+                  <div>
+                    <strong style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Treatment Plan: </strong>
+                    <span>{viewConsultationModal.consultation.treatment_plan}</span>
+                  </div>
+                )}
+                {viewConsultationModal.consultation.clinical_notes && (
+                  <div>
+                    <strong style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Clinical Notes: </strong>
+                    <span>{viewConsultationModal.consultation.clinical_notes}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Prescription Section */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <h4 style={{ fontSize: '0.95rem', fontWeight: 600, margin: 0, color: 'var(--text-main)' }}>
+                  💊 Prescribed Medications
+                </h4>
+                {viewConsultationModal.consultation.prescription && (
+                  <span
+                    style={{
+                      fontFamily: 'monospace',
+                      fontWeight: 700,
+                      color: 'var(--primary, #0284c7)',
+                      fontSize: '0.85rem'
+                    }}
+                  >
+                    {viewConsultationModal.consultation.prescription.prescription_number ||
+                      `Rx #${viewConsultationModal.consultation.prescription.id}`}
+                  </span>
+                )}
+              </div>
+
+              {viewConsultationModal.consultation.prescription ? (
+                <div
+                  style={{
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border-subtle, #e2e8f0)',
+                    borderRadius: '6px',
+                    padding: '12px'
+                  }}
+                >
+                  {viewConsultationModal.consultation.prescription.notes && (
+                    <div style={{ marginBottom: '10px', fontSize: '0.85rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                      <strong>Doctor Notes:</strong> {viewConsultationModal.consultation.prescription.notes}
+                    </div>
+                  )}
+
+                  {Array.isArray(viewConsultationModal.consultation.prescription.items) &&
+                  viewConsultationModal.consultation.prescription.items.length > 0 ? (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table className="table" style={{ fontSize: '0.85rem', width: '100%', margin: 0 }}>
+                        <thead>
+                          <tr style={{ background: 'var(--surface-muted, #f1f5f9)', textAlign: 'left' }}>
+                            <th style={{ padding: '8px' }}>Medicine</th>
+                            <th style={{ padding: '8px' }}>Dosage</th>
+                            <th style={{ padding: '8px' }}>Frequency</th>
+                            <th style={{ padding: '8px' }}>Duration</th>
+                            <th style={{ padding: '8px' }}>Qty</th>
+                            <th style={{ padding: '8px' }}>Instructions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {viewConsultationModal.consultation.prescription.items.map((item, idx) => (
+                            <tr key={idx} style={{ borderBottom: '1px solid var(--border-subtle, #e2e8f0)' }}>
+                              <td style={{ padding: '8px', fontWeight: 600 }}>
+                                {item.medicine_name || `Medicine #${item.medicine}`}
+                              </td>
+                              <td style={{ padding: '8px' }}>{item.dosage_name || item.dosage || '—'}</td>
+                              <td style={{ padding: '8px' }}>{item.frequency || 'Daily'}</td>
+                              <td style={{ padding: '8px' }}>{item.duration || '—'}</td>
+                              <td style={{ padding: '8px' }}>{item.quantity || '—'}</td>
+                              <td style={{ padding: '8px', color: 'var(--text-muted)' }}>
+                                {item.instructions || '—'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>
+                      Prescription record exists, but no individual medication items were added.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div
+                  style={{
+                    padding: '16px',
+                    textAlign: 'center',
+                    background: 'var(--surface-muted, #f8fafc)',
+                    borderRadius: '6px',
+                    border: '1px dashed var(--border-subtle, #cbd5e1)',
+                    color: 'var(--text-muted)',
+                    fontSize: '0.88rem'
+                  }}
+                >
+                  No prescription was written for this consultation.
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setViewConsultationModal({ isOpen: false, consultation: null })}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

@@ -190,43 +190,6 @@ class AppointmentSerializer(serializers.ModelSerializer):
 
 
 # ---------------------------------------------------------------------------
-# CONSULTATION
-# ---------------------------------------------------------------------------
-
-class ConsultationSerializer(serializers.ModelSerializer):
-    """
-    Doctors fill in symptoms, diagnosis, clinical_notes, treatment_plan.
-    Supports both token-based and unscheduled consultations.
-    """
-    patient_name = serializers.CharField(
-        source='patient.__str__', read_only=True
-    )
-    doctor_name = serializers.CharField(
-        source='doctor.__str__', read_only=True
-    )
-    token_number = serializers.SerializerMethodField()
-
-    def get_token_number(self, obj):
-        if obj.appointment and hasattr(obj.appointment, 'token') and obj.appointment.token:
-            return obj.appointment.token.token_number
-        return None
-
-    class Meta:
-        model  = Consultation
-        fields = [
-            'id', 'appointment',
-            'patient', 'patient_name',
-            'doctor', 'doctor_name',
-            'visit_type', 'status', 'visit_reason',
-            'token_number',
-            'symptoms', 'diagnosis',
-            'clinical_notes', 'treatment_plan',
-            'consultation_date',
-        ]
-        read_only_fields = ['consultation_date', 'doctor', 'doctor_name', 'patient_name']
-
-
-# ---------------------------------------------------------------------------
 # PRESCRIPTION  &  PRESCRIPTION ITEMS
 # ---------------------------------------------------------------------------
 
@@ -257,8 +220,7 @@ class PrescriptionItemSerializer(serializers.ModelSerializer):
 class PrescriptionSerializer(serializers.ModelSerializer):
     """
     A prescription written by the doctor.
-    'items' is a nested list of all PrescriptionItems — read-only here.
-    Use PrescriptionItemSerializer endpoints to add/edit items.
+    'items' is a nested list of all PrescriptionItems.
     """
     patient_name = serializers.CharField(
         source='patient.__str__', read_only=True
@@ -266,19 +228,81 @@ class PrescriptionSerializer(serializers.ModelSerializer):
     doctor_name = serializers.CharField(
         source='doctor.__str__', read_only=True
     )
+    consultation_diagnosis = serializers.CharField(
+        source='consultation.diagnosis', read_only=True
+    )
     items = PrescriptionItemSerializer(many=True, read_only=True)
 
     class Meta:
         model  = Prescription
         fields = [
             'id', 'prescription_number',
-            'consultation',
+            'consultation', 'consultation_diagnosis',
             'patient', 'patient_name',
             'doctor', 'doctor_name',
             'notes', 'prescription_date',
             'items',
         ]
         read_only_fields = ['prescription_number', 'prescription_date', 'doctor', 'doctor_name', 'patient_name']
+
+    def create(self, validated_data):
+        items_data = self.context.get('request').data.get('items', []) if self.context.get('request') else []
+        prescription = super().create(validated_data)
+        if isinstance(items_data, list):
+            for item in items_data:
+                med_id = item.get('medicine') or item.get('medicine_id')
+                dsg_id = item.get('dosage') or item.get('dosage_id')
+                if med_id and dsg_id:
+                    PrescriptionItem.objects.create(
+                        prescription=prescription,
+                        medicine_id=int(med_id),
+                        dosage_id=int(dsg_id),
+                        quantity=int(item.get('quantity', 1)),
+                        frequency=str(item.get('frequency', 'Twice daily')),
+                        duration=str(item.get('duration', '5 days')),
+                        instructions=str(item.get('instructions', '')),
+                    )
+        return prescription
+
+
+# ---------------------------------------------------------------------------
+# CONSULTATION
+# ---------------------------------------------------------------------------
+
+class ConsultationSerializer(serializers.ModelSerializer):
+    """
+    Doctors fill in symptoms, diagnosis, clinical_notes, treatment_plan.
+    Supports both token-based and unscheduled consultations.
+    Includes linked prescription data when available.
+    """
+    patient_name = serializers.CharField(
+        source='patient.__str__', read_only=True
+    )
+    doctor_name = serializers.CharField(
+        source='doctor.__str__', read_only=True
+    )
+    token_number = serializers.SerializerMethodField()
+    prescription = PrescriptionSerializer(read_only=True)
+
+    def get_token_number(self, obj):
+        if obj.appointment and hasattr(obj.appointment, 'token') and obj.appointment.token:
+            return obj.appointment.token.token_number
+        return None
+
+    class Meta:
+        model  = Consultation
+        fields = [
+            'id', 'appointment',
+            'patient', 'patient_name',
+            'doctor', 'doctor_name',
+            'visit_type', 'status', 'visit_reason',
+            'token_number',
+            'symptoms', 'diagnosis',
+            'clinical_notes', 'treatment_plan',
+            'consultation_date',
+            'prescription',
+        ]
+        read_only_fields = ['consultation_date', 'doctor', 'doctor_name', 'patient_name']
 
 
 # ---------------------------------------------------------------------------

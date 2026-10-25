@@ -595,26 +595,68 @@ export const DoctorPatientDetails = () => {
                 No medication prescriptions issued for this patient.
               </p>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 {prescriptions.map((rx) => (
                   <div
                     key={rx.id}
                     style={{
-                      padding: '12px 14px',
+                      padding: '14px 16px',
                       background: '#ffffff',
                       border: '1px solid var(--border-subtle)',
                       borderRadius: 'var(--radius-sm, 6px)'
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ fontWeight: 600, color: 'var(--primary)' }}>Rx #{rx.id}</span>
-                      <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                        {formatDate(rx.created_at)}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '0.95rem' }}>
+                          💊 {rx.prescription_number || `Rx #${rx.id}`}
+                        </span>
+                        {rx.consultation && (
+                          <span style={{ fontSize: '0.75rem', background: '#f1f5f9', color: 'var(--text-muted)', padding: '2px 6px', borderRadius: '4px' }}>
+                            Consultation #{rx.consultation}
+                          </span>
+                        )}
+                      </div>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        {formatDate(rx.prescription_date)}
                       </span>
                     </div>
-                    <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                      {rx.notes || 'Prescribed regimen'}
-                    </p>
+
+                    {/* Prescribed Items Table / List */}
+                    {rx.items && rx.items.length > 0 ? (
+                      <div style={{ background: '#f8fafc', borderRadius: '4px', padding: '8px 12px', marginTop: '8px' }}>
+                        <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                          Prescribed Medications ({rx.items.length})
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          {rx.items.map((it, idx) => (
+                            <div key={idx} style={{ fontSize: '0.85rem', display: 'flex', justifyContent: 'space-between', borderBottom: idx < rx.items.length - 1 ? '1px dashed #e2e8f0' : 'none', paddingBottom: '4px' }}>
+                              <div>
+                                <strong style={{ color: 'var(--text-main)' }}>{it.medicine_name || `Medicine #${it.medicine}`}</strong>
+                                {it.dosage_name && <span style={{ color: 'var(--text-muted)' }}> — {it.dosage_name}</span>}
+                                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                                  {it.frequency || 'Daily'} • {it.duration || '5 days'}
+                                  {it.instructions ? ` • Instructions: ${it.instructions}` : ''}
+                                </div>
+                              </div>
+                              <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap', marginLeft: '12px' }}>
+                                Qty: {it.quantity}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: '6px' }}>
+                        No specific item lines recorded.
+                      </div>
+                    )}
+
+                    {rx.notes && (
+                      <p style={{ margin: '8px 0 0 0', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                        <strong>Doctor Notes:</strong> {rx.notes}
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>

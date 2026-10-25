@@ -16,6 +16,8 @@ from apibackendapp.models import (
     MasterLabTest,
     LabTestOrder,
     ConsultationInvoice,
+    MasterMedicine,
+    MasterDosage,
 )
 from doctor.serializers import AppointmentSerializer
 
@@ -102,6 +104,18 @@ class DoctorConsultationWorkflowTests(APITestCase):
             test_name='Complete Blood Count',
             price=250.00,
             is_active=True,
+        )
+
+        # 4. Master Medicine & Dosage
+        cls.medicine = MasterMedicine.objects.create(
+            medicine_name='Paracetamol 500mg',
+            generic_name='Acetaminophen',
+            unit='Tablet',
+            is_active=True,
+        )
+        cls.dosage = MasterDosage.objects.create(
+            dosage_name='Twice Daily (BD)',
+            description='Take twice a day after meals',
         )
 
     def setUp(self):
@@ -280,3 +294,135 @@ class DoctorConsultationWorkflowTests(APITestCase):
         self.assertEqual(invoice.status, 'PENDING')
         self.assertEqual(invoice.patient, self.patient2)
         self.assertEqual(invoice.consultation_fee, self.doctor_profile.consultation_fee)
+
+    def test_prescription_creation_generates_valid_prescription_number_and_persists_items(self):
+        """Prescription creation auto-assigns sequential prescription_number and persists nested items."""
+        consult = Consultation.objects.create(
+            patient=self.patient1,
+            doctor=self.doctor_profile,
+            visit_type='UNSCHEDULED',
+            diagnosis='Headache & Migraine',
+            status='COMPLETED',
+        )
+
+        rx_payload = {
+            'consultation': consult.id,
+            'patient': self.patient1.id,
+            'notes': 'Take after meals with water',
+            'items': [
+                {
+                    'medicine': self.medicine.id,
+                    'dosage': self.dosage.id,
+                    'frequency': 'Twice Daily',
+                    'duration': '5 days',
+                    'quantity': 10,
+                    'instructions': 'Do not consume on empty stomach',
+                }
+            ],
+        }
+
+        resp = self.client.post('/api/doctor/prescriptions/', rx_payload, format='json')
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.data)
+        self.assertTrue(resp.data['prescription_number'].startswith('RX'))
+        self.assertEqual(resp.data['patient'], self.patient1.id)
+        self.assertEqual(resp.data['consultation'], consult.id)
+        self.assertEqual(len(resp.data['items']), 1)
+        self.assertEqual(resp.data['items'][0]['medicine'], self.medicine.id)
+        self.assertEqual(resp.data['items'][0]['quantity'], 10)
+
+        # Verify DB persistence
+        rx = Prescription.objects.get(pk=resp.data['id'])
+        self.assertTrue(rx.prescription_number.startswith('RX'))
+        self.assertEqual(rx.items.count(), 1)
+        item = rx.items.first()
+        self.assertEqual(item.medicine, self.medicine)
+        self.assertEqual(item.quantity, 10)
+
+    def test_duplicate_prescription_for_same_consultation_prevented(self):
+        """A consultation cannot have multiple prescriptions; second request is rejected with 400."""
+        consult = Consultation.objects.create(
+            patient=self.patient1,
+            doctor=self.doctor_profile,
+            visit_type='UNSCHEDULED',
+            diagnosis='Fever',
+            status='COMPLETED',
+        )
+
+        rx_payload = {
+            'consultation': consult.id,
+            'patient': self.patient1.id,
+            'notes': 'First prescription',
+            'items': [],
+        }
+
+        resp1 = self.client.post('/api/doctor/prescriptions/', rx_payload, format='json')
+        self.assertEqual(resp1.status_code, status.HTTP_201_CREATED, resp1.data)
+
+        # Attempting second prescription for same consultation
+        resp2 = self.client.post('/api/doctor/prescriptions/', rx_payload, format='json')
+        self.assertEqual(resp2.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('already exists', str(resp2.data).lower())
+
+    def test_consultation_serializer_includes_nested_prescription(self):
+        """Consultation API returns nested prescription object with items."""
+        consult = Consultation.objects.create(
+            patient=self.patient1,
+            doctor=self.doctor_profile,
+            visit_type='UNSCHEDULED',
+            diagnosis='Hypertension',
+            status='COMPLETED',
+        )
+
+        rx_payload = {
+            'consultation': consult.id,
+            'patient': self.patient1.id,
+            'notes': 'Regular BP monitoring',
+            'items': [
+                {
+                    'medicine': self.medicine.id,
+                    'dosage': self.dosage.id,
+                    'frequency': 'Daily',
+                    'duration': '30 days',
+                    'quantity': 30,
+                    'instructions': 'Every morning',
+                }
+            ],
+        }
+        create_resp = self.client.post('/api/doctor/prescriptions/', rx_payload, format='json')
+        self.assertEqual(create_resp.status_code, status.HTTP_201_CREATED)
+
+        # Fetch consultation via API
+        resp = self.client.get(f'/api/doctor/consultations/{consult.id}/')
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertIn('prescription', resp.data)
+        self.assertIsNotNone(resp.data['prescription'])
+        self.assertEqual(resp.data['prescription']['prescription_number'], create_resp.data['prescription_number'])
+        self.assertEqual(len(resp.data['prescription']['items']), 1)
+        self.assertEqual(resp.data['prescription']['items'][0]['medicine_name'], self.medicine.medicine_name)
+
+    def test_prescription_filter_by_consultation_and_patient(self):
+        """Prescriptions endpoint allows filtering by consultation and patient."""
+        consult = Consultation.objects.create(
+            patient=self.patient1,
+            doctor=self.doctor_profile,
+            visit_type='UNSCHEDULED',
+            diagnosis='Joint Pain',
+            status='COMPLETED',
+        )
+        self.client.post('/api/doctor/prescriptions/', {
+            'consultation': consult.id,
+            'patient': self.patient1.id,
+            'items': [],
+        }, format='json')
+
+        # Filter by consultation
+        resp = self.client.get(f'/api/doctor/prescriptions/?consultation={consult.id}')
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(resp.data), 1)
+        self.assertEqual(resp.data[0]['consultation'], consult.id)
+
+        # Filter by patient
+        resp_patient = self.client.get(f'/api/doctor/prescriptions/?patient={self.patient1.id}')
+        self.assertEqual(resp_patient.status_code, status.HTTP_200_OK)
+        self.assertTrue(all(rx['patient'] == self.patient1.id for rx in resp_patient.data))
+

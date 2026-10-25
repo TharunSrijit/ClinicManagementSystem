@@ -194,14 +194,18 @@ class DoctorConsultationViewSet(viewsets.ModelViewSet):
             return Consultation.objects.none()
 
         queryset = Consultation.objects.filter(doctor=doctor).select_related(
-            'patient', 'doctor', 'appointment'
+            'patient', 'doctor', 'appointment', 'appointment__token', 'prescription'
+        ).prefetch_related(
+            'prescription__items',
+            'prescription__items__medicine',
+            'prescription__items__dosage',
         )
 
         patient = self.request.query_params.get('patient')
         if patient:
             queryset = queryset.filter(patient_id=patient)
 
-        return queryset
+        return queryset.order_by('-consultation_date', '-id')
 
     def perform_create(self, serializer):
         doctor = get_doctor_profile(self.request)
@@ -360,6 +364,15 @@ class DoctorPrescriptionViewSet(viewsets.ModelViewSet):
     serializer_class = PrescriptionSerializer
     permission_classes = [IsDoctor]
 
+    def generate_prescription_number(self):
+        import uuid
+        last = Prescription.objects.order_by('-id').first()
+        next_id = (last.id + 1) if last else 1
+        candidate = f"RX{next_id:05d}"
+        if Prescription.objects.filter(prescription_number=candidate).exists():
+            candidate = f"RX{next_id:05d}_{uuid.uuid4().hex[:4].upper()}"
+        return candidate
+
     def get_queryset(self):
         doctor = get_doctor_profile(self.request)
         if not doctor:
@@ -367,13 +380,21 @@ class DoctorPrescriptionViewSet(viewsets.ModelViewSet):
 
         queryset = Prescription.objects.filter(doctor=doctor).select_related(
             'patient', 'doctor', 'consultation'
+        ).prefetch_related(
+            'items',
+            'items__medicine',
+            'items__dosage',
         )
 
         patient = self.request.query_params.get('patient')
         if patient:
             queryset = queryset.filter(patient_id=patient)
 
-        return queryset
+        consultation = self.request.query_params.get('consultation')
+        if consultation:
+            queryset = queryset.filter(consultation_id=consultation)
+
+        return queryset.order_by('-prescription_date', '-id')
 
     def perform_create(self, serializer):
         doctor = get_doctor_profile(self.request)
@@ -386,6 +407,10 @@ class DoctorPrescriptionViewSet(viewsets.ModelViewSet):
                 raise serializers.ValidationError({"consultation": "This consultation does not belong to you."})
             if consultation.appointment and consultation.appointment.status == 'CANCELLED':
                 raise serializers.ValidationError({"consultation": "Cannot create prescription for a cancelled appointment."})
+            if hasattr(consultation, 'prescription') and consultation.prescription:
+                raise serializers.ValidationError({
+                    "consultation": f"A prescription ({consultation.prescription.prescription_number}) already exists for this consultation."
+                })
             if patient and consultation.patient != patient:
                 raise serializers.ValidationError({"patient": "Patient does not match consultation patient."})
             patient = consultation.patient
@@ -397,7 +422,9 @@ class DoctorPrescriptionViewSet(viewsets.ModelViewSet):
             ).exclude(status='CANCELLED').exists()
             if not has_active:
                 raise serializers.ValidationError({"patient": "You do not have an active appointment with this patient."})
-        serializer.save(doctor=doctor, patient=patient)
+
+        rx_number = serializer.validated_data.get('prescription_number') or self.generate_prescription_number()
+        serializer.save(doctor=doctor, patient=patient, prescription_number=rx_number)
 
 
 class DoctorPrescriptionItemViewSet(viewsets.ModelViewSet):

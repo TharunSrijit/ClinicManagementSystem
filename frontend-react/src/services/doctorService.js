@@ -74,8 +74,18 @@ export const doctorService = {
     return apiClient.post('/doctor/consultations/start_unscheduled/', data);
   },
 
-  getPrescriptions(patientId = null) {
-    const query = patientId ? `?patient=${encodeURIComponent(patientId)}` : '';
+  getPrescriptions(params = null) {
+    let query = '';
+    if (params) {
+      if (typeof params === 'object') {
+        const qp = [];
+        if (params.patient) qp.push(`patient=${encodeURIComponent(params.patient)}`);
+        if (params.consultation) qp.push(`consultation=${encodeURIComponent(params.consultation)}`);
+        if (qp.length) query = `?${qp.join('&')}`;
+      } else {
+        query = `?patient=${encodeURIComponent(params)}`;
+      }
+    }
     return apiClient.list(`/doctor/prescriptions/${query}`);
   },
 
