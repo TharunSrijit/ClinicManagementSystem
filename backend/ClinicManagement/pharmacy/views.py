@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.utils import timezone
 
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
@@ -158,14 +159,26 @@ class PharmacyDispenseViewSet(viewsets.ModelViewSet):
 
         with transaction.atomic():
             for item in dispense.items.select_related('medicine').all():
+                if not getattr(item.medicine, 'is_active', True):
+                    return Response(
+                        {'detail': f"Medicine '{item.medicine.medicine_name}' is deactivated and cannot be dispensed."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
                 # Deduct from the oldest non-expired batch with enough stock
+                today = timezone.localdate()
                 stock = (
                     StockMaster.objects
-                    .filter(medicine=item.medicine, quantity__gte=item.quantity)
+                    .filter(medicine=item.medicine, quantity__gte=item.quantity, expiry_date__gt=today)
                     .order_by('expiry_date')
                     .first()
                 )
                 if not stock:
+                    has_expired = StockMaster.objects.filter(medicine=item.medicine, expiry_date__lte=today).exists()
+                    if has_expired:
+                        return Response(
+                            {'detail': f"Stock for {item.medicine.medicine_name} is expired or insufficient and cannot be dispensed."},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
                     return Response(
                         {'detail': f"Insufficient stock for {item.medicine.medicine_name}."},
                         status=status.HTTP_400_BAD_REQUEST,

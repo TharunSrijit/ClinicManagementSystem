@@ -22,10 +22,10 @@ const extractErrorMessage = (err, fallback = 'Operation failed.') => {
 export const ReceptionistTokensPage = () => {
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
   const [tokens, setTokens] = useState([]);
-  const [selectedDate, setSelectedDate] = useState(todayStr);
-  const [selectedStatus, setSelectedStatus] = useState('ALL');
-  const [selectedDoctor, setSelectedDoctor] = useState('ALL');
   const [doctors, setDoctors] = useState([]);
+  const [selectedDate, setSelectedDate] = useState(todayStr);
+  const [selectedDoctor, setSelectedDoctor] = useState('ALL');
+  const [selectedStatus, setSelectedStatus] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
   const [feedback, setFeedback] = useState({ message: '', type: '' });
@@ -37,7 +37,7 @@ export const ReceptionistTokensPage = () => {
 
   useEffect(() => {
     receptionistService.getDoctors()
-      .then((docs) => setDoctors(Array.isArray(docs) ? docs : []))
+      .then((data) => setDoctors(Array.isArray(data) ? data : []))
       .catch((err) => console.error('Failed to load doctors list:', err));
   }, []);
 
@@ -65,9 +65,11 @@ export const ReceptionistTokensPage = () => {
   const handleCancel = async (tokenId) => {
     if (!window.confirm('Cancel this queue token?')) return;
     setActionLoading(tokenId);
+    const targetToken = tokens.find((t) => t.id === tokenId);
+    const tokenDisplay = targetToken ? `#${targetToken.token_number}` : '';
     try {
       await receptionistService.cancelToken(tokenId);
-      showFeedback(`Token #${tokenId} cancelled.`, 'info');
+      showFeedback(`Token ${tokenDisplay} cancelled successfully.`, 'info');
       await loadTokens();
     } catch (err) {
       console.error('Cancel token error:', err);
@@ -102,17 +104,30 @@ export const ReceptionistTokensPage = () => {
       render: (row) => <span style={{ fontWeight: 600 }}>{row.patient_name || 'Patient'}</span>
     },
     {
-      header: 'Assigned Doctor',
-      key: 'doctor_name',
-      render: (row) => <span>{row.doctor_name || 'Doctor'}</span>
+      header: 'Patient ID',
+      key: 'patient_id',
+      render: (row) => (
+        <span style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--text-muted)' }}>
+          {row.patient_id || '—'}
+        </span>
+      )
     },
     {
-      header: 'Type & Slot',
+      header: 'Assigned Doctor',
+      key: 'doctor_name',
+      render: (row) => (
+        <span style={{ fontWeight: 500, color: row.doctor_name && row.doctor_name !== 'Not Assigned' ? 'var(--text-main)' : 'var(--text-muted)' }}>
+          {row.doctor_name || 'Not Assigned'}
+        </span>
+      )
+    },
+    {
+      header: 'Appointment Type',
       key: 'appointment_type',
       render: (row) => (
         <div>
           <span style={{ fontSize: '0.82rem', fontWeight: 500 }}>
-            {row.appointment_type === 'WALK_IN' ? '🚶 Walk-In' : '📅 Advance'}
+            {row.appointment_type === 'WALK_IN' ? '🚶 Walk-In' : '📅 Appointment'}
           </span>
           {row.appointment_time && (
             <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
@@ -121,21 +136,6 @@ export const ReceptionistTokensPage = () => {
           )}
         </div>
       )
-    },
-    {
-      header: 'Date & Time Issued',
-      key: 'created_at',
-      render: (row) => (
-        <div>
-          <div>{formatTime(row.created_at)}</div>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{formatDate(row.token_date)}</div>
-        </div>
-      )
-    },
-    {
-      header: 'Appt Ref',
-      key: 'appointment',
-      render: (row) => <span>Appt #{row.appointment}</span>
     },
     {
       header: 'Queue Status',
@@ -201,8 +201,8 @@ export const ReceptionistTokensPage = () => {
 
       {/* Filter Toolbar */}
       <div className="card" style={{ marginBottom: '20px', padding: '16px 20px' }}>
-        <div className="filter-toolbar" style={{ margin: 0 }}>
-          <div className="filter-group">
+        <div className="filter-toolbar" style={{ margin: 0, display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+          <div className="filter-group" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end' }}>
             <div>
               <label className="form-label">Queue Date</label>
               <input
@@ -215,19 +215,24 @@ export const ReceptionistTokensPage = () => {
             </div>
 
             <div>
-              <label className="form-label">Doctor Queue</label>
+              <label className="form-label">Doctor</label>
               <select
                 className="form-select"
-                style={{ width: '220px' }}
+                style={{ minWidth: '190px' }}
                 value={selectedDoctor}
                 onChange={(e) => setSelectedDoctor(e.target.value)}
               >
-                <option value="ALL">All Doctors</option>
-                {doctors.map((doc) => (
-                  <option key={doc.id} value={doc.id}>
-                    {doc.full_name ? `Dr. ${doc.full_name}` : `Doctor #${doc.id}`} ({doc.specialization})
-                  </option>
-                ))}
+                <option value="ALL">All Doctors (Consolidated)</option>
+                {doctors.map((doc) => {
+                  const docName = doc.full_name
+                    ? (doc.full_name.startsWith('Dr.') ? doc.full_name : `Dr. ${doc.full_name}`)
+                    : `Doctor #${doc.id}`;
+                  return (
+                    <option key={doc.id} value={doc.id}>
+                      {docName} {doc.specialization ? `(${doc.specialization})` : ''}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
@@ -250,7 +255,6 @@ export const ReceptionistTokensPage = () => {
 
           <button
             className="btn btn-outline btn-sm"
-            style={{ alignSelf: 'flex-end' }}
             onClick={() => {
               setSelectedDate(todayStr);
               setSelectedStatus('ALL');
@@ -266,7 +270,7 @@ export const ReceptionistTokensPage = () => {
         columns={columns}
         data={tokens}
         loading={loading}
-        emptyMessage="No active tokens found for the selected date and status."
+        emptyMessage="No active tokens found for the selected date, doctor, and status."
       />
     </div>
   );

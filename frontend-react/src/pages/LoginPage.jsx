@@ -125,12 +125,40 @@ export const LoginPage = () => {
         </div>
 
         <button
+          id="signin-btn"
           type="submit"
           className="btn btn-primary"
           disabled={isSubmitting}
-          style={{ width: '100%', padding: '12px', marginTop: '6px', fontSize: '0.95rem' }}
+          style={{
+            width: '100%',
+            padding: '12px 20px',
+            marginTop: '8px',
+            fontSize: '1rem',
+            fontWeight: 600,
+            color: '#ffffff',
+            backgroundColor: 'var(--primary, #0284c7)',
+            border: 'none',
+            borderRadius: 'var(--radius-sm, 6px)',
+            cursor: isSubmitting ? 'not-allowed' : 'pointer',
+            opacity: isSubmitting ? 0.75 : 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            boxShadow: '0 2px 4px rgba(2, 132, 199, 0.25)',
+            transition: 'all 0.15s ease'
+          }}
         >
-          {isSubmitting ? 'Verifying...' : 'Sign In to Portal'}
+          {isSubmitting ? (
+            <>
+              <span>Verifying credentials...</span>
+            </>
+          ) : (
+            <>
+              <span>Sign In</span>
+              <span aria-hidden="true" style={{ fontSize: '1.1rem' }}>&rarr;</span>
+            </>
+          )}
         </button>
       </form>
 

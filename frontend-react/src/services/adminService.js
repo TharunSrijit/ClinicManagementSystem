@@ -25,8 +25,24 @@ export const adminService = {
     return apiClient.delete(`/admin/users/${userId}/staff-profile/`);
   },
 
+  updateUser(userId, userData) {
+    return apiClient.patch(`/admin/users/${userId}/`, userData);
+  },
+
+  deleteUser(userId) {
+    return apiClient.delete(`/admin/users/${userId}/`);
+  },
+
   setUserActive(userId, active) {
     return apiClient.post(`/admin/users/${userId}/${active ? 'activate' : 'deactivate'}/`);
+  },
+
+  activateUser(userId) {
+    return apiClient.post(`/admin/users/${userId}/activate/`);
+  },
+
+  deactivateUser(userId) {
+    return apiClient.post(`/admin/users/${userId}/deactivate/`);
   },
 
   createStaff(staffData) {
@@ -101,6 +117,18 @@ export const adminService = {
     return apiClient.delete(`/admin/medicines/${medicineId}/`);
   },
 
+  setMedicineActive(medicineId, active) {
+    return apiClient.post(`/admin/medicines/${medicineId}/${active ? 'activate' : 'deactivate'}/`);
+  },
+
+  activateMedicine(medicineId) {
+    return apiClient.post(`/admin/medicines/${medicineId}/activate/`);
+  },
+
+  deactivateMedicine(medicineId) {
+    return apiClient.post(`/admin/medicines/${medicineId}/deactivate/`);
+  },
+
   getLabTests() {
     return apiClient.list('/admin/lab-tests/');
   },
@@ -115,6 +143,18 @@ export const adminService = {
 
   deleteLabTest(labTestId) {
     return apiClient.delete(`/admin/lab-tests/${labTestId}/`);
+  },
+
+  setLabTestActive(labTestId, active) {
+    return apiClient.post(`/admin/lab-tests/${labTestId}/${active ? 'activate' : 'deactivate'}/`);
+  },
+
+  activateLabTest(labTestId) {
+    return apiClient.post(`/admin/lab-tests/${labTestId}/activate/`);
+  },
+
+  deactivateLabTest(labTestId) {
+    return apiClient.post(`/admin/lab-tests/${labTestId}/deactivate/`);
   },
 
   getPriceList() {

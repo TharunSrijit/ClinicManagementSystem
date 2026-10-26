@@ -11,6 +11,7 @@ class IsAdminRole(BasePermission):
         return bool(
             request.user
             and request.user.is_authenticated
+            and getattr(request.user, 'is_active', False)
             and (request.user.role == 'ADMIN' or getattr(request.user, 'is_superuser', False))
         )
 
@@ -25,6 +26,7 @@ class IsReceptionist(BasePermission):
         return bool(
             request.user
             and request.user.is_authenticated
+            and getattr(request.user, 'is_active', False)
             and (request.user.role in ('RECEPTIONIST', 'ADMIN') or getattr(request.user, 'is_superuser', False))
         )
 
@@ -39,6 +41,7 @@ class IsDoctor(BasePermission):
         return bool(
             request.user
             and request.user.is_authenticated
+            and getattr(request.user, 'is_active', False)
             and (request.user.role in ('DOCTOR', 'ADMIN') or getattr(request.user, 'is_superuser', False))
         )
 
@@ -53,6 +56,7 @@ class IsLabTechnician(BasePermission):
         return bool(
             request.user
             and request.user.is_authenticated
+            and getattr(request.user, 'is_active', False)
             and (request.user.role in ('LAB_TECHNICIAN', 'ADMIN') or getattr(request.user, 'is_superuser', False))
         )
 
@@ -67,5 +71,6 @@ class IsPharmacist(BasePermission):
         return bool(
             request.user
             and request.user.is_authenticated
+            and getattr(request.user, 'is_active', False)
             and (request.user.role in ('PHARMACIST', 'ADMIN') or getattr(request.user, 'is_superuser', False))
         )

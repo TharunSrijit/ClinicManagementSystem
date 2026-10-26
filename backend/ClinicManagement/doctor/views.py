@@ -457,6 +457,9 @@ class DoctorPrescriptionItemViewSet(viewsets.ModelViewSet):
         prescription = serializer.validated_data.get('prescription')
         if not prescription or prescription.doctor != doctor:
             raise serializers.ValidationError({"prescription": "This prescription does not belong to you."})
+        medicine = serializer.validated_data.get('medicine')
+        if medicine and not getattr(medicine, 'is_active', True):
+            raise serializers.ValidationError({"medicine": f"Medicine '{medicine.medicine_name}' is deactivated and cannot be prescribed."})
         serializer.save()
 
 
@@ -496,6 +499,9 @@ class DoctorLabTestOrderViewSet(viewsets.ModelViewSet):
         doctor = get_doctor_profile(self.request)
         if not doctor:
             raise serializers.ValidationError({"detail": "Doctor profile required."})
+        test = serializer.validated_data.get('test')
+        if test and not getattr(test, 'is_active', True):
+            raise serializers.ValidationError({"test": f"Lab test '{test.test_name}' is deactivated and cannot be ordered."})
         consultation = serializer.validated_data.get('consultation')
         patient = serializer.validated_data.get('patient')
         if consultation:

@@ -16,6 +16,12 @@ from apibackendapp.models import (
     PrescriptionItem,
     PriceList,
     ReceptionistProfile,
+    PharmacistProfile,
+    LabTechnicianProfile,
+    Dispense,
+    DispenseItem,
+    LabTestOrder,
+    LabTestResult,
     StockMaster,
     StockTransaction,
     User,
@@ -779,3 +785,438 @@ class AdminMedicineInventoryApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
         self.assertTrue(MasterMedicine.objects.filter(pk=medicine.pk).exists())
+
+
+class AdminModuleCrudAndSafetyTests(APITestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username='admin_crud_tester',
+            email='admin_crud@clinic.test',
+            password='Password123!',
+            role='ADMIN',
+        )
+        self.doctor_user = User.objects.create_user(
+            username='doc_crud_tester',
+            email='doc_crud@clinic.test',
+            password='Password123!',
+            role='DOCTOR',
+            first_name='Dr. John',
+            last_name='Doe',
+        )
+        self.doctor_profile = DoctorProfile.objects.create(
+            user=self.doctor_user,
+            doctor_id='DOC9991',
+            specialization='Cardiology',
+            qualification='MBBS MD',
+            registration_number='REG-9991',
+            consultation_fee='500.00',
+        )
+        self.receptionist_user = User.objects.create_user(
+            username='rec_crud_tester',
+            email='rec_crud@clinic.test',
+            password='Password123!',
+            role='RECEPTIONIST',
+            first_name='Jane',
+            last_name='Smith',
+        )
+        self.receptionist_profile = ReceptionistProfile.objects.create(
+            user=self.receptionist_user,
+            employee_id='REC9991',
+            phone='9876543210',
+        )
+        self.pharmacist_user = User.objects.create_user(
+            username='pharm_crud_tester',
+            email='pharm_crud@clinic.test',
+            password='Password123!',
+            role='PHARMACIST',
+        )
+        self.pharmacist_profile = PharmacistProfile.objects.create(
+            user=self.pharmacist_user,
+            employee_id='PHARM9991',
+            qualification='B.Pharm',
+            phone='9876543212',
+        )
+        self.client.force_authenticate(user=self.admin)
+
+    def test_01_edit_user_account_persists(self):
+        """1. Edit an account and verify the changes persist."""
+        response = self.client.patch(f'/api/admin/users/{self.receptionist_user.pk}/', {
+            'first_name': 'Janet',
+            'last_name': 'Williams',
+            'phone': '9876509876',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.receptionist_user.refresh_from_db()
+        self.assertEqual(self.receptionist_user.first_name, 'Janet')
+        self.assertEqual(self.receptionist_user.last_name, 'Williams')
+        self.assertEqual(self.receptionist_user.phone, '9876509876')
+
+    def test_02_deactivate_user_blocks_login_and_token(self):
+        """2. Deactivate an account and confirm it cannot log in."""
+        deact_resp = self.client.post(f'/api/admin/users/{self.doctor_user.pk}/deactivate/')
+        self.assertEqual(deact_resp.status_code, status.HTTP_200_OK)
+        self.doctor_user.refresh_from_db()
+        self.assertFalse(self.doctor_user.is_active)
+
+        # Unauthenticated client attempts to login
+        self.client.logout()
+        token_resp = self.client.post('/api/auth/login/', {
+            'username': 'doc_crud_tester',
+            'password': 'Password123!',
+        }, format='json')
+        self.assertEqual(token_resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('User account is deactivated', str(token_resp.data))
+
+        # Check protected doctor endpoint blocks inactive user even if authenticated
+        self.client.force_authenticate(user=self.doctor_user)
+        api_resp = self.client.get('/api/doctor/appointments/')
+        self.assertEqual(api_resp.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_03_reactivate_user_allows_login_again(self):
+        """3. Reactivate the account and confirm it can log in again."""
+        self.doctor_user.is_active = False
+        self.doctor_user.save()
+
+        act_resp = self.client.post(f'/api/admin/users/{self.doctor_user.pk}/activate/')
+        self.assertEqual(act_resp.status_code, status.HTTP_200_OK)
+        self.doctor_user.refresh_from_db()
+        self.assertTrue(self.doctor_user.is_active)
+
+        # Login now succeeds
+        self.client.logout()
+        token_resp = self.client.post('/api/auth/login/', {
+            'username': 'doc_crud_tester',
+            'password': 'Password123!',
+        }, format='json')
+        self.assertEqual(token_resp.status_code, status.HTTP_200_OK)
+        self.assertIn('access', token_resp.data)
+
+    def test_04_historical_records_remain_accessible_after_deactivation(self):
+        """4. Verify existing historical records remain accessible after deactivation."""
+        patient = Patient.objects.create(
+            patient_id='PAT-HIST-001',
+            first_name='Hist',
+            last_name='Patient',
+            gender='FEMALE',
+            phone='9000000021',
+            emergency_contact_name='Contact',
+            emergency_contact_phone='9000000022',
+        )
+        appointment = Appointment.objects.create(
+            patient=patient,
+            doctor=self.doctor_profile,
+            appointment_date=timezone.localdate(),
+        )
+        consultation = Consultation.objects.create(
+            appointment=appointment,
+            patient=patient,
+            doctor=self.doctor_profile,
+            diagnosis='Hypertension',
+        )
+
+        # Deactivate doctor
+        self.client.post(f'/api/admin/users/{self.doctor_user.pk}/deactivate/')
+
+        # Historical records remain intact and accessible
+        self.assertTrue(Appointment.objects.filter(pk=appointment.pk).exists())
+        self.assertTrue(Consultation.objects.filter(pk=consultation.pk).exists())
+        admin_appt = self.client.get(f'/api/admin/appointments/{appointment.pk}/')
+        self.assertEqual(admin_appt.status_code, status.HTTP_200_OK)
+
+    def test_05_edit_medicine_and_sync_stock_quantity(self):
+        """5. Edit medicine details and stock quantity."""
+        medicine = MasterMedicine.objects.create(
+            medicine_name='Paracetamol 500mg',
+            category='Analgesics',
+            reorder_level=20,
+        )
+        batch = StockMaster.objects.create(
+            medicine=medicine,
+            batch_number='PARA-B1',
+            expiry_date='2028-06-30',
+            quantity=50,
+            purchase_price='2.00',
+            selling_price='5.00',
+        )
+
+        response = self.client.patch(f'/api/admin/medicines/{medicine.pk}/', {
+            'medicine_name': 'Paracetamol Extra 650mg',
+            'quantity': 75,
+            'selling_price': '7.50',
+            'batch_number': 'PARA-B1-UPDATED',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        medicine.refresh_from_db()
+        batch.refresh_from_db()
+        self.assertEqual(medicine.medicine_name, 'Paracetamol Extra 650mg')
+        self.assertEqual(batch.quantity, 75)
+        self.assertEqual(batch.selling_price, 7.50)
+        self.assertEqual(batch.batch_number, 'PARA-B1-UPDATED')
+
+    def test_06_activate_and_deactivate_medicine(self):
+        """6. Activate and deactivate a medicine."""
+        medicine = MasterMedicine.objects.create(
+            medicine_name='Amoxicillin 250mg',
+            is_active=True,
+        )
+
+        deact_resp = self.client.post(f'/api/admin/medicines/{medicine.pk}/deactivate/')
+        self.assertEqual(deact_resp.status_code, status.HTTP_200_OK)
+        medicine.refresh_from_db()
+        self.assertFalse(medicine.is_active)
+
+        act_resp = self.client.post(f'/api/admin/medicines/{medicine.pk}/activate/')
+        self.assertEqual(act_resp.status_code, status.HTTP_200_OK)
+        medicine.refresh_from_db()
+        self.assertTrue(medicine.is_active)
+
+    def test_07_inactive_or_expired_medicine_cannot_be_dispensed(self):
+        """7. Verify inactive or expired medicines cannot be used in prohibited dispensing workflows."""
+        patient = Patient.objects.create(
+            patient_id='PAT-DISP-001',
+            first_name='Dispense',
+            last_name='Patient',
+            gender='MALE',
+            phone='9000000031',
+            emergency_contact_name='Contact',
+            emergency_contact_phone='9000000032',
+        )
+        appointment = Appointment.objects.create(
+            patient=patient,
+            doctor=self.doctor_profile,
+            appointment_date=timezone.localdate(),
+        )
+        consultation = Consultation.objects.create(
+            appointment=appointment,
+            patient=patient,
+            doctor=self.doctor_profile,
+        )
+        prescription = Prescription.objects.create(
+            prescription_number='RX-DISP-001',
+            consultation=consultation,
+            patient=patient,
+            doctor=self.doctor_profile,
+        )
+        med_inactive = MasterMedicine.objects.create(
+            medicine_name='Inactive Med',
+            is_active=False,
+        )
+        StockMaster.objects.create(
+            medicine=med_inactive,
+            batch_number='INACT-01',
+            expiry_date='2028-12-31',
+            quantity=100,
+            purchase_price='5.00',
+            selling_price='10.00',
+        )
+
+        dispense1 = Dispense.objects.create(
+            dispense_number='DISP-TEST-001',
+            prescription=prescription,
+            patient=patient,
+            pharmacist=self.pharmacist_profile,
+            status='PENDING',
+        )
+        DispenseItem.objects.create(
+            dispense=dispense1,
+            medicine=med_inactive,
+            quantity=2,
+            unit_price='10.00',
+            total_price='20.00',
+        )
+
+        # Pharmacist attempts to dispense inactive medicine
+        self.client.force_authenticate(user=self.pharmacist_user)
+        resp1 = self.client.post(f'/api/pharmacy/dispenses/{dispense1.pk}/dispense/')
+        self.assertEqual(resp1.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('is deactivated', str(resp1.data))
+
+        # Test expired medicine cannot be dispensed even if medicine is active
+        med_expired = MasterMedicine.objects.create(
+            medicine_name='Expired Med',
+            is_active=True,
+        )
+        StockMaster.objects.create(
+            medicine=med_expired,
+            batch_number='EXP-01',
+            expiry_date=timezone.localdate() - timedelta(days=10),
+            quantity=100,
+            purchase_price='5.00',
+            selling_price='10.00',
+        )
+        dispense2 = Dispense.objects.create(
+            dispense_number='DISP-TEST-002',
+            prescription=prescription,
+            patient=patient,
+            pharmacist=self.pharmacist_profile,
+            status='PENDING',
+        )
+        DispenseItem.objects.create(
+            dispense=dispense2,
+            medicine=med_expired,
+            quantity=2,
+            unit_price='10.00',
+            total_price='20.00',
+        )
+        resp2 = self.client.post(f'/api/pharmacy/dispenses/{dispense2.pk}/dispense/')
+        self.assertEqual(resp2.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('expired or insufficient', str(resp2.data))
+
+    def test_08_edit_lab_test_details(self):
+        """8. Edit lab stock details and quantity."""
+        self.client.force_authenticate(user=self.admin)
+        test = MasterLabTest.objects.create(
+            test_code='LIPID01',
+            test_name='Lipid Profile Standard',
+            price='450.00',
+            normal_range='100-200',
+            category='Biochemistry',
+            unit='mg/L',
+        )
+
+        response = self.client.patch(f'/api/admin/lab-tests/{test.pk}/', {
+            'test_name': 'Comprehensive Lipid Panel',
+            'price': '600.00',
+            'normal_range': '120-150',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        test.refresh_from_db()
+        self.assertEqual(test.test_name, 'Comprehensive Lipid Panel')
+        self.assertEqual(test.price, 600.00)
+        self.assertEqual(test.normal_range, '120-150')
+
+    def test_09_activate_and_deactivate_lab_test(self):
+        """9. Activate and deactivate a lab stock item."""
+        test = MasterLabTest.objects.create(
+            test_code='THY01',
+            test_name='Thyroid Profile',
+            price='500.00',
+            category='Biochemistry',
+            unit='ng/mL',
+            is_active=True,
+        )
+
+        deact_resp = self.client.post(f'/api/admin/lab-tests/{test.pk}/deactivate/')
+        self.assertEqual(deact_resp.status_code, status.HTTP_200_OK)
+        test.refresh_from_db()
+        self.assertFalse(test.is_active)
+
+        act_resp = self.client.post(f'/api/admin/lab-tests/{test.pk}/activate/')
+        self.assertEqual(act_resp.status_code, status.HTTP_200_OK)
+        test.refresh_from_db()
+        self.assertTrue(test.is_active)
+
+    def test_10_completed_lab_reports_remain_accessible(self):
+        """10. Verify completed lab reports remain accessible after test deactivation."""
+        patient = Patient.objects.create(
+            patient_id='PAT-LAB-001',
+            first_name='Lab',
+            last_name='Patient',
+            gender='MALE',
+            phone='9000000041',
+            emergency_contact_name='Contact',
+            emergency_contact_phone='9000000042',
+        )
+        test = MasterLabTest.objects.create(
+            test_code='CBC01',
+            test_name='Complete Blood Count',
+            price='300.00',
+            category='Hematology',
+            unit='cells/µL',
+            is_active=True,
+        )
+        order = LabTestOrder.objects.create(
+            order_number='ORD-LAB-001',
+            patient=patient,
+            doctor=self.doctor_profile,
+            test=test,
+            status='COMPLETED',
+        )
+        tech_user = User.objects.create_user(
+            username='tech_crud_user',
+            role='LAB_TECHNICIAN',
+        )
+        tech_profile = LabTechnicianProfile.objects.create(
+            user=tech_user,
+            employee_id='TECH9991',
+            phone='9876543219',
+        )
+        result = LabTestResult.objects.create(
+            order=order,
+            technician=tech_profile,
+            result_value='14.2',
+            remarks='Normal hemoglobin',
+        )
+
+        # Deactivate lab test
+        self.client.post(f'/api/admin/lab-tests/{test.pk}/deactivate/')
+
+        # Order and Result remain intact
+        self.assertTrue(LabTestOrder.objects.filter(pk=order.pk).exists())
+        self.assertTrue(LabTestResult.objects.filter(pk=result.pk).exists())
+
+    def test_11_delete_account_with_dependencies_safely_rejected(self):
+        """11. Attempt to delete records with historical dependencies and verify deletion is safely rejected."""
+        patient = Patient.objects.create(
+            patient_id='PAT-DEP-001',
+            first_name='Dep',
+            last_name='Patient',
+            gender='MALE',
+            phone='9000000051',
+            emergency_contact_name='Contact',
+            emergency_contact_phone='9000000052',
+        )
+        Appointment.objects.create(
+            patient=patient,
+            doctor=self.doctor_profile,
+            appointment_date=timezone.localdate(),
+        )
+
+        # Attempt to delete doctor
+        del_user_resp = self.client.delete(f'/api/admin/users/{self.doctor_user.pk}/')
+        self.assertEqual(del_user_resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('cannot be deleted', str(del_user_resp.data))
+        self.assertTrue(User.objects.filter(pk=self.doctor_user.pk).exists())
+
+    def test_12_valid_deletions_work_when_permitted(self):
+        """12. Verify valid deletions work when permitted."""
+        clean_user = User.objects.create_user(
+            username='clean_user_to_delete',
+            password='Password123!',
+            role='RECEPTIONIST',
+        )
+        ReceptionistProfile.objects.create(user=clean_user, employee_id='CLEAN01')
+        user_del = self.client.delete(f'/api/admin/users/{clean_user.pk}/')
+        self.assertEqual(user_del.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(User.objects.filter(pk=clean_user.pk).exists())
+
+        clean_med = MasterMedicine.objects.create(medicine_name='Clean Medicine')
+        med_del = self.client.delete(f'/api/admin/medicines/{clean_med.pk}/')
+        self.assertEqual(med_del.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(MasterMedicine.objects.filter(pk=clean_med.pk).exists())
+
+        clean_test = MasterLabTest.objects.create(
+            test_code='CLEAN01',
+            test_name='Clean Test',
+            category='Hematology',
+            unit='mg/L',
+            price='200.00',
+        )
+        test_del = self.client.delete(f'/api/admin/lab-tests/{clean_test.pk}/')
+        self.assertEqual(test_del.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(MasterLabTest.objects.filter(pk=clean_test.pk).exists())
+
+    def test_13_non_admin_cannot_access_administrative_operations(self):
+        """13. Verify non-admin users cannot access administrative operations."""
+        self.client.force_authenticate(user=self.receptionist_user)
+
+        resp1 = self.client.get('/api/admin/users/')
+        self.assertEqual(resp1.status_code, status.HTTP_403_FORBIDDEN)
+
+        resp2 = self.client.post(f'/api/admin/medicines/1/deactivate/')
+        self.assertEqual(resp2.status_code, status.HTTP_403_FORBIDDEN)
+
+        resp3 = self.client.post(f'/api/admin/lab-tests/1/activate/')
+        self.assertEqual(resp3.status_code, status.HTTP_403_FORBIDDEN)
+

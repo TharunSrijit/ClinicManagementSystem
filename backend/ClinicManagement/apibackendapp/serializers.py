@@ -149,6 +149,12 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         return token
 
     def validate(self, attrs):
+        username = attrs.get(self.username_field)
+        password = attrs.get('password')
+        if username and password:
+            user = User.objects.filter(**{self.username_field: username}).first()
+            if user and user.check_password(password) and not user.is_active:
+                raise serializers.ValidationError("User account is deactivated. Please contact an administrator.")
         data = super().validate(attrs)
         data['role']      = self.user.role
         data['username']  = self.user.username
@@ -509,12 +515,10 @@ class AppointmentSerializer(serializers.ModelSerializer):
 
 
 class TokenSerializer(serializers.ModelSerializer):
-    patient_name = serializers.CharField(
-        source='appointment.patient.__str__', read_only=True
-    )
-    doctor_name = serializers.CharField(
-        source='appointment.doctor.__str__', read_only=True
-    )
+    patient_id = serializers.SerializerMethodField()
+    patient_name = serializers.SerializerMethodField()
+    doctor_id = serializers.SerializerMethodField()
+    doctor_name = serializers.SerializerMethodField()
     appointment_type = serializers.CharField(
         source='appointment.appointment_type', read_only=True
     )
@@ -526,11 +530,34 @@ class TokenSerializer(serializers.ModelSerializer):
     class Meta:
         model  = Token
         fields = [
-            'id', 'appointment', 'patient_name', 'doctor_name',
+            'id', 'appointment', 'patient_id', 'patient_name',
+            'doctor_id', 'doctor_name',
             'appointment_type', 'appointment_time',
             'token_number', 'token_date', 'status', 'created_at',
         ]
         read_only_fields = ['token_number', 'created_at']
+
+    def get_patient_id(self, obj):
+        if obj.appointment and obj.appointment.patient:
+            return obj.appointment.patient.patient_id or f"PAT{obj.appointment.patient.id:04d}"
+        return None
+
+    def get_patient_name(self, obj):
+        if obj.appointment and obj.appointment.patient:
+            p = obj.appointment.patient
+            full_name = f"{p.first_name} {p.last_name}".strip()
+            return full_name or str(p)
+        return ""
+
+    def get_doctor_id(self, obj):
+        if obj.appointment and obj.appointment.doctor_id:
+            return obj.appointment.doctor_id
+        return None
+
+    def get_doctor_name(self, obj):
+        if obj.appointment and obj.appointment.doctor:
+            return str(obj.appointment.doctor)
+        return "Not Assigned"
 
 
 
@@ -555,7 +582,11 @@ class InitialStockBatchSerializer(serializers.ModelSerializer):
 
 class MasterMedicineSerializer(serializers.ModelSerializer):
     stock_level = serializers.SerializerMethodField()
+    stock_quantity = serializers.SerializerMethodField()
     expiry_date = serializers.SerializerMethodField()
+    batch_number = serializers.SerializerMethodField()
+    selling_price = serializers.SerializerMethodField()
+    purchase_price = serializers.SerializerMethodField()
     initial_stock = InitialStockBatchSerializer(write_only=True, required=False)
 
     class Meta:
@@ -564,7 +595,9 @@ class MasterMedicineSerializer(serializers.ModelSerializer):
             'id', 'medicine_name', 'generic_name',
             'manufacturer', 'category', 'unit',
             'description', 'is_active', 'reorder_level',
-            'stock_level', 'expiry_date', 'initial_stock',
+            'stock_level', 'stock_quantity', 'expiry_date',
+            'batch_number', 'selling_price', 'purchase_price',
+            'initial_stock',
         ]
 
     def validate_generic_name(self, value):
@@ -577,9 +610,24 @@ class MasterMedicineSerializer(serializers.ModelSerializer):
     def get_stock_level(self, obj):
         return sum(batch.quantity for batch in obj.stock.all())
 
+    def get_stock_quantity(self, obj):
+        return self.get_stock_level(obj)
+
     def get_expiry_date(self, obj):
         expiries = [batch.expiry_date for batch in obj.stock.all()]
         return min(expiries).isoformat() if expiries else None
+
+    def get_batch_number(self, obj):
+        latest = obj.stock.order_by('-created_at').first()
+        return latest.batch_number if latest else None
+
+    def get_selling_price(self, obj):
+        latest = obj.stock.order_by('-created_at').first()
+        return str(latest.selling_price) if latest else None
+
+    def get_purchase_price(self, obj):
+        latest = obj.stock.order_by('-created_at').first()
+        return str(latest.purchase_price) if latest else None
 
     @transaction.atomic
     def create(self, validated_data):

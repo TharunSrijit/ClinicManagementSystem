@@ -54,6 +54,7 @@ class ReceptionistAppointmentTokenWorkflowTests(APITestCase):
             consultation_fee=400.00,
             available_from=datetime.time(9, 0),
             available_to=datetime.time(17, 0),
+            available_days=['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'],
             slot_minutes=15,
         )
 
@@ -74,6 +75,7 @@ class ReceptionistAppointmentTokenWorkflowTests(APITestCase):
             consultation_fee=600.00,
             available_from=datetime.time(9, 0),
             available_to=datetime.time(17, 0),
+            available_days=['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'],
             slot_minutes=15,
         )
 
@@ -679,7 +681,8 @@ class ReceptionistBillingAndReceiptTests(APITestCase):
         cls.doctor = DoctorProfile.objects.create(
             user=cls.doc_user,
             specialization='General Medicine',
-            consultation_fee=Decimal('650.00')
+            consultation_fee=Decimal('650.00'),
+            available_days=['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'],
         )
 
         cls.new_patient = Patient.objects.create(
@@ -976,6 +979,7 @@ class AppointmentBookingAndPaymentWorkflowTests(APITestCase):
             specialization='Cardiology',
             consultation_fee=Decimal('500.00'),
             registration_number='REG_WF_01',
+            available_days=['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'],
         )
 
         cls.doctor2_user = User.objects.create_user(
@@ -992,6 +996,7 @@ class AppointmentBookingAndPaymentWorkflowTests(APITestCase):
             specialization='Pediatrics',
             consultation_fee=Decimal('450.00'),
             registration_number='REG_WF_02',
+            available_days=['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'],
         )
 
         cls.new_patient = Patient.objects.create(

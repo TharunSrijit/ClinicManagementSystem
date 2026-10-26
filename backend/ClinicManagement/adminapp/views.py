@@ -1,4 +1,5 @@
-from datetime import date as date_cls
+from datetime import date as date_cls, timedelta
+from decimal import Decimal
 
 from django.db import transaction
 from django.db.models import Q
@@ -91,6 +92,40 @@ class AdminUserViewSet(viewsets.ModelViewSet):
 
         return queryset
 
+    def perform_update(self, serializer):
+        user = serializer.save()
+        # Ensure role-specific profile exists if role was assigned/changed
+        role = user.role
+        if role == 'DOCTOR' and not hasattr(user, 'doctor_profile'):
+            DoctorProfile.objects.create(
+                user=user,
+                doctor_id=f"DOC{user.id:04d}",
+                specialization='General Medicine',
+                qualification='MBBS',
+                registration_number=f"REG{user.id:05d}",
+                consultation_fee=500
+            )
+        elif role == 'RECEPTIONIST' and not hasattr(user, 'receptionist_profile'):
+            ReceptionistProfile.objects.create(
+                user=user,
+                employee_id=f"REC{user.id:04d}",
+                phone=user.phone or ''
+            )
+        elif role == 'LAB_TECHNICIAN' and not hasattr(user, 'labtechnician_profile'):
+            LabTechnicianProfile.objects.create(
+                user=user,
+                employee_id=f"LAB{user.id:04d}",
+                qualification='B.Sc MLT',
+                phone=user.phone or ''
+            )
+        elif role == 'PHARMACIST' and not hasattr(user, 'pharmacist_profile'):
+            PharmacistProfile.objects.create(
+                user=user,
+                employee_id=f"PHM{user.id:04d}",
+                qualification='B.Pharm',
+                phone=user.phone or ''
+            )
+
     @action(detail=False, methods=['post'])
     def create_staff(self, request):
         """
@@ -131,9 +166,83 @@ class AdminUserViewSet(viewsets.ModelViewSet):
     def deactivate(self, request, pk=None):
         """POST /users/{id}/deactivate/ — disable a staff login without deleting it."""
         user = self.get_object()
+        if request.user.id == user.id:
+            return Response(
+                {"detail": "You cannot deactivate your own administrator account."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         user.is_active = False
         user.save(update_fields=['is_active'])
         return Response(self.get_serializer(user).data)
+
+    def destroy(self, request, *args, **kwargs):
+        user = self.get_object()
+        if request.user.id == user.id:
+            return Response(
+                {"detail": "You cannot delete your own administrator account."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        dependencies = []
+
+        if hasattr(user, 'doctor_profile'):
+            doc = user.doctor_profile
+            appt_count = doc.appointments.count()
+            cons_count = doc.consultations.count()
+            rx_count = doc.prescriptions.count()
+            lab_count = doc.lab_orders.count()
+            if appt_count:
+                dependencies.append(f"{appt_count} appointment(s)")
+            if cons_count:
+                dependencies.append(f"{cons_count} consultation(s)")
+            if rx_count:
+                dependencies.append(f"{rx_count} prescription(s)")
+            if lab_count:
+                dependencies.append(f"{lab_count} lab order(s)")
+
+        if hasattr(user, 'receptionist_profile'):
+            rec = user.receptionist_profile
+            appt_count = getattr(rec, 'appointments_created', None) and rec.appointments_created.count()
+            if appt_count:
+                dependencies.append(f"{appt_count} registered appointment(s)")
+
+        if hasattr(user, 'pharmacist_profile'):
+            pharm = user.pharmacist_profile
+            disp_count = pharm.dispenses.count()
+            if disp_count:
+                dependencies.append(f"{disp_count} dispensed prescription(s)")
+
+        if hasattr(user, 'labtechnician_profile'):
+            tech = user.labtechnician_profile
+            res_count = tech.results.count()
+            if res_count:
+                dependencies.append(f"{res_count} laboratory test result(s)")
+
+        if dependencies:
+            dep_str = ", ".join(dependencies)
+            return Response(
+                {
+                    "detail": (
+                        f"Account '{user.username}' cannot be deleted because it is linked to historical {dep_str}. "
+                        "Permanent deletion would corrupt clinical audit trails and billing history. "
+                        "Please deactivate this account instead to preserve clinical records."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        with transaction.atomic():
+            if hasattr(user, 'doctor_profile'):
+                user.doctor_profile.delete()
+            if hasattr(user, 'receptionist_profile'):
+                user.receptionist_profile.delete()
+            if hasattr(user, 'pharmacist_profile'):
+                user.pharmacist_profile.delete()
+            if hasattr(user, 'labtechnician_profile'):
+                user.labtechnician_profile.delete()
+            user.delete()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=['patch', 'delete'], url_path='staff-profile')
     def staff_profile(self, request, pk=None):
@@ -324,38 +433,106 @@ class AdminMasterMedicineViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdminRole]
 
     def get_queryset(self):
-        queryset = MasterMedicine.objects.prefetch_related('stock')
+        queryset = MasterMedicine.objects.all().prefetch_related('stock')
         name = self.request.query_params.get('name')
         active = self.request.query_params.get('active')
         if name:
-            queryset = queryset.filter(medicine_name__icontains=name)
+            queryset = queryset.filter(
+                Q(medicine_name__icontains=name) |
+                Q(generic_name__icontains=name) |
+                Q(category__icontains=name)
+            )
         if active is not None:
             queryset = queryset.filter(is_active=active.lower() == 'true')
         return queryset
 
+    def perform_create(self, serializer):
+        medicine = serializer.save()
+        self._sync_stock(medicine, self.request.data)
+
+    def perform_update(self, serializer):
+        medicine = serializer.save()
+        self._sync_stock(medicine, self.request.data)
+
+    def _sync_stock(self, medicine, data):
+        batch_number = data.get('batch_number')
+        quantity = data.get('quantity') if data.get('quantity') is not None else data.get('stock_quantity')
+        expiry_date = data.get('expiry_date')
+        selling_price = data.get('selling_price') if data.get('selling_price') is not None else data.get('price')
+        purchase_price = data.get('purchase_price')
+
+        if batch_number or quantity is not None or selling_price is not None or expiry_date:
+            latest = medicine.stock.order_by('-created_at').first()
+            if latest:
+                if batch_number:
+                    latest.batch_number = str(batch_number).strip()
+                if quantity is not None:
+                    latest.quantity = max(0, int(quantity))
+                if expiry_date:
+                    latest.expiry_date = expiry_date
+                if selling_price is not None:
+                    latest.selling_price = Decimal(str(selling_price))
+                if purchase_price is not None:
+                    latest.purchase_price = Decimal(str(purchase_price))
+                latest.save()
+            else:
+                default_expiry = date_cls.today() + timedelta(days=365)
+                StockMaster.objects.create(
+                    medicine=medicine,
+                    batch_number=str(batch_number).strip() if batch_number else f"BATCH-{medicine.id:04d}",
+                    expiry_date=expiry_date or default_expiry,
+                    quantity=max(0, int(quantity or 0)),
+                    purchase_price=Decimal(str(purchase_price or 0.00)),
+                    selling_price=Decimal(str(selling_price or 10.00)),
+                )
+
+    @action(detail=True, methods=['post'])
+    def activate(self, request, pk=None):
+        """POST /admin/medicines/{id}/activate/"""
+        medicine = self.get_object()
+        medicine.is_active = True
+        medicine.save(update_fields=['is_active'])
+        return Response(self.get_serializer(medicine).data)
+
+    @action(detail=True, methods=['post'])
+    def deactivate(self, request, pk=None):
+        """POST /admin/medicines/{id}/deactivate/"""
+        medicine = self.get_object()
+        medicine.is_active = False
+        medicine.save(update_fields=['is_active'])
+        return Response(self.get_serializer(medicine).data)
+
     def destroy(self, request, *args, **kwargs):
-        try:
-            with transaction.atomic():
-                instance = self.get_queryset().select_for_update().get(pk=self.kwargs['pk'])
-                self.check_object_permissions(request, instance)
+        medicine = self.get_object()
+        dependencies = []
 
-                has_prescriptions = PrescriptionItem.objects.filter(medicine=instance).exists()
-                has_dispensing_history = DispenseItem.objects.filter(medicine=instance).exists()
-                if has_prescriptions or has_dispensing_history:
-                    return Response(
-                        {'detail': 'This medicine is linked to prescription or dispensing history and cannot be deleted.'},
-                        status=status.HTTP_409_CONFLICT,
-                    )
+        rx_count = medicine.prescription_items.count()
+        disp_count = medicine.dispense_items.count()
 
-                StockTransaction.objects.filter(stock__medicine=instance).delete()
-                StockMaster.objects.filter(medicine=instance).delete()
-                PriceList.objects.filter(medicine=instance).delete()
-                instance.delete()
-        except ProtectedError:
+        if rx_count:
+            dependencies.append(f"{rx_count} prescription item(s)")
+        if disp_count:
+            dependencies.append(f"{disp_count} dispense item(s)")
+
+        if dependencies:
+            dep_str = ", ".join(dependencies)
             return Response(
-                {'detail': 'This medicine has linked clinical records and cannot be deleted.'},
-                status=status.HTTP_409_CONFLICT,
+                {
+                    "detail": (
+                        f"Medicine '{medicine.medicine_name}' cannot be deleted because it is referenced in {dep_str}. "
+                        "Permanent deletion would corrupt historical prescriptions and pharmacy records. "
+                        "Please deactivate this medicine instead."
+                    )
+                },
+                status=status.HTTP_409_CONFLICT
             )
+
+        with transaction.atomic():
+            PriceList.objects.filter(medicine=medicine).delete()
+            StockTransaction.objects.filter(stock__medicine=medicine).delete()
+            StockMaster.objects.filter(medicine=medicine).delete()
+            medicine.delete()
+
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -368,20 +545,46 @@ class AdminMasterLabTestViewSet(viewsets.ModelViewSet):
         name = self.request.query_params.get('name')
         active = self.request.query_params.get('active')
         if name:
-            queryset = queryset.filter(test_name__icontains=name)
+            queryset = queryset.filter(
+                Q(test_name__icontains=name) |
+                Q(test_code__icontains=name) |
+                Q(description__icontains=name)
+            )
         if active is not None:
             queryset = queryset.filter(is_active=active.lower() == 'true')
         return queryset
 
+    @action(detail=True, methods=['post'])
+    def activate(self, request, pk=None):
+        """POST /admin/lab-tests/{id}/activate/"""
+        test = self.get_object()
+        test.is_active = True
+        test.save(update_fields=['is_active'])
+        return Response(self.get_serializer(test).data)
+
+    @action(detail=True, methods=['post'])
+    def deactivate(self, request, pk=None):
+        """POST /admin/lab-tests/{id}/deactivate/"""
+        test = self.get_object()
+        test.is_active = False
+        test.save(update_fields=['is_active'])
+        return Response(self.get_serializer(test).data)
+
     def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        try:
-            self.perform_destroy(instance)
-        except ProtectedError:
+        test = self.get_object()
+        order_count = test.orders.count()
+        if order_count:
             return Response(
-                {'detail': 'This lab test has clinical records and cannot be deleted. Deactivate it instead.'},
-                status=status.HTTP_409_CONFLICT,
+                {
+                    "detail": (
+                        f"Diagnostic test '{test.test_name}' ({test.test_code}) cannot be deleted because it is referenced in {order_count} laboratory test order(s) and patient result(s). "
+                        "Permanent deletion would corrupt diagnostic history. Please deactivate this test instead."
+                    )
+                },
+                status=status.HTTP_409_CONFLICT
             )
+
+        test.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

@@ -409,6 +409,9 @@ export const AdminLabTestsPage = () => {
   const [editingLabTest, setEditingLabTest] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [actionId, setActionId] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [feedback, setFeedback] = useState({ message: '', type: '' });
   const [form, setForm] = useState({ ...emptyForm });
 
@@ -503,18 +506,26 @@ export const AdminLabTestsPage = () => {
     }
   };
 
-  const handleDeleteLabTest = async (labTest) => {
-    if (!window.confirm(`Delete lab test ${labTest.test_name}?`)) return;
-    setActionId(labTest.id);
+  const openDeleteModal = (labTest) => {
+    setDeleteTarget(labTest);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleConfirmDeleteLabTest = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
     try {
-      await adminService.deleteLabTest(labTest.id);
-      showFeedback('Lab test deleted.');
+      await adminService.deleteLabTest(deleteTarget.id);
+      showFeedback(`Lab test '${deleteTarget.test_name}' deleted permanently.`);
+      setIsDeleteModalOpen(false);
+      setDeleteTarget(null);
       await loadLabTests();
     } catch (err) {
       console.error('Failed to delete lab test:', err);
       showFeedback(err.message || 'Lab test could not be deleted.', 'danger');
+      setIsDeleteModalOpen(false);
     } finally {
-      setActionId(null);
+      setDeleteLoading(false);
     }
   };
 
@@ -600,8 +611,9 @@ export const AdminLabTestsPage = () => {
           <button
             type="button"
             className="btn btn-outline btn-sm"
-            onClick={() => handleDeleteLabTest(row)}
+            onClick={() => openDeleteModal(row)}
             disabled={actionId === row.id}
+            style={{ color: 'var(--danger)', borderColor: 'var(--danger-light)' }}
           >
             Delete
           </button>
@@ -761,6 +773,59 @@ export const AdminLabTestsPage = () => {
           </div>
         </form>
       </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          if (!deleteLoading) {
+            setIsDeleteModalOpen(false);
+            setDeleteTarget(null);
+          }
+        }}
+        title="Confirm Lab Test Deletion"
+      >
+        <div>
+          <p style={{ marginBottom: '16px', color: 'var(--text-main)', fontSize: '0.95rem', lineHeight: '1.5' }}>
+            Are you sure you want to permanently delete lab test{' '}
+            <strong style={{ color: 'var(--danger)' }}>{deleteTarget?.test_name}</strong> ({deleteTarget?.test_code})?
+          </p>
+          <div style={{
+            background: 'var(--warning-light)',
+            color: '#854d0e',
+            padding: '12px 16px',
+            borderRadius: '6px',
+            fontSize: '0.85rem',
+            marginBottom: '20px',
+            lineHeight: '1.4'
+          }}>
+            <strong>Important Safety Rule:</strong> If this test is referenced in historical lab orders, test results, or invoices, permanent deletion is strictly blocked to preserve medical diagnostics records. In such cases, please deactivate the test instead.
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() => {
+                setIsDeleteModalOpen(false);
+                setDeleteTarget(null);
+              }}
+              disabled={deleteLoading}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-danger"
+              onClick={handleConfirmDeleteLabTest}
+              disabled={deleteLoading}
+              style={{ background: 'var(--danger)', color: '#fff', border: 'none' }}
+            >
+              {deleteLoading ? 'Deleting...' : 'Permanently Delete'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
     </div>
   );
 };

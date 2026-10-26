@@ -268,6 +268,13 @@ class PrescriptionSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         items_data = self.context.get('request').data.get('items', []) if self.context.get('request') else []
+        if isinstance(items_data, list):
+            for item in items_data:
+                med_id = item.get('medicine') or item.get('medicine_id')
+                if med_id:
+                    med_obj = MasterMedicine.objects.filter(id=int(med_id)).first()
+                    if med_obj and not getattr(med_obj, 'is_active', True):
+                        raise serializers.ValidationError({"items": f"Medicine '{med_obj.medicine_name}' is deactivated and cannot be prescribed."})
         prescription = super().create(validated_data)
         if isinstance(items_data, list):
             for item in items_data:

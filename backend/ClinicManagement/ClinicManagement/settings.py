@@ -18,7 +18,13 @@ from dotenv import load_dotenv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-load_dotenv(BASE_DIR / '.env', override=True)
+import sys
+
+# Honor local .env with override=True for runtime, but allow environment overrides during tests
+if 'test' in sys.argv:
+    load_dotenv(BASE_DIR / '.env', override=False)
+else:
+    load_dotenv(BASE_DIR / '.env', override=True)
 
 
 # Quick-start development settings - unsuitable for production

@@ -426,3 +426,88 @@ class DoctorConsultationWorkflowTests(APITestCase):
         self.assertEqual(resp_patient.status_code, status.HTTP_200_OK)
         self.assertTrue(all(rx['patient'] == self.patient1.id for rx in resp_patient.data))
 
+    def test_patients_directory_endpoint(self):
+        """Doctor can list and search patient directory."""
+        resp = self.client.get('/api/doctor/patients-directory/')
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertGreaterEqual(len(resp.data), 2)
+
+        # Search by name
+        resp_search = self.client.get('/api/doctor/patients-directory/?search=Arthur')
+        self.assertEqual(resp_search.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(resp_search.data), 1)
+        self.assertEqual(resp_search.data[0]['first_name'], 'Arthur')
+
+    def test_consultations_list_and_isolation(self):
+        """Doctor can list their own consultations and not other doctor's consultations."""
+        c1 = Consultation.objects.create(
+            patient=self.patient1,
+            doctor=self.doctor_profile,
+            visit_type='UNSCHEDULED',
+            diagnosis='Flu',
+            status='COMPLETED',
+        )
+        c2 = Consultation.objects.create(
+            patient=self.patient2,
+            doctor=self.other_doctor_profile,
+            visit_type='UNSCHEDULED',
+            diagnosis='Migraine',
+            status='COMPLETED',
+        )
+        resp = self.client.get('/api/doctor/consultations/')
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        consult_ids = [c['id'] for c in resp.data]
+        self.assertIn(c1.id, consult_ids)
+        self.assertNotIn(c2.id, consult_ids)
+
+    def test_appointments_list_and_date_filtering(self):
+        """Doctor can list appointments and filter by date for queue processing."""
+        today = datetime.date.today()
+        tomorrow = today + datetime.timedelta(days=1)
+
+        appt1 = Appointment.objects.create(
+            patient=self.patient1,
+            doctor=self.doctor_profile,
+            receptionist=self.receptionist_profile,
+            appointment_date=today,
+            appointment_time=datetime.time(10, 0),
+            appointment_type='WALK_IN',
+            status='CONFIRMED',
+        )
+        appt2 = Appointment.objects.create(
+            patient=self.patient2,
+            doctor=self.doctor_profile,
+            receptionist=self.receptionist_profile,
+            appointment_date=tomorrow,
+            appointment_time=datetime.time(11, 0),
+            appointment_type='ADVANCE',
+            status='CONFIRMED',
+        )
+        # Other doctor's appointment
+        appt3 = Appointment.objects.create(
+            patient=self.patient1,
+            doctor=self.other_doctor_profile,
+            receptionist=self.receptionist_profile,
+            appointment_date=today,
+            appointment_time=datetime.time(12, 0),
+            appointment_type='WALK_IN',
+            status='CONFIRMED',
+        )
+
+        # All appointments for this doctor
+        resp = self.client.get('/api/doctor/appointments/')
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        appt_ids = [a['id'] for a in resp.data]
+        self.assertIn(appt1.id, appt_ids)
+        self.assertIn(appt2.id, appt_ids)
+        self.assertNotIn(appt3.id, appt_ids)
+
+        # Queue request filtering by date
+        resp_date = self.client.get(f'/api/doctor/appointments/?date={today.isoformat()}')
+        self.assertEqual(resp_date.status_code, status.HTTP_200_OK)
+        date_ids = [a['id'] for a in resp_date.data]
+        self.assertIn(appt1.id, date_ids)
+        self.assertNotIn(appt2.id, date_ids)
+        self.assertNotIn(appt3.id, date_ids)
+
+

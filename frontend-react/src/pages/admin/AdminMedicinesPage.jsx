@@ -1497,6 +1497,9 @@ export const AdminMedicinesPage = () => {
   const [editingMedicine, setEditingMedicine] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [actionId, setActionId] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [feedback, setFeedback] = useState({ message: '', type: '' });
   const [form, setForm] = useState(medicineFormDefaults);
 
@@ -1647,18 +1650,26 @@ export const AdminMedicinesPage = () => {
     }
   };
 
-  const handleDeleteMedicine = async (medicine) => {
-    if (!window.confirm('Are you sure you want to delete this medicine?')) return;
-    setActionId(medicine.id);
+  const openDeleteModal = (medicine) => {
+    setDeleteTarget(medicine);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleConfirmDeleteMedicine = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
     try {
-      await adminService.deleteMedicine(medicine.id);
-      showFeedback('Medicine deleted.');
+      await adminService.deleteMedicine(deleteTarget.id);
+      showFeedback(`Medicine '${deleteTarget.medicine_name || deleteTarget.generic_name}' deleted permanently.`);
+      setIsDeleteModalOpen(false);
+      setDeleteTarget(null);
       await loadMedicines();
     } catch (err) {
       console.error('Failed to delete medicine:', err);
       showFeedback(err.message || 'Medicine could not be deleted.', 'danger');
+      setIsDeleteModalOpen(false);
     } finally {
-      setActionId(null);
+      setDeleteLoading(false);
     }
   };
 
@@ -1893,8 +1904,9 @@ export const AdminMedicinesPage = () => {
           <button
             type="button"
             className="btn btn-outline btn-sm"
-            onClick={() => handleDeleteMedicine(row)}
+            onClick={() => openDeleteModal(row)}
             disabled={actionId === row.id}
+            style={{ color: 'var(--danger)', borderColor: 'var(--danger-light)' }}
           >
             Delete
           </button>
@@ -2204,6 +2216,58 @@ export const AdminMedicinesPage = () => {
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          if (!deleteLoading) {
+            setIsDeleteModalOpen(false);
+            setDeleteTarget(null);
+          }
+        }}
+        title="Confirm Medicine Deletion"
+      >
+        <div>
+          <p style={{ marginBottom: '16px', color: 'var(--text-main)', fontSize: '0.95rem', lineHeight: '1.5' }}>
+            Are you sure you want to permanently delete medicine{' '}
+            <strong style={{ color: 'var(--danger)' }}>{deleteTarget?.generic_name || deleteTarget?.medicine_name}</strong>?
+          </p>
+          <div style={{
+            background: 'var(--warning-light)',
+            color: '#854d0e',
+            padding: '12px 16px',
+            borderRadius: '6px',
+            fontSize: '0.85rem',
+            marginBottom: '20px',
+            lineHeight: '1.4'
+          }}>
+            <strong>Important Safety Rule:</strong> If this medicine is referenced in historical prescriptions, pharmacy dispensing records, or stock transactions, permanent deletion is strictly blocked to preserve medical and billing history. In such cases, please deactivate the medicine instead.
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() => {
+                setIsDeleteModalOpen(false);
+                setDeleteTarget(null);
+              }}
+              disabled={deleteLoading}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-danger"
+              onClick={handleConfirmDeleteMedicine}
+              disabled={deleteLoading}
+              style={{ background: 'var(--danger)', color: '#fff', border: 'none' }}
+            >
+              {deleteLoading ? 'Deleting...' : 'Permanently Delete'}
+            </button>
+          </div>
+        </div>
       </Modal>
 
     </div>
