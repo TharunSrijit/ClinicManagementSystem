@@ -54,9 +54,22 @@ export const LabOrdersPage = () => {
   const runOrderAction = async (id, action, successMessage) => {
     setActionLoading(id);
     try {
-      await action(id);
+      const updatedOrder = await action(id);
+      if (updatedOrder) {
+        setOrders((currentOrders) => {
+          const matchesFilter = !statusFilter || statusFilter === 'ALL' || updatedOrder.status === statusFilter;
+          const exists = currentOrders.some((order) => order.id === updatedOrder.id);
+
+          if (!matchesFilter) {
+            return currentOrders.filter((order) => order.id !== updatedOrder.id);
+          }
+
+          return exists
+            ? currentOrders.map((order) => order.id === updatedOrder.id ? updatedOrder : order)
+            : [updatedOrder, ...currentOrders];
+        });
+      }
       showFeedback(successMessage);
-      await loadOrders();
     } catch (err) {
       showFeedback(err.message || 'The lab order could not be updated.', 'danger');
     } finally {

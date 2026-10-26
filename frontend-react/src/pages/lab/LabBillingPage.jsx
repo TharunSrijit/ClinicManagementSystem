@@ -63,14 +63,27 @@ export const LabBillingPage = () => {
 
     setSubmitting(true);
     try {
-      await labService.recordPayment(selectedInvoice.lab_order, {
+      const updatedOrder = await labService.recordPayment(selectedInvoice.lab_order, {
         amount: paymentAmount,
         payment_method: paymentMethod,
         transaction_id: transactionId.trim()
       });
+      if (updatedOrder?.invoice) {
+        setInvoices((currentInvoices) => currentInvoices.map((invoice) =>
+          invoice.id === updatedOrder.invoice.id
+            ? {
+                ...invoice,
+                status: updatedOrder.invoice.status,
+                total_amount: updatedOrder.invoice.total_amount,
+                paid_amount: updatedOrder.invoice.paid_amount,
+                balance: updatedOrder.invoice.balance,
+                order_status: updatedOrder.status
+              }
+            : invoice
+        ));
+      }
       showFeedback(`Payment recorded for invoice ${selectedInvoice.invoice_number}.`);
       setIsModalOpen(false);
-      await loadInvoices();
     } catch (err) {
       console.error('Lab payment failed:', err);
       showFeedback(err.message || 'Payment submission failed.', 'danger');

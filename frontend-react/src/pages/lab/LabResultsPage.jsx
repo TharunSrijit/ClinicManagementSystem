@@ -70,19 +70,34 @@ export const LabResultsPage = () => {
     setSubmitting(true);
     try {
       const submittedValue = `${resultValue.trim()}${selectedOrder.unit ? ` ${selectedOrder.unit}` : ''}`;
-      await labService.submitResult(selectedOrder.id, {
+      const completedOrder = await labService.submitResult(selectedOrder.id, {
         result_value: submittedValue,
         result_status: resultStatus,
         remarks: remarks.trim()
       });
 
+      if (completedOrder?.result) {
+        setResults((currentResults) => [
+          {
+            ...completedOrder.result,
+            patient_name: selectedOrder.patient_name,
+            patient_code: selectedOrder.patient_code,
+            unit: selectedOrder.unit,
+            normal_range: selectedOrder.normal_range,
+            order_number: selectedOrder.order_number
+          },
+          ...currentResults.filter((result) => result.order !== selectedOrder.id)
+        ]);
+      }
+      setProcessingOrders((currentOrders) =>
+        currentOrders.filter((order) => order.id !== selectedOrder.id)
+      );
       showFeedback('Result submitted. The backend has completed the order and made the result available to its doctor.');
       setIsModalOpen(false);
       setResultValue('');
       setResultStatus('NORMAL');
       setRemarks('');
       setSelectedOrderId('');
-      await loadData();
     } catch (err) {
       console.error('Failed to submit lab result:', err);
       showFeedback(err.message || 'Result submission failed.', 'danger');
