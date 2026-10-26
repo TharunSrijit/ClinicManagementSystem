@@ -74,6 +74,10 @@ export const labService = {
     return apiClient.list(`/lab/invoices/${buildQuery(filters)}`);
   },
 
+  getInvoice(id) {
+    return apiClient.get(`/lab/invoices/${id}/`);
+  },
+
   getPayments(invoiceId = null) {
     return apiClient.list(`/lab/payments/${buildQuery({ invoice: invoiceId })}`);
   },

@@ -5,11 +5,99 @@ import Badge from '../../components/Badge';
 import Modal from '../../components/Modal';
 import { formatDate } from '../../utils/formatters';
 
+const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;'
+}[character]));
+
+const formatAmount = (value) => `₹${Number(value || 0).toFixed(2)}`;
+
+const printInvoice = (invoice) => {
+  const printWindow = window.open('', '_blank', 'width=800,height=900');
+  if (!printWindow) {
+    throw new Error('The print window was blocked. Allow pop-ups and try again.');
+  }
+
+  const payments = (invoice.payments || []).map((payment) => `
+    <tr>
+      <td>${escapeHtml(formatDate(payment.payment_date))}</td>
+      <td>${escapeHtml(payment.payment_method)}</td>
+      <td>${escapeHtml(payment.transaction_id || '—')}</td>
+      <td class="amount">${escapeHtml(formatAmount(payment.amount))}</td>
+    </tr>
+  `).join('');
+
+  printWindow.document.write(`<!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <title>${escapeHtml(invoice.invoice_number)} - Laboratory Invoice</title>
+        <style>
+          body { font-family: Arial, sans-serif; color: #111827; margin: 40px; }
+          h1 { margin-bottom: 4px; }
+          .muted { color: #4b5563; }
+          .section { margin-top: 28px; }
+          .details { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+          th, td { padding: 10px; border-bottom: 1px solid #d1d5db; text-align: left; }
+          .amount { text-align: right; }
+          .totals { width: 320px; margin-left: auto; }
+          .totals td { border: 0; }
+          .grand-total { font-weight: bold; border-top: 1px solid #111827 !important; }
+          @media print { body { margin: 16mm; } }
+        </style>
+      </head>
+      <body>
+        <h1>Laboratory Invoice</h1>
+        <div class="muted">${invoice.status === 'PAID' ? 'Paid invoice / payment receipt' : 'Invoice and payment receipt'}</div>
+        <div class="section details">
+          <div><strong>Invoice:</strong> ${escapeHtml(invoice.invoice_number)}</div>
+          <div><strong>Invoice date:</strong> ${escapeHtml(formatDate(invoice.created_at))}</div>
+          <div><strong>Patient:</strong> ${escapeHtml(invoice.patient_name)}</div>
+          <div><strong>Patient ID:</strong> ${escapeHtml(invoice.patient)}</div>
+          <div><strong>Doctor:</strong> ${escapeHtml(invoice.doctor_name)}</div>
+          <div><strong>Lab order:</strong> ${escapeHtml(invoice.order_number)}</div>
+        </div>
+        <div class="section">
+          <h2>Test</h2>
+          <table>
+            <thead><tr><th>Description</th><th class="amount">Amount</th></tr></thead>
+            <tbody><tr><td>${escapeHtml(invoice.test_name)}</td><td class="amount">${escapeHtml(formatAmount(invoice.amount))}</td></tr></tbody>
+          </table>
+          <table class="totals">
+            <tbody>
+              <tr><td>Discount</td><td class="amount">${escapeHtml(formatAmount(invoice.discount))}</td></tr>
+              <tr><td>Total</td><td class="amount">${escapeHtml(formatAmount(invoice.total_amount))}</td></tr>
+              <tr><td>Paid</td><td class="amount">${escapeHtml(formatAmount(invoice.paid_amount))}</td></tr>
+              <tr class="grand-total"><td>Balance due</td><td class="amount">${escapeHtml(formatAmount(invoice.balance))}</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="section">
+          <h2>Payment history</h2>
+          <table>
+            <thead><tr><th>Date</th><th>Method</th><th>Reference</th><th class="amount">Amount</th></tr></thead>
+            <tbody>${payments || '<tr><td colspan="4">No payments recorded.</td></tr>'}</tbody>
+          </table>
+        </div>
+        <p class="section muted">Invoice status: ${escapeHtml(invoice.status)}</p>
+        <script>window.addEventListener('load', () => { window.focus(); window.print(); });</script>
+      </body>
+    </html>`);
+  printWindow.document.close();
+};
+
 export const LabBillingPage = () => {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [viewingInvoice, setViewingInvoice] = useState(null);
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [transactionId, setTransactionId] = useState('');
   const [paymentAmount, setPaymentAmount] = useState('');
@@ -44,6 +132,33 @@ export const LabBillingPage = () => {
     setTransactionId('');
     setPaymentAmount(invoice.balance || '0.00');
     setIsModalOpen(true);
+  };
+
+  const handleViewInvoice = async (invoice) => {
+    setViewingInvoice(invoice);
+    setIsInvoiceModalOpen(true);
+    setInvoiceLoading(true);
+    try {
+      const latestInvoice = await labService.getInvoice(invoice.id);
+      setViewingInvoice(latestInvoice);
+    } catch (err) {
+      console.error('Failed to load lab invoice:', err);
+      showFeedback(err.message || 'Could not load invoice details.', 'danger');
+    } finally {
+      setInvoiceLoading(false);
+    }
+  };
+
+  const handlePrintInvoice = () => {
+    if (!viewingInvoice || Number(viewingInvoice.paid_amount) <= 0) {
+      showFeedback('A printable payment receipt is available after a payment is recorded.', 'danger');
+      return;
+    }
+    try {
+      printInvoice(viewingInvoice);
+    } catch (err) {
+      showFeedback(err.message || 'Could not open the print view.', 'danger');
+    }
   };
 
   const handleSettlePayment = async (event) => {
@@ -142,19 +257,20 @@ export const LabBillingPage = () => {
       render: (row) => <Badge status={row.status} />
     },
     {
-      header: 'Settlement',
+      header: 'Actions',
       key: 'actions',
       render: (row) => {
-        if (row.status === 'PAID') {
-          return <span style={{ color: 'var(--success)', fontWeight: 600, fontSize: '0.85rem' }}>Settled</span>;
-        }
-        if (row.status === 'CANCELLED' || Number(row.balance) <= 0) {
-          return <span style={{ color: 'var(--text-muted)' }}>Unavailable</span>;
-        }
         return (
-          <button className="btn btn-primary btn-sm" onClick={() => handleOpenPayment(row)}>
-            Record Payment
-          </button>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {row.status !== 'PAID' && row.status !== 'CANCELLED' && Number(row.balance) > 0 && (
+              <button className="btn btn-primary btn-sm" onClick={() => handleOpenPayment(row)}>
+                Record Payment
+              </button>
+            )}
+            <button className="btn btn-outline btn-sm" onClick={() => handleViewInvoice(row)}>
+              View Bill
+            </button>
+          </div>
         );
       }
     }
@@ -255,6 +371,76 @@ export const LabBillingPage = () => {
               </button>
             </div>
           </form>
+        )}
+      </Modal>
+
+      <Modal
+        isOpen={isInvoiceModalOpen}
+        onClose={() => setIsInvoiceModalOpen(false)}
+        title={`Laboratory Invoice: ${viewingInvoice?.invoice_number || ''}`}
+        maxWidth="760px"
+      >
+        {invoiceLoading ? (
+          <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>
+            Loading invoice and payment history...
+          </div>
+        ) : viewingInvoice && (
+          <div>
+            <div className="card" style={{ padding: '16px', marginBottom: '16px' }}>
+              <div><strong>Invoice:</strong> {viewingInvoice.invoice_number}</div>
+              <div><strong>Date:</strong> {formatDate(viewingInvoice.created_at)}</div>
+              <div><strong>Patient:</strong> {viewingInvoice.patient_name} (ID {viewingInvoice.patient})</div>
+              <div><strong>Doctor:</strong> {viewingInvoice.doctor_name}</div>
+              <div><strong>Lab order:</strong> {viewingInvoice.order_number}</div>
+              <div><strong>Test:</strong> {viewingInvoice.test_name}</div>
+              <div><strong>Status:</strong> <Badge status={viewingInvoice.status} /></div>
+            </div>
+
+            <div className="card" style={{ padding: '16px', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Test amount</span><strong>{formatAmount(viewingInvoice.amount)}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Discount</span><strong>{formatAmount(viewingInvoice.discount)}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Total</span><strong>{formatAmount(viewingInvoice.total_amount)}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Paid</span><strong>{formatAmount(viewingInvoice.paid_amount)}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Balance due</span><strong>{formatAmount(viewingInvoice.balance)}</strong>
+              </div>
+            </div>
+
+            <h3 style={{ marginBottom: '8px', color: 'var(--text-main)' }}>Payment history</h3>
+            <DataTable
+              columns={[
+                { header: 'Payment Date', key: 'payment_date', render: (payment) => formatDate(payment.payment_date) },
+                { header: 'Method', key: 'payment_method' },
+                { header: 'Reference', key: 'transaction_id', render: (payment) => payment.transaction_id || '—' },
+                { header: 'Amount', key: 'amount', render: (payment) => formatAmount(payment.amount) }
+              ]}
+              data={viewingInvoice.payments || []}
+              loading={false}
+              emptyMessage="No payments have been recorded for this invoice."
+            />
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px' }}>
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={handlePrintInvoice}
+                disabled={invoiceLoading || Number(viewingInvoice.paid_amount) <= 0}
+              >
+                Print Bill / Receipt
+              </button>
+              <button type="button" className="btn btn-outline" onClick={() => setIsInvoiceModalOpen(false)}>
+                Close
+              </button>
+            </div>
+          </div>
         )}
       </Modal>
     </div>
