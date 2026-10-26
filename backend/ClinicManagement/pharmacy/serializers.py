@@ -28,7 +28,7 @@ class PharmacistProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model  = PharmacistProfile
-        fields = ['id', 'user', 'full_name', 'email', 'employee_id', 'qualification', 'phone']
+        fields = ['id', 'user', 'full_name', 'email', 'employee_id', 'qualification', 'phone', 'date_of_joining']
         read_only_fields = ['employee_id']
 
 
@@ -66,13 +66,17 @@ class StockMasterSerializer(serializers.ModelSerializer):
     medicine_name = serializers.CharField(
         source='medicine.medicine_name', read_only=True
     )
+    reorder_level = serializers.IntegerField(
+        source='medicine.reorder_level',
+        read_only=True,
+    )
 
     class Meta:
         model  = StockMaster
         fields = [
             'id', 'medicine', 'medicine_name',
             'batch_number', 'expiry_date',
-            'quantity', 'selling_price',
+            'quantity', 'reorder_level', 'selling_price',
             'created_at',
         ]
         read_only_fields = fields

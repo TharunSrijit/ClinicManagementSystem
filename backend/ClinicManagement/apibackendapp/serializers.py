@@ -1,4 +1,9 @@
+ 
+from django.db import transaction
+import re
+
 from decimal import Decimal
+
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -23,12 +28,65 @@ from .models import (
     ConsultationPayment,
     LabInvoice,
     PharmacyInvoice,
+    default_doctor_available_days,
 )
 
 
-# ---------------------------------------------------------------------------
+def _validate_letters_and_spaces(value, field_name):
+    if value and any(not character.isalpha() and character != ' ' for character in value):
+        raise serializers.ValidationError(
+            f'{field_name} may contain letters and spaces only.'
+        )
+    return value
+
+
+def validate_letters_only_text(value, field_name):
+    if value and (
+        not isinstance(value, str)
+        or not re.fullmatch(r'[A-Za-z ]+', value)
+    ):
+        raise serializers.ValidationError(
+            f'{field_name} contains letters only.'
+        )
+    return value
+
+
+def validate_registration_number(value):
+    if value and not re.fullmatch(r'[A-Za-z]{3}-[0-9]+', value):
+        raise serializers.ValidationError(
+            'Registration number must be 3 letters followed by a hyphen and numbers (for example, REG-1234).'
+        )
+    return value
+
+
+def validate_qualification_text(value):
+    if value and (
+        not isinstance(value, str)
+        or not re.fullmatch(r'[A-Za-z., ]+', value)
+    ):
+        raise serializers.ValidationError(
+            'Qualification contains letters, spaces,commas and periods .'
+        )
+    return value
+
+
+def _validate_numeric_phone(value):
+    if value and not re.fullmatch(r'[0-9]+', value):
+        raise serializers.ValidationError('Contact number must contain numbers only.')
+    return value
+
+
+def validate_staff_contact_number(value):
+    if value and not re.fullmatch(r'[6-9][0-9]{9}', value):
+        raise serializers.ValidationError(
+            'Contact number must be exactly 10 digits and start with 6, 7, 8, or 9.'
+        )
+    return value
+
+
+
 # AUTH SERIALIZERS
-# ---------------------------------------------------------------------------
+
 
 class SignupSerializer(serializers.ModelSerializer):
     """
@@ -50,6 +108,15 @@ class SignupSerializer(serializers.ModelSerializer):
         if value == '' or value is None:
             return None
         return value
+
+    def validate_first_name(self, value):
+        return _validate_letters_and_spaces(value, 'First name')
+
+    def validate_last_name(self, value):
+        return _validate_letters_and_spaces(value, 'Last name')
+
+    def validate_phone(self, value):
+        return validate_staff_contact_number(value)
 
     def create(self, validated_data):
         email = validated_data.get('email')
@@ -90,10 +157,9 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         return data
 
 
-# ---------------------------------------------------------------------------
+
 # 1. USER & STAFF PROFILE SERIALIZERS
 # Used by: adminapp (CRUD), adminapp/serializers (staff onboarding)
-# ---------------------------------------------------------------------------
 
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False)
@@ -112,6 +178,27 @@ class UserSerializer(serializers.ModelSerializer):
         if value == '' or value is None:
             return None
         return value
+
+    def validate_first_name(self, value):
+        role = None
+        if hasattr(self, 'initial_data') and hasattr(self.initial_data, 'get'):
+            role = self.initial_data.get('role')
+        role = role or getattr(self.instance, 'role', None)
+
+        if role == 'DOCTOR' and value:
+            # Doctors may start their first name with the title "Dr."
+            _validate_letters_and_spaces(
+                re.sub(r'^Dr\.[ ]*', '', value, flags=re.IGNORECASE),
+                'First name',
+            )
+            return value
+        return _validate_letters_and_spaces(value, 'First name')
+
+    def validate_last_name(self, value):
+        return _validate_letters_and_spaces(value, 'Last name')
+
+    def validate_phone(self, value):
+        return validate_staff_contact_number(value)
 
     def create(self, validated_data):
         password = validated_data.pop('password', None)
@@ -147,8 +234,14 @@ class ReceptionistProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model  = ReceptionistProfile
-        fields = ['id', 'user', 'full_name', 'email', 'employee_id', 'phone']
+        fields = ['id', 'user', 'full_name', 'email', 'employee_id', 'phone', 'qualification', 'date_of_joining']
         read_only_fields = ['employee_id']
+
+    def validate_qualification(self, value):
+        return validate_qualification_text(value)
+
+    def validate_phone(self, value):
+        return validate_staff_contact_number(value)
 
 
 class DoctorProfileSerializer(serializers.ModelSerializer):
@@ -158,16 +251,38 @@ class DoctorProfileSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(
         source='user.email', read_only=True
     )
+    available_days = serializers.ListField(
+        child=serializers.ChoiceField(
+            choices=('MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN')
+        ),
+        allow_empty=False,
+        required=False,
+        default=default_doctor_available_days,
+    )
 
     class Meta:
         model  = DoctorProfile
         fields = [
             'id', 'doctor_id', 'full_name', 'email',
             'specialization', 'qualification',
-            'registration_number', 'consultation_fee',
-            'available_from', 'available_to', 'slot_minutes',
+            'date_of_joining', 'registration_number', 'consultation_fee',
+            'available_from', 'available_to', 'available_days', 'slot_minutes',
         ]
         read_only_fields = ['doctor_id']
+
+    def validate_available_days(self, value):
+        if not value:
+            raise serializers.ValidationError('Select at least one available day.')
+        return list(dict.fromkeys(value))
+
+    def validate_specialization(self, value):
+        return validate_letters_only_text(value, 'Specialization')
+
+    def validate_registration_number(self, value):
+        return validate_registration_number(value)
+
+    def validate_qualification(self, value):
+        return validate_qualification_text(value)
 
 
 class LabTechnicianProfileSerializer(serializers.ModelSerializer):
@@ -180,8 +295,14 @@ class LabTechnicianProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model  = LabTechnicianProfile
-        fields = ['id', 'user', 'full_name', 'email', 'employee_id', 'qualification', 'phone']
+        fields = ['id', 'user', 'full_name', 'email', 'employee_id', 'qualification', 'phone', 'date_of_joining']
         read_only_fields = ['employee_id']
+
+    def validate_qualification(self, value):
+        return validate_qualification_text(value)
+
+    def validate_phone(self, value):
+        return validate_staff_contact_number(value)
 
 
 class PharmacistProfileSerializer(serializers.ModelSerializer):
@@ -194,14 +315,19 @@ class PharmacistProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model  = PharmacistProfile
-        fields = ['id', 'user', 'full_name', 'email', 'employee_id', 'qualification', 'phone']
+        fields = ['id', 'user', 'full_name', 'email', 'employee_id', 'qualification', 'phone', 'date_of_joining']
         read_only_fields = ['employee_id']
 
+    def validate_qualification(self, value):
+        return validate_qualification_text(value)
 
-# ---------------------------------------------------------------------------
+    def validate_phone(self, value):
+        return validate_staff_contact_number(value)
+
+
+
 # 2. PATIENT & MEDICAL HISTORY
 # Used by: adminapp, receptionist
-# ---------------------------------------------------------------------------
 
 class PatientSerializer(serializers.ModelSerializer):
     is_existing = serializers.SerializerMethodField()
@@ -238,10 +364,10 @@ class MedicalHistorySerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at']
 
 
-# ---------------------------------------------------------------------------
+
 # 3. APPOINTMENTS & TOKENS
 # Used by: adminapp, receptionist
-# ---------------------------------------------------------------------------
+
 
 class AppointmentSerializer(serializers.ModelSerializer):
     patient_name = serializers.CharField(
@@ -407,10 +533,10 @@ class TokenSerializer(serializers.ModelSerializer):
         read_only_fields = ['token_number', 'created_at']
 
 
-# ---------------------------------------------------------------------------
+
 # 4. MASTER DATA (medicines, dosages, lab tests)
 # Used by: adminapp (full CRUD)
-# ---------------------------------------------------------------------------
+
 
 class MasterDosageSerializer(serializers.ModelSerializer):
     class Meta:
@@ -418,29 +544,108 @@ class MasterDosageSerializer(serializers.ModelSerializer):
         fields = ['id', 'dosage_name', 'description']
 
 
+class InitialStockBatchSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StockMaster
+        fields = [
+            'batch_number', 'expiry_date', 'quantity',
+            'purchase_price', 'selling_price',
+        ]
+
+
 class MasterMedicineSerializer(serializers.ModelSerializer):
+    stock_level = serializers.SerializerMethodField()
+    expiry_date = serializers.SerializerMethodField()
+    initial_stock = InitialStockBatchSerializer(write_only=True, required=False)
+
     class Meta:
         model  = MasterMedicine
         fields = [
             'id', 'medicine_name', 'generic_name',
             'manufacturer', 'category', 'unit',
-            'description', 'is_active',
+            'description', 'is_active', 'reorder_level',
+            'stock_level', 'expiry_date', 'initial_stock',
         ]
+
+    def validate_generic_name(self, value):
+        if value and value[0].isdigit():
+            raise serializers.ValidationError(
+                'Medicine name must not start with a number.'
+            )
+        return value
+
+    def get_stock_level(self, obj):
+        return sum(batch.quantity for batch in obj.stock.all())
+
+    def get_expiry_date(self, obj):
+        expiries = [batch.expiry_date for batch in obj.stock.all()]
+        return min(expiries).isoformat() if expiries else None
+
+    @transaction.atomic
+    def create(self, validated_data):
+        initial_stock = validated_data.pop('initial_stock', None)
+        medicine = super().create(validated_data)
+        if initial_stock:
+            StockMaster.objects.create(medicine=medicine, **initial_stock)
+        return medicine
 
 
 class MasterLabTestSerializer(serializers.ModelSerializer):
     class Meta:
         model  = MasterLabTest
         fields = [
-            'id', 'test_code', 'test_name', 'description',
+            'id', 'test_code', 'test_name', 'category', 'description',
             'normal_range', 'unit', 'price', 'is_active',
         ]
+        extra_kwargs = {
+            'category': {'required': True},
+            'unit': {'required': True},
+        }
+
+    def validate_test_code(self, value):
+        if not re.fullmatch(r'[A-Za-z]+[0-9]+', value):
+            raise serializers.ValidationError(
+                'Test code must start with a letter and include numbers after it (for example, cg12 or CBC01).'
+            )
+        return value
+
+    def validate_test_name(self, value):
+        if not re.fullmatch(r'[A-Za-z0-9]+(?: [A-Za-z0-9]+)*', value):
+            raise serializers.ValidationError(
+                'Test name may contain only letters, numbers, and spaces.'
+            )
+        return value
+
+    def validate_category(self, value):
+        if not re.fullmatch(r'[A-Za-z0-9]+(?: [A-Za-z0-9]+)*', value):
+            raise serializers.ValidationError(
+                'Category may contain only letters, numbers, and spaces.'
+            )
+        return value
+
+    def validate_normal_range(self, value):
+        if value and not re.fullmatch(
+            r'[0-9]+(?:\.[0-9]+)?(?: *- *[0-9]+(?:\.[0-9]+)?)?',
+            value,
+        ):
+            raise serializers.ValidationError(
+                'Reference range may contain only numbers, decimals, and a hyphen between values.'
+            )
+        return value
+
+    def validate_unit(self, value):
+        allowed_units = {'ng/mL', 'mg/L', 'mmol/L', 'cells/µL'}
+        if value not in allowed_units:
+            raise serializers.ValidationError(
+                'Choose one of the allowed units: ng/mL, mg/L, mmol/L, or cells/µL.'
+            )
+        return value
 
 
-# ---------------------------------------------------------------------------
+
 # 5. STOCK & PRICING
 # Used by: adminapp
-# ---------------------------------------------------------------------------
+
 
 class PriceListSerializer(serializers.ModelSerializer):
     medicine_name = serializers.CharField(
@@ -460,13 +665,14 @@ class StockMasterSerializer(serializers.ModelSerializer):
     medicine_name = serializers.CharField(
         source='medicine.medicine_name', read_only=True
     )
+    reorder_level = serializers.IntegerField(source='medicine.reorder_level', read_only=True)
 
     class Meta:
         model  = StockMaster
         fields = [
             'id', 'medicine', 'medicine_name',
             'batch_number', 'expiry_date',
-            'quantity', 'purchase_price', 'selling_price',
+            'quantity', 'reorder_level', 'purchase_price', 'selling_price',
             'created_at',
         ]
         read_only_fields = ['created_at']
@@ -483,11 +689,11 @@ class StockTransactionSerializer(serializers.ModelSerializer):
         read_only_fields = ['transaction_date']
 
 
-# ---------------------------------------------------------------------------
-# ---------------------------------------------------------------------------
+
+
 # 6. CLINIC CONFIGURATION & CONSULTATION BILLING
 # Used by: receptionist (create invoices & payments), adminapp (oversight)
-# ---------------------------------------------------------------------------
+
 
 class ClinicConfigurationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -624,10 +830,10 @@ class ConsultationPaymentSerializer(serializers.ModelSerializer):
         read_only_fields = ['payment_date']
 
 
-# ---------------------------------------------------------------------------
+
 # 7. LAB BILLING
 # Used by: adminapp (oversight), lab_tech (future)
-# ---------------------------------------------------------------------------
+
 
 class LabInvoiceSerializer(serializers.ModelSerializer):
     patient_name = serializers.CharField(
@@ -646,10 +852,9 @@ class LabInvoiceSerializer(serializers.ModelSerializer):
         read_only_fields = ['invoice_number', 'patient', 'total_amount', 'created_at']
 
 
-# ---------------------------------------------------------------------------
+
 # 8. PHARMACY BILLING
 # Used by: adminapp (oversight), pharmacy (future)
-# ---------------------------------------------------------------------------
 
 class PharmacyInvoiceSerializer(serializers.ModelSerializer):
     patient_name = serializers.CharField(

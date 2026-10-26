@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from apibackendapp.models import (
     DoctorProfile,
+    default_doctor_available_days,
     Patient,
     MedicalHistory,
     Appointment,
@@ -16,10 +17,10 @@ from apibackendapp.models import (
 )
 
 
-# ---------------------------------------------------------------------------
+
 # REFERENCE / LOOKUP SERIALIZERS
 # Used as nested read-only representations inside other serializers
-# ---------------------------------------------------------------------------
+
 
 class MasterDosageSerializer(serializers.ModelSerializer):
     class Meta:
@@ -41,14 +42,14 @@ class MasterLabTestSerializer(serializers.ModelSerializer):
     class Meta:
         model  = MasterLabTest
         fields = [
-            'id', 'test_code', 'test_name', 'description',
+            'id', 'test_code', 'test_name', 'category', 'description',
             'normal_range', 'unit', 'price', 'is_active',
         ]
 
 
-# ---------------------------------------------------------------------------
+
 # DOCTOR PROFILE
-# ---------------------------------------------------------------------------
+
 
 class DoctorProfileSerializer(serializers.ModelSerializer):
     """
@@ -61,21 +62,41 @@ class DoctorProfileSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(
         source='user.email', read_only=True
     )
+    available_days = serializers.ListField(
+        child=serializers.ChoiceField(
+            choices=('MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN')
+        ),
+        allow_empty=False,
+        required=False,
+        default=default_doctor_available_days,
+    )
 
     class Meta:
         model  = DoctorProfile
         fields = [
             'id', 'doctor_id', 'full_name', 'email',
             'specialization', 'qualification',
-            'registration_number', 'consultation_fee',
-            'available_from', 'available_to', 'slot_minutes',
+            'date_of_joining', 'registration_number', 'consultation_fee',
+            'available_from', 'available_to', 'available_days', 'slot_minutes',
         ]
         read_only_fields = ['doctor_id']
 
+    def validate_available_days(self, value):
+        if not value:
+            raise serializers.ValidationError('Select at least one available day.')
+        return list(dict.fromkeys(value))
 
-# ---------------------------------------------------------------------------
+    def validate_registration_number(self, value):
+        if value and not __import__('re').fullmatch(r'[A-Za-z]{3}-[0-9]+', value):
+            raise serializers.ValidationError(
+                'Registration number must be 3 letters followed by a hyphen and numbers (for example, REG-1234).'
+            )
+        return value
+
+
+
 # PATIENT  (read-only for the doctor)
-# ---------------------------------------------------------------------------
+
 
 class PatientSerializer(serializers.ModelSerializer):
     appointments = serializers.SerializerMethodField()
@@ -118,9 +139,9 @@ class MedicalHistorySerializer(serializers.ModelSerializer):
         read_only_fields = ['patient', 'created_at']
 
 
-# ---------------------------------------------------------------------------
+
 # APPOINTMENT
-# ---------------------------------------------------------------------------
+
 
 class AppointmentSerializer(serializers.ModelSerializer):
     """
@@ -265,9 +286,9 @@ class PrescriptionSerializer(serializers.ModelSerializer):
         return prescription
 
 
-# ---------------------------------------------------------------------------
+
 # CONSULTATION
-# ---------------------------------------------------------------------------
+
 
 class ConsultationSerializer(serializers.ModelSerializer):
     """
@@ -305,9 +326,7 @@ class ConsultationSerializer(serializers.ModelSerializer):
         read_only_fields = ['consultation_date', 'doctor', 'doctor_name', 'patient_name']
 
 
-# ---------------------------------------------------------------------------
 # LAB TEST ORDERS  &  RESULTS
-# ---------------------------------------------------------------------------
 
 class LabTestResultSerializer(serializers.ModelSerializer):
     """
@@ -357,4 +376,8 @@ class LabTestOrderSerializer(serializers.ModelSerializer):
             'ordered_date', 'sample_collected_at',
             'result',
         ]
+
+        read_only_fields = ['order_number', 'ordered_date']
+
+
         read_only_fields = ['order_number', 'ordered_date', 'doctor', 'patient_name', 'test_name']

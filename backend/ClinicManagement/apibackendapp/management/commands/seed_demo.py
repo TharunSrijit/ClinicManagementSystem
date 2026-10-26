@@ -101,7 +101,7 @@ class Command(BaseCommand):
                 doc1_prof.doctor_id = "DOC0001"
                 doc1_prof.specialization = "Cardiology"
                 doc1_prof.qualification = "MBBS, MD"
-                doc1_prof.registration_number = "REG10001"
+                doc1_prof.registration_number = "REG-10001"
                 doc1_prof.consultation_fee = 500.00
                 doc1_prof.available_from = datetime.time(9, 0)
                 doc1_prof.available_to = datetime.time(17, 0)
@@ -113,7 +113,7 @@ class Command(BaseCommand):
                     doctor_id="DOC0001",
                     specialization="Cardiology",
                     qualification="MBBS, MD",
-                    registration_number="REG10001",
+                    registration_number="REG-10001",
                     consultation_fee=500.00,
                     available_from=datetime.time(9, 0),
                     available_to=datetime.time(17, 0),
@@ -143,7 +143,7 @@ class Command(BaseCommand):
                 doc2_prof.doctor_id = "DOC0002"
                 doc2_prof.specialization = "Pediatrics"
                 doc2_prof.qualification = "MBBS, DCH"
-                doc2_prof.registration_number = "REG10002"
+                doc2_prof.registration_number = "REG-10002"
                 doc2_prof.consultation_fee = 400.00
                 doc2_prof.available_from = datetime.time(9, 0)
                 doc2_prof.available_to = datetime.time(17, 0)
@@ -155,7 +155,7 @@ class Command(BaseCommand):
                     doctor_id="DOC0002",
                     specialization="Pediatrics",
                     qualification="MBBS, DCH",
-                    registration_number="REG10002",
+                    registration_number="REG-10002",
                     consultation_fee=400.00,
                     available_from=datetime.time(9, 0),
                     available_to=datetime.time(17, 0),
@@ -185,7 +185,7 @@ class Command(BaseCommand):
                 doc3_prof.doctor_id = "DOC0003"
                 doc3_prof.specialization = "Dermatology"
                 doc3_prof.qualification = "MBBS, DVD"
-                doc3_prof.registration_number = "REG10003"
+                doc3_prof.registration_number = "REG-10003"
                 doc3_prof.consultation_fee = 450.00
                 doc3_prof.available_from = datetime.time(10, 0)
                 doc3_prof.available_to = datetime.time(16, 0)
@@ -197,7 +197,7 @@ class Command(BaseCommand):
                     doctor_id="DOC0003",
                     specialization="Dermatology",
                     qualification="MBBS, DVD",
-                    registration_number="REG10003",
+                    registration_number="REG-10003",
                     consultation_fee=450.00,
                     available_from=datetime.time(10, 0),
                     available_to=datetime.time(16, 0),

@@ -174,9 +174,11 @@ export const AdminUsersPage = () => {
                 type="text"
                 className="form-control"
                 required
+                pattern="[A-Za-z0-9]+"
+                title="Username must contain letters and numbers only (no spaces or symbols)."
                 value={form.username}
                 onChange={(e) => setForm({ ...form, username: e.target.value })}
-                placeholder="e.g. dr_sharma"
+                placeholder="e.g. drsharma01"
               />
             </div>
 
@@ -203,9 +205,15 @@ export const AdminUsersPage = () => {
               <input
                 type="text"
                 className="form-control"
+                pattern={form.role === 'DOCTOR'
+                  ? '([Dd][Rr]\\. ?)?[A-Za-z]+( [A-Za-z]+)*'
+                  : '(?![Dd][Rr]\\b)[A-Za-z]+( [A-Za-z]+)*'}
+                title={form.role === 'DOCTOR'
+                  ? 'First name must be letters only. Doctors may start with Dr. (for example, Dr. Rajesh).'
+                  : 'First name must contain letters only and must not be a title like Dr.'}
                 value={form.first_name}
                 onChange={(e) => setForm({ ...form, first_name: e.target.value })}
-                placeholder="e.g. Rajesh"
+                placeholder={form.role === 'DOCTOR' ? 'e.g. Dr. Rajesh' : 'e.g. Rajesh'}
               />
             </div>
 
@@ -214,6 +222,8 @@ export const AdminUsersPage = () => {
               <input
                 type="text"
                 className="form-control"
+                pattern="[A-Za-z ]+"
+                title="Use letters and spaces only."
                 value={form.last_name}
                 onChange={(e) => setForm({ ...form, last_name: e.target.value })}
                 placeholder="e.g. Sharma"
