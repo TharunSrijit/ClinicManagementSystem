@@ -243,12 +243,12 @@ class DoctorConsultationViewSet(viewsets.ModelViewSet):
                 )
                 from decimal import Decimal
                 from apibackendapp.models import ConsultationInvoice, ClinicConfiguration
-                from receptionist.views import generate_invoice_number
+                from receptionist.views import generate_invoice_number, is_existing_patient
                 fee = Decimal(str(doctor.consultation_fee))
-                has_prior_reg = ConsultationInvoice.objects.filter(
-                    patient=patient, registration_fee__gt=0
-                ).exclude(status='CANCELLED').exists()
-                reg_fee = Decimal('0.00') if has_prior_reg else Decimal(str(ClinicConfiguration.get_instance().registration_fee))
+                if is_existing_patient(patient, current_consultation=consultation):
+                    reg_fee = Decimal('0.00')
+                else:
+                    reg_fee = Decimal(str(ClinicConfiguration.get_instance().registration_fee))
                 total = fee + reg_fee
                 ConsultationInvoice.objects.create(
                     invoice_number=generate_invoice_number(),
@@ -332,12 +332,12 @@ class DoctorConsultationViewSet(viewsets.ModelViewSet):
             )
             from decimal import Decimal
             from apibackendapp.models import ConsultationInvoice, ClinicConfiguration
-            from receptionist.views import generate_invoice_number
+            from receptionist.views import generate_invoice_number, is_existing_patient
             fee = Decimal(str(doctor.consultation_fee))
-            has_prior_reg = ConsultationInvoice.objects.filter(
-                patient=patient, registration_fee__gt=0
-            ).exclude(status='CANCELLED').exists()
-            reg_fee = Decimal('0.00') if has_prior_reg else Decimal(str(ClinicConfiguration.get_instance().registration_fee))
+            if is_existing_patient(patient, current_consultation=consultation):
+                reg_fee = Decimal('0.00')
+            else:
+                reg_fee = Decimal(str(ClinicConfiguration.get_instance().registration_fee))
             total = fee + reg_fee
             ConsultationInvoice.objects.create(
                 invoice_number=generate_invoice_number(),

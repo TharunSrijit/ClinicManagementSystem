@@ -30,6 +30,7 @@ export const BookAppointmentPage = () => {
   const [selectedPatientId, setSelectedPatientId] = useState(initialPatientId);
   const [patientSearchTerm, setPatientSearchTerm] = useState('');
   const [reason, setReason] = useState('Routine consultation');
+  const [isExistingPatient, setIsExistingPatient] = useState(false);
 
   // Async data
   const [doctors, setDoctors] = useState([]);
@@ -38,6 +39,20 @@ export const BookAppointmentPage = () => {
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState({ message: '', type: '' });
+
+  const selectedPatient = useMemo(() => {
+    return patients.find((p) => String(p.id) === String(selectedPatientId));
+  }, [patients, selectedPatientId]);
+
+  const selectedDoctor = useMemo(() => {
+    return doctors.find((d) => String(d.id) === String(selectedDoctorId));
+  }, [doctors, selectedDoctorId]);
+
+  useEffect(() => {
+    if (selectedPatient) {
+      setIsExistingPatient(Boolean(selectedPatient.is_existing));
+    }
+  }, [selectedPatient]);
 
   // Load initial doctors and patients
   useEffect(() => {
@@ -127,6 +142,8 @@ export const BookAppointmentPage = () => {
         appointment_date: appointmentDate,
         appointment_time: selectedSlotTime,
         appointment_type: appointmentType,
+        visit_category: isExistingPatient ? 'EXISTING' : 'NEW',
+        is_existing_patient: isExistingPatient,
         reason: reason.trim() || 'General consultation'
       };
 
@@ -243,10 +260,53 @@ export const BookAppointmentPage = () => {
               <option value="">-- Choose Patient --</option>
               {patients.map((pt) => (
                 <option key={pt.id} value={pt.id}>
-                  {pt.full_name || `${pt.first_name} ${pt.last_name}`} (UHID: {pt.uhid || pt.id}, Phone: {pt.phone || 'N/A'})
+                  {pt.full_name || `${pt.first_name} ${pt.last_name}`} (ID: {pt.patient_id || pt.id}, Phone: {pt.phone || 'N/A'}) {pt.is_existing ? '— [Existing Patient]' : '— [New Patient]'}
                 </option>
               ))}
             </select>
+
+            {selectedPatient && (
+              <div style={{
+                marginTop: '10px',
+                padding: '12px 14px',
+                borderRadius: 'var(--radius-sm)',
+                background: isExistingPatient ? '#f0fdf4' : '#eff6ff',
+                border: `1px solid ${isExistingPatient ? '#bbf7d0' : '#bfdbfe'}`,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '12px'
+              }}>
+                <div>
+                  <div style={{ fontWeight: 600, color: isExistingPatient ? '#166534' : '#1e40af', fontSize: '0.88rem' }}>
+                    {isExistingPatient ? '👤 Existing Patient (Registration Fee Waived)' : '✨ Newly Registered Patient (Registration Fee Applies)'}
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    {isExistingPatient
+                      ? 'Existing patient record on file. Only doctor consultation fee will be billed.'
+                      : 'First-time registration fee applies along with doctor consultation fee.'}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${isExistingPatient ? 'btn-success' : 'btn-outline'}`}
+                    onClick={() => setIsExistingPatient(true)}
+                    style={{ fontSize: '0.78rem', padding: '4px 8px' }}
+                  >
+                    Existing (₹0 Reg Fee)
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${!isExistingPatient ? 'btn-primary' : 'btn-outline'}`}
+                    onClick={() => setIsExistingPatient(false)}
+                    style={{ fontSize: '0.78rem', padding: '4px 8px' }}
+                  >
+                    New Patient (Reg Fee)
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Doctor Selection */}
@@ -268,6 +328,28 @@ export const BookAppointmentPage = () => {
                 </option>
               ))}
             </select>
+
+            {selectedDoctor && (
+              <div style={{
+                marginTop: '10px',
+                padding: '10px 14px',
+                background: '#f8fafc',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--border-subtle)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                fontSize: '0.85rem'
+              }}>
+                <span style={{ color: 'var(--text-muted)' }}>Estimated Consultation Fee:</span>
+                <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>
+                  Doctor: ₹{Number(selectedDoctor.consultation_fee || 500).toFixed(2)}
+                  {selectedPatient && (
+                    <> + Reg Fee: ₹{isExistingPatient ? '0.00' : '100.00'} = Total: ₹{(Number(selectedDoctor.consultation_fee || 500) + (isExistingPatient ? 0 : 100)).toFixed(2)}</>
+                  )}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Date Selection */}

@@ -64,6 +64,81 @@ def generate_invoice_number():
     return candidate
 
 
+def is_existing_patient(patient, current_appointment=None, current_consultation=None):
+    """
+    Determines whether a patient is an existing patient (registration fee waived / 0.00)
+    or a newly registered patient (registration fee applies).
+
+    A patient is considered an EXISTING patient if ANY of the following hold:
+    1. Explicit flag on appointment (is_existing_patient=True / is_new_patient=False)
+       or visit_category indicates an existing/follow-up/routine visit.
+    2. Patient has previously been charged/assessed a registration fee on any non-cancelled invoice.
+    3. Patient has any other appointment in the system.
+    4. Patient has any other consultation in the system.
+    5. Patient has any other consultation invoice in the system.
+    6. Patient was registered strictly prior to today (patient.created_at.date() < today).
+    """
+    if patient is None:
+        return False
+
+    # 1. Explicit indicator from appointment or visit category
+    if current_appointment:
+        if getattr(current_appointment, 'is_existing_patient', None) is True:
+            return True
+        if getattr(current_appointment, 'is_new_patient', None) is True:
+            return False
+        category = (getattr(current_appointment, 'visit_category', '') or '').upper()
+        if category in ('EXISTING', 'FOLLOW_UP', 'FOLLOW-UP', 'ROUTINE', 'REPEAT'):
+            return True
+        if category in ('NEW', 'NEW_PATIENT', 'INITIAL'):
+            return False
+
+    # 2. Has prior invoice where registration_fee was charged (> 0)
+    has_prior_reg = ConsultationInvoice.objects.filter(
+        patient=patient,
+        registration_fee__gt=0
+    ).exclude(status='CANCELLED').exists()
+    if has_prior_reg:
+        return True
+
+    # 3. Has any other appointment in the system
+    appt_qs = Appointment.objects.filter(patient=patient)
+    if current_appointment and current_appointment.id:
+        appt_qs = appt_qs.exclude(id=current_appointment.id)
+    if appt_qs.exists():
+        return True
+
+    # 4. Has any other consultation in the system
+    from apibackendapp.models import Consultation
+    consult_qs = Consultation.objects.filter(patient=patient)
+    if current_consultation and current_consultation.id:
+        consult_qs = consult_qs.exclude(id=current_consultation.id)
+    if current_appointment and current_appointment.id:
+        consult_qs = consult_qs.exclude(appointment_id=current_appointment.id)
+    if consult_qs.exists():
+        return True
+
+    # 5. Has any other consultation invoice in the system
+    inv_qs = ConsultationInvoice.objects.filter(patient=patient)
+    if current_appointment and current_appointment.id:
+        inv_qs = inv_qs.exclude(appointment_id=current_appointment.id)
+    if current_consultation and current_consultation.id:
+        inv_qs = inv_qs.exclude(consultation_id=current_consultation.id)
+    if inv_qs.exists():
+        return True
+
+    # 6. Registered strictly prior to today
+    from apibackendapp.scheduling import now_local
+    from django.utils import timezone
+    today = now_local().date()
+    if patient.created_at:
+        patient_created_date = timezone.localtime(patient.created_at).date()
+        if patient_created_date < today:
+            return True
+
+    return False
+
+
 def get_or_create_consultation_invoice(appointment):
     """
     Retrieves or creates a single combined ConsultationInvoice for an appointment.
@@ -81,17 +156,12 @@ def get_or_create_consultation_invoice(appointment):
 
     consult_fee = Decimal(str(appointment.doctor.consultation_fee)) if appointment.doctor else Decimal('0.00')
 
-    # Charge registration fee if patient has never been assessed a registration fee on any prior non-cancelled invoice
-    has_prior_reg = ConsultationInvoice.objects.filter(
-        patient=appointment.patient,
-        registration_fee__gt=0
-    ).exclude(status='CANCELLED').exists()
-
-    if not has_prior_reg:
+    # Existing patients should not have a registration fee; only newly registered patients have registration fee
+    if is_existing_patient(appointment.patient, current_appointment=appointment):
+        reg_fee = Decimal('0.00')
+    else:
         config = ClinicConfiguration.get_instance()
         reg_fee = Decimal(str(config.registration_fee))
-    else:
-        reg_fee = Decimal('0.00')
 
     total_amount = consult_fee + reg_fee
 
@@ -112,26 +182,54 @@ def get_or_create_consultation_invoice(appointment):
 def assign_next_token_number(appointment, token_date):
     """
     Assigns the next sequential token number for an appointment on token_date.
-    Advance appointments receive lower numbers (1 - 99).
-    Walk-in appointments receive higher numbers (101 onwards), even if issued earlier.
-    Never renumbers previously issued tokens or creates duplicates.
+    Booking (Advance) appointments receive numbers from 1 till 15.
+    Walking (Walk-in) appointments receive numbers from 16 to 30.
+    Assuming there are only 30 bookings per day (15 advance + 15 walk-in).
+    Each doctor has their own separate token queue:
+    e.g., Doctor A starts at 1, Doctor B starts at 1 independently.
+    Never renumbers previously issued tokens or creates duplicates within the doctor's queue.
     """
-    if appointment.appointment_type == 'ADVANCE':
-        last_token = (
-            Token.objects.select_for_update()
-            .filter(token_date=token_date, token_number__lt=100)
-            .order_by('-token_number')
-            .first()
-        )
-        return (last_token.token_number + 1) if last_token else 1
-    else:  # WALK_IN
-        last_token = (
-            Token.objects.select_for_update()
-            .filter(token_date=token_date, token_number__gte=101)
-            .order_by('-token_number')
-            .first()
-        )
-        return (last_token.token_number + 1) if last_token else 101
+    doctor = appointment.doctor
+    with transaction.atomic():
+        DoctorProfile.objects.select_for_update().get(id=doctor.id)
+
+        appt_type = (appointment.appointment_type or '').upper()
+        if appt_type in ('ADVANCE', 'BOOKED'):
+            last_token = (
+                Token.objects.select_for_update()
+                .filter(
+                    appointment__doctor=doctor,
+                    token_date=token_date,
+                    token_number__gte=1,
+                    token_number__lte=15,
+                )
+                .order_by('-token_number')
+                .first()
+            )
+            next_number = (last_token.token_number + 1) if last_token else 1
+            if next_number > 15:
+                raise serializers.ValidationError(
+                    {'detail': f'Booking token limit (1-15) reached for Dr. {doctor} on {token_date}.'}
+                )
+            return next_number
+        else:  # WALK_IN
+            last_token = (
+                Token.objects.select_for_update()
+                .filter(
+                    appointment__doctor=doctor,
+                    token_date=token_date,
+                    token_number__gte=16,
+                    token_number__lte=30,
+                )
+                .order_by('-token_number')
+                .first()
+            )
+            next_number = (last_token.token_number + 1) if last_token else 16
+            if next_number > 30:
+                raise serializers.ValidationError(
+                    {'detail': f'Walking token limit (16-30) reached for Dr. {doctor} on {token_date}.'}
+                )
+            return next_number
 
 
 # ============================================================================
@@ -312,10 +410,16 @@ class ReceptionistAppointmentViewSet(viewsets.ModelViewSet):
 
         doctor = serializer.validated_data['doctor']
         appt_type = serializer.validated_data.get('appointment_type', 'ADVANCE')
+        is_existing_explicit = serializer.validated_data.pop('is_existing_patient', None)
+        is_new_explicit = serializer.validated_data.pop('is_new_patient', None)
 
         with transaction.atomic():
             DoctorProfile.objects.select_for_update().get(id=doctor.id)
             appointment = serializer.save(receptionist=receptionist, status='PENDING')
+            if is_existing_explicit is not None:
+                appointment.is_existing_patient = is_existing_explicit
+            if is_new_explicit is not None:
+                appointment.is_new_patient = is_new_explicit
             # Create combined invoice for all appointments (walk-in and advance)
             invoice, _ = get_or_create_consultation_invoice(appointment)
             if invoice.total_amount <= Decimal('0.00'):
@@ -691,13 +795,17 @@ class ReceptionistTokenViewSet(viewsets.ModelViewSet):
 
         token_date = self.request.query_params.get('date', date_cls.today().isoformat())
         status_param = self.request.query_params.get('status')
+        doctor_param = self.request.query_params.get('doctor')
 
         queryset = queryset.filter(token_date=token_date)
 
         if status_param:
             queryset = queryset.filter(status=status_param)
 
-        return queryset.order_by('token_number')
+        if doctor_param:
+            queryset = queryset.filter(appointment__doctor_id=doctor_param)
+
+        return queryset.order_by('appointment__doctor_id', 'token_number')
 
     def perform_create(self, serializer):
         appointment = serializer.validated_data['appointment']
@@ -819,15 +927,11 @@ class ReceptionistConsultationInvoiceViewSet(viewsets.ModelViewSet):
 
         reg_fee = serializer.validated_data.get('registration_fee')
         if reg_fee is None:
-            has_prior_reg = ConsultationInvoice.objects.filter(
-                patient=patient,
-                registration_fee__gt=0
-            ).exclude(status='CANCELLED').exists()
-            if not has_prior_reg:
+            if is_existing_patient(patient, current_appointment=appointment, current_consultation=consultation):
+                reg_fee = Decimal('0.00')
+            else:
                 config = ClinicConfiguration.get_instance()
                 reg_fee = Decimal(str(config.registration_fee))
-            else:
-                reg_fee = Decimal('0.00')
 
         discount = serializer.validated_data.get('discount', Decimal('0.00')) or Decimal('0.00')
         tax = serializer.validated_data.get('tax', Decimal('0.00')) or Decimal('0.00')

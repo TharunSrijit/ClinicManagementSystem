@@ -154,6 +154,7 @@
             allergies: 'None',
             status: 'Active',
             registeredOn: apiPatient.created_at ? apiPatient.created_at.slice(0, 10) : '',
+            isExisting: apiPatient.is_existing !== undefined ? apiPatient.is_existing : (apiPatient.created_at && apiPatient.created_at.slice(0, 10) !== TODAY),
             appointments: (apiPatient.appointments || []).map(adaptAppointment)
         };
     }

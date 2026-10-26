@@ -63,10 +63,11 @@ export const receptionistService = {
     return apiClient.post(`/receptionist/appointments/${id}/cancel/`);
   },
 
-  getTokens(date = null, status = null) {
+  getTokens(date = null, status = null, doctorId = null) {
     const params = [];
     if (date) params.push(`date=${encodeURIComponent(date)}`);
     if (status) params.push(`status=${encodeURIComponent(status)}`);
+    if (doctorId) params.push(`doctor=${encodeURIComponent(doctorId)}`);
     const query = params.length ? `?${params.join('&')}` : '';
     return apiClient.list(`/receptionist/tokens/${query}`);
   },

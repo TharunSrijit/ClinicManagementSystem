@@ -219,7 +219,7 @@ class ReceptionistAppointmentTokenWorkflowTests(APITestCase):
         # Now issue token -> Succeeds with 201 Created
         resp_tok = self.client.post(f'/api/receptionist/appointments/{appt_id}/issue_token/')
         self.assertEqual(resp_tok.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(resp_tok.data['token']['token_number'], 101)
+        self.assertEqual(resp_tok.data['token']['token_number'], 16)
         self.assertEqual(resp_tok.data['token']['status'], 'WAITING')
 
         # Second attempt to issue duplicate token -> Rejected 400 Bad Request
@@ -503,9 +503,9 @@ class ReceptionistAppointmentTokenWorkflowTests(APITestCase):
     def test_advance_and_walkin_token_number_priority(self):
         """
         Token priority rules:
-        - Advance appointments must receive lower token numbers than walk-ins (1..99).
-        - Walk-ins receive higher token numbers (101..), even if issued earlier.
-        - Never renumber previously issued tokens or create duplicate token numbers.
+        - Advance appointments must receive lower token numbers than walk-ins (1..15).
+        - Walk-ins receive higher token numbers (16..30), even if issued earlier.
+        - Never renumber previously issued tokens or create duplicate token numbers within doctor's queue.
         """
         today = self.frozen_now.date()
 
@@ -522,7 +522,7 @@ class ReceptionistAppointmentTokenWorkflowTests(APITestCase):
         self.client.post(f'/api/receptionist/appointments/{walkin_appt1.id}/collect_fee/', {'payment_method': 'CASH'})
         resp_w1 = self.client.post(f'/api/receptionist/appointments/{walkin_appt1.id}/issue_token/')
         self.assertEqual(resp_w1.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(resp_w1.data['token']['token_number'], 101)
+        self.assertEqual(resp_w1.data['token']['token_number'], 16)
 
         # 2. Advance appointment arrives and pays second (after the walk-in)
         advance_appt1 = Appointment.objects.create(
@@ -540,7 +540,7 @@ class ReceptionistAppointmentTokenWorkflowTests(APITestCase):
         self.assertEqual(resp_a1.status_code, status.HTTP_201_CREATED)
         self.assertEqual(resp_a1.data['token']['token_number'], 1)
 
-        # Verified: Advance token number (1) is strictly less than walk-in token number (101)
+        # Verified: Advance token number (1) is strictly less than walk-in token number (16)
         self.assertLess(resp_a1.data['token']['token_number'], resp_w1.data['token']['token_number'])
 
         # 3. Second advance appointment
@@ -570,10 +570,10 @@ class ReceptionistAppointmentTokenWorkflowTests(APITestCase):
         )
         self.client.post(f'/api/receptionist/appointments/{walkin_appt2.id}/collect_fee/', {'payment_method': 'CASH'})
         resp_w2 = self.client.post(f'/api/receptionist/appointments/{walkin_appt2.id}/issue_token/')
-        self.assertEqual(resp_w2.data['token']['token_number'], 102)
+        self.assertEqual(resp_w2.data['token']['token_number'], 17)
 
         # Check all token numbers are distinct
-        all_tokens = list(Token.objects.filter(token_date=today).values_list('token_number', flat=True))
+        all_tokens = list(Token.objects.filter(token_date=today, appointment__doctor=self.doctor_profile).values_list('token_number', flat=True))
         self.assertEqual(len(all_tokens), len(set(all_tokens)))
 
     def test_receptionist_cannot_call_patient_or_complete_consultation(self):
@@ -797,10 +797,10 @@ class ReceptionistBillingAndReceiptTests(APITestCase):
         inv.refresh_from_db()
         self.assertEqual(inv.status, 'PAID')
 
-        # 4. Token issuance now succeeds (walk-in tokens start from 101)
+        # 4. Token issuance now succeeds (walk-in tokens start from 16)
         token_ok = self.client.post(f'/api/receptionist/appointments/{appt.id}/issue_token/')
         self.assertEqual(token_ok.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(token_ok.data['token']['token_number'], 101)
+        self.assertEqual(token_ok.data['token']['token_number'], 16)
 
     def test_consultation_invoice_and_receipt_data(self):
         """Invoice detail endpoint returns itemized fees, balance due, payment list, and clinic info."""
@@ -975,6 +975,23 @@ class AppointmentBookingAndPaymentWorkflowTests(APITestCase):
             doctor_id='DOC_WF_01',
             specialization='Cardiology',
             consultation_fee=Decimal('500.00'),
+            registration_number='REG_WF_01',
+        )
+
+        cls.doctor2_user = User.objects.create_user(
+            username='wf_doc2',
+            email='wf_doc2@clinic.com',
+            password='TestPassword123!',
+            role='DOCTOR',
+            first_name='Ellie',
+            last_name='Sattler',
+        )
+        cls.doctor2_profile = DoctorProfile.objects.create(
+            user=cls.doctor2_user,
+            doctor_id='DOC_WF_02',
+            specialization='Pediatrics',
+            consultation_fee=Decimal('450.00'),
+            registration_number='REG_WF_02',
         )
 
         cls.new_patient = Patient.objects.create(
@@ -1050,7 +1067,7 @@ class AppointmentBookingAndPaymentWorkflowTests(APITestCase):
         # Token can now be issued
         tok_resp2 = self.client.post(f'/api/receptionist/appointments/{appt_id}/issue_token/')
         self.assertEqual(tok_resp2.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(tok_resp2.data['token']['token_number'], 101)
+        self.assertEqual(tok_resp2.data['token']['token_number'], 16)
 
     def test_advance_booking_invoice_payment_arrival_token_flow(self):
         """Advance: booked in PENDING -> payment -> BOOKED -> arrival on date -> CONFIRMED -> token."""
@@ -1142,6 +1159,92 @@ class AppointmentBookingAndPaymentWorkflowTests(APITestCase):
         self.assertEqual(new_inv.consultation_fee, Decimal('500.00'))
         self.assertEqual(new_inv.total_amount, Decimal('500.00'))
 
+    def test_existing_patient_never_charged_registration_fee_even_without_prior_reg_fee_invoice(self):
+        """Existing patient registered in the past or with prior appointments is NEVER charged registration fee."""
+        today = self.frozen_now.date()
+        # Create an existing patient registered 10 days ago who never had a paid reg fee invoice
+        past_patient = Patient.objects.create(
+            patient_id='P-PAST-001',
+            first_name='Oliver',
+            last_name='Twist',
+            gender='MALE',
+            phone='9998887771',
+        )
+        Patient.objects.filter(id=past_patient.id).update(
+            created_at=self.frozen_now - datetime.timedelta(days=10)
+        )
+        past_patient.refresh_from_db()
+
+        # Book appointment for this existing patient
+        resp = self.client.post('/api/receptionist/appointments/', {
+            'doctor': self.doctor_profile.id,
+            'patient': past_patient.id,
+            'appointment_type': 'WALK_IN',
+            'appointment_date': today.isoformat(),
+            'appointment_time': '11:15:00',
+        })
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        inv = ConsultationInvoice.objects.get(id=resp.data['invoice_id'])
+        self.assertEqual(inv.registration_fee, Decimal('0.00'))
+        self.assertEqual(inv.consultation_fee, Decimal('500.00'))
+        self.assertEqual(inv.total_amount, Decimal('500.00'))
+
+    def test_explicit_is_existing_patient_flag_charges_zero_registration_fee(self):
+        """Booking with is_existing_patient=True explicitly waives registration fee."""
+        today = self.frozen_now.date()
+        fresh_patient = Patient.objects.create(
+            patient_id='P-FRESH-003',
+            first_name='Fiona',
+            last_name='Gallagher',
+            gender='FEMALE',
+            phone='9998887773',
+        )
+        resp = self.client.post('/api/receptionist/appointments/', {
+            'doctor': self.doctor_profile.id,
+            'patient': fresh_patient.id,
+            'appointment_type': 'ADVANCE',
+            'appointment_date': (today + datetime.timedelta(days=1)).isoformat(),
+            'appointment_time': '10:00:00',
+            'is_existing_patient': True,
+        })
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        inv = ConsultationInvoice.objects.get(id=resp.data['invoice_id'])
+        self.assertEqual(inv.registration_fee, Decimal('0.00'))
+        self.assertEqual(inv.consultation_fee, Decimal('500.00'))
+        self.assertEqual(inv.total_amount, Decimal('500.00'))
+
+    def test_existing_patient_with_prior_cancelled_appointment_not_charged_registration_fee(self):
+        """Existing patient with a prior appointment (even cancelled) is not charged registration fee."""
+        today = self.frozen_now.date()
+        # Patient with prior cancelled appointment
+        prior_patient = Patient.objects.create(
+            patient_id='P-PRIOR-002',
+            first_name='Penny',
+            last_name='Lane',
+            gender='FEMALE',
+            phone='9998887772',
+        )
+        Appointment.objects.create(
+            doctor=self.doctor_profile,
+            patient=prior_patient,
+            appointment_type='WALK_IN',
+            appointment_date=today - datetime.timedelta(days=1),
+            appointment_time=datetime.time(10, 0),
+            status='CANCELLED',
+        )
+
+        resp = self.client.post('/api/receptionist/appointments/', {
+            'doctor': self.doctor_profile.id,
+            'patient': prior_patient.id,
+            'appointment_type': 'WALK_IN',
+            'appointment_date': today.isoformat(),
+            'appointment_time': '11:30:00',
+        })
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        inv = ConsultationInvoice.objects.get(id=resp.data['invoice_id'])
+        self.assertEqual(inv.registration_fee, Decimal('0.00'))
+        self.assertEqual(inv.consultation_fee, Decimal('500.00'))
+
     def test_partial_payment_does_not_advance_status(self):
         """Partial payment marks invoice PARTIAL but keeps appointment in PENDING status."""
         today = self.frozen_now.date()
@@ -1213,6 +1316,216 @@ class AppointmentBookingAndPaymentWorkflowTests(APITestCase):
         })
         self.assertEqual(resp2.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('already booked', str(resp2.data))
+
+    def test_doctor_queues_are_completely_independent(self):
+        """
+        Each doctor has their own separate token queue:
+        - Doctor A gets advance appointment -> token 1
+        - Doctor B gets advance appointment on same date -> token 1 (starts from 1 itself)
+        - Doctor A gets second advance appointment -> token 2
+        - Doctor A gets walk-in appointment -> token 16
+        - Doctor B gets walk-in appointment on same date -> token 16
+        - Doctor A gets second walk-in appointment -> token 17
+        """
+        today = self.frozen_now.date()
+
+        # Doctor A - Advance Appt 1 -> Token 1
+        appt_a1 = Appointment.objects.create(
+            doctor=self.doctor_profile,
+            patient=self.new_patient,
+            receptionist=self.receptionist_profile,
+            appointment_type='ADVANCE',
+            appointment_date=today,
+            appointment_time=datetime.time(9, 15),
+            status='CONFIRMED',
+        )
+        self.client.post(f'/api/receptionist/appointments/{appt_a1.id}/collect_fee/', {'payment_method': 'CASH'})
+        resp_a1 = self.client.post(f'/api/receptionist/appointments/{appt_a1.id}/issue_token/')
+        self.assertEqual(resp_a1.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(resp_a1.data['token']['token_number'], 1)
+
+        # Doctor B - Advance Appt 1 -> Token 1 in Doctor B's queue!
+        appt_b1 = Appointment.objects.create(
+            doctor=self.doctor2_profile,
+            patient=self.existing_patient,
+            receptionist=self.receptionist_profile,
+            appointment_type='ADVANCE',
+            appointment_date=today,
+            appointment_time=datetime.time(9, 30),
+            status='CONFIRMED',
+        )
+        self.client.post(f'/api/receptionist/appointments/{appt_b1.id}/collect_fee/', {'payment_method': 'UPI'})
+        resp_b1 = self.client.post(f'/api/receptionist/appointments/{appt_b1.id}/issue_token/')
+        self.assertEqual(resp_b1.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(resp_b1.data['token']['token_number'], 1)
+
+        # Doctor A - Advance Appt 2 -> Token 2
+        appt_a2 = Appointment.objects.create(
+            doctor=self.doctor_profile,
+            patient=self.existing_patient,
+            receptionist=self.receptionist_profile,
+            appointment_type='ADVANCE',
+            appointment_date=today,
+            appointment_time=datetime.time(9, 45),
+            status='CONFIRMED',
+        )
+        self.client.post(f'/api/receptionist/appointments/{appt_a2.id}/collect_fee/', {'payment_method': 'CASH'})
+        resp_a2 = self.client.post(f'/api/receptionist/appointments/{appt_a2.id}/issue_token/')
+        self.assertEqual(resp_a2.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(resp_a2.data['token']['token_number'], 2)
+
+        # Doctor A - Walk-in Appt 1 -> Token 16
+        walkin_a1 = Appointment.objects.create(
+            doctor=self.doctor_profile,
+            patient=self.new_patient,
+            receptionist=self.receptionist_profile,
+            appointment_type='WALK_IN',
+            appointment_date=today,
+            appointment_time=datetime.time(10, 0),
+            status='CONFIRMED',
+        )
+        self.client.post(f'/api/receptionist/appointments/{walkin_a1.id}/collect_fee/', {'payment_method': 'CASH'})
+        resp_w_a1 = self.client.post(f'/api/receptionist/appointments/{walkin_a1.id}/issue_token/')
+        self.assertEqual(resp_w_a1.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(resp_w_a1.data['token']['token_number'], 16)
+
+        # Doctor B - Walk-in Appt 1 -> Token 16 in Doctor B's queue!
+        walkin_b1 = Appointment.objects.create(
+            doctor=self.doctor2_profile,
+            patient=self.existing_patient,
+            receptionist=self.receptionist_profile,
+            appointment_type='WALK_IN',
+            appointment_date=today,
+            appointment_time=datetime.time(10, 15),
+            status='CONFIRMED',
+        )
+        self.client.post(f'/api/receptionist/appointments/{walkin_b1.id}/collect_fee/', {'payment_method': 'UPI'})
+        resp_w_b1 = self.client.post(f'/api/receptionist/appointments/{walkin_b1.id}/issue_token/')
+        self.assertEqual(resp_w_b1.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(resp_w_b1.data['token']['token_number'], 16)
+
+        # Doctor A - Walk-in Appt 2 -> Token 17
+        walkin_a2 = Appointment.objects.create(
+            doctor=self.doctor_profile,
+            patient=self.existing_patient,
+            receptionist=self.receptionist_profile,
+            appointment_type='WALK_IN',
+            appointment_date=today,
+            appointment_time=datetime.time(10, 30),
+            status='CONFIRMED',
+        )
+        self.client.post(f'/api/receptionist/appointments/{walkin_a2.id}/collect_fee/', {'payment_method': 'CASH'})
+        resp_w_a2 = self.client.post(f'/api/receptionist/appointments/{walkin_a2.id}/issue_token/')
+        self.assertEqual(resp_w_a2.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(resp_w_a2.data['token']['token_number'], 17)
+
+    def test_advance_booking_token_limit_1_to_15(self):
+        """
+        Advance booking tokens are capped at 15 per doctor per day.
+        The 16th advance booking token attempt is rejected.
+        """
+        today = self.frozen_now.date()
+        # Create token 15 for doctor_profile
+        dummy_appt = Appointment.objects.create(
+            doctor=self.doctor_profile,
+            patient=self.new_patient,
+            receptionist=self.receptionist_profile,
+            appointment_type='ADVANCE',
+            appointment_date=today,
+            appointment_time=datetime.time(9, 0),
+            status='CONFIRMED',
+        )
+        Token.objects.create(
+            appointment=dummy_appt,
+            token_number=15,
+            token_date=today,
+            status='COMPLETED'
+        )
+
+        # Attempt to issue next advance token
+        new_appt = Appointment.objects.create(
+            doctor=self.doctor_profile,
+            patient=self.existing_patient,
+            receptionist=self.receptionist_profile,
+            appointment_type='ADVANCE',
+            appointment_date=today,
+            appointment_time=datetime.time(9, 15),
+            status='CONFIRMED',
+        )
+        self.client.post(f'/api/receptionist/appointments/{new_appt.id}/collect_fee/', {'payment_method': 'CASH'})
+        resp = self.client.post(f'/api/receptionist/appointments/{new_appt.id}/issue_token/')
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('limit', str(resp.data).lower())
+
+    def test_walkin_token_limit_16_to_30(self):
+        """
+        Walk-in tokens are capped at 30 per doctor per day (16 through 30).
+        The 31st walk-in token attempt is rejected.
+        """
+        today = self.frozen_now.date()
+        # Create token 30 for doctor_profile
+        dummy_appt = Appointment.objects.create(
+            doctor=self.doctor_profile,
+            patient=self.new_patient,
+            receptionist=self.receptionist_profile,
+            appointment_type='WALK_IN',
+            appointment_date=today,
+            appointment_time=datetime.time(9, 0),
+            status='CONFIRMED',
+        )
+        Token.objects.create(
+            appointment=dummy_appt,
+            token_number=30,
+            token_date=today,
+            status='COMPLETED'
+        )
+
+        # Attempt to issue next walk-in token
+        new_appt = Appointment.objects.create(
+            doctor=self.doctor_profile,
+            patient=self.existing_patient,
+            receptionist=self.receptionist_profile,
+            appointment_type='WALK_IN',
+            appointment_date=today,
+            appointment_time=datetime.time(9, 15),
+            status='CONFIRMED',
+        )
+        self.client.post(f'/api/receptionist/appointments/{new_appt.id}/collect_fee/', {'payment_method': 'CASH'})
+        resp = self.client.post(f'/api/receptionist/appointments/{new_appt.id}/issue_token/')
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('limit', str(resp.data).lower())
+
+    def test_receptionist_token_queue_filtering_by_doctor(self):
+        """Receptionist can filter token queue by doctor ID."""
+        today = self.frozen_now.date()
+        appt1 = Appointment.objects.create(
+            doctor=self.doctor_profile,
+            patient=self.new_patient,
+            appointment_type='ADVANCE',
+            appointment_date=today,
+            appointment_time=datetime.time(9, 0),
+            status='CONFIRMED',
+        )
+        Token.objects.create(appointment=appt1, token_number=1, token_date=today, status='WAITING')
+
+        appt2 = Appointment.objects.create(
+            doctor=self.doctor2_profile,
+            patient=self.existing_patient,
+            appointment_type='ADVANCE',
+            appointment_date=today,
+            appointment_time=datetime.time(9, 15),
+            status='CONFIRMED',
+        )
+        Token.objects.create(appointment=appt2, token_number=1, token_date=today, status='WAITING')
+
+        # Filter by doctor 2
+        resp = self.client.get(f'/api/receptionist/tokens/?date={today.isoformat()}&doctor={self.doctor2_profile.id}')
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        tokens = resp.data if isinstance(resp.data, list) else resp.data.get('results', [])
+        self.assertEqual(len(tokens), 1)
+        self.assertEqual(tokens[0]['appointment'], appt2.id)
+        self.assertEqual(tokens[0]['token_number'], 1)
+
 
 
 

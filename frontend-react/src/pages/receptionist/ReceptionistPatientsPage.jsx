@@ -90,6 +90,22 @@ export const ReceptionistPatientsPage = () => {
       )
     },
     {
+      header: 'Patient Type',
+      key: 'is_existing',
+      render: (row) => (
+        <span style={{
+          fontWeight: 600,
+          color: row.is_existing ? '#15803d' : '#0369a1',
+          background: row.is_existing ? '#dcfce7' : '#e0f2fe',
+          padding: '2px 8px',
+          borderRadius: '4px',
+          fontSize: '0.78rem'
+        }}>
+          {row.is_existing ? 'Existing' : 'New'}
+        </span>
+      )
+    },
+    {
       header: 'Registered',
       key: 'created_at',
       render: (row) => <span>{formatDate(row.created_at)}</span>

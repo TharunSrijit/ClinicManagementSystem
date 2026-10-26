@@ -24,6 +24,8 @@ export const ReceptionistTokensPage = () => {
   const [tokens, setTokens] = useState([]);
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [selectedStatus, setSelectedStatus] = useState('ALL');
+  const [selectedDoctor, setSelectedDoctor] = useState('ALL');
+  const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
   const [feedback, setFeedback] = useState({ message: '', type: '' });
@@ -33,12 +35,19 @@ export const ReceptionistTokensPage = () => {
     setTimeout(() => setFeedback({ message: '', type: '' }), 5000);
   };
 
+  useEffect(() => {
+    receptionistService.getDoctors()
+      .then((docs) => setDoctors(Array.isArray(docs) ? docs : []))
+      .catch((err) => console.error('Failed to load doctors list:', err));
+  }, []);
+
   const loadTokens = useCallback(async () => {
     setLoading(true);
     try {
       const data = await receptionistService.getTokens(
         selectedDate || null,
-        selectedStatus === 'ALL' ? null : selectedStatus
+        selectedStatus === 'ALL' ? null : selectedStatus,
+        selectedDoctor === 'ALL' ? null : selectedDoctor
       );
       setTokens(Array.isArray(data) ? data : []);
     } catch (err) {
@@ -47,7 +56,7 @@ export const ReceptionistTokensPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedDate, selectedStatus]);
+  }, [selectedDate, selectedStatus, selectedDoctor]);
 
   useEffect(() => {
     loadTokens();
@@ -206,6 +215,23 @@ export const ReceptionistTokensPage = () => {
             </div>
 
             <div>
+              <label className="form-label">Doctor Queue</label>
+              <select
+                className="form-select"
+                style={{ width: '220px' }}
+                value={selectedDoctor}
+                onChange={(e) => setSelectedDoctor(e.target.value)}
+              >
+                <option value="ALL">All Doctors</option>
+                {doctors.map((doc) => (
+                  <option key={doc.id} value={doc.id}>
+                    {doc.full_name ? `Dr. ${doc.full_name}` : `Doctor #${doc.id}`} ({doc.specialization})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
               <label className="form-label">Status</label>
               <select
                 className="form-select"
@@ -228,6 +254,7 @@ export const ReceptionistTokensPage = () => {
             onClick={() => {
               setSelectedDate(todayStr);
               setSelectedStatus('ALL');
+              setSelectedDoctor('ALL');
             }}
           >
             Today's Tokens

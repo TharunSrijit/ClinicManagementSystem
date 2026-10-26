@@ -204,6 +204,12 @@ class PharmacistProfileSerializer(serializers.ModelSerializer):
 # ---------------------------------------------------------------------------
 
 class PatientSerializer(serializers.ModelSerializer):
+    is_existing = serializers.SerializerMethodField()
+
+    def get_is_existing(self, obj):
+        from receptionist.views import is_existing_patient
+        return is_existing_patient(obj)
+
     class Meta:
         model  = Patient
         fields = [
@@ -211,9 +217,9 @@ class PatientSerializer(serializers.ModelSerializer):
             'date_of_birth', 'gender', 'blood_group',
             'phone', 'email', 'address',
             'emergency_contact_name', 'emergency_contact_phone',
-            'created_at',
+            'created_at', 'is_existing',
         ]
-        read_only_fields = ['patient_id', 'created_at']
+        read_only_fields = ['patient_id', 'created_at', 'is_existing']
 
 
 class MedicalHistorySerializer(serializers.ModelSerializer):
@@ -255,6 +261,8 @@ class AppointmentSerializer(serializers.ModelSerializer):
     total_amount = serializers.SerializerMethodField()
     is_paid = serializers.SerializerMethodField()
     arrival_status = serializers.SerializerMethodField()
+    is_existing_patient = serializers.BooleanField(required=False, write_only=True)
+    is_new_patient = serializers.BooleanField(required=False, write_only=True)
 
     def get_token_number(self, obj):
         if hasattr(obj, 'token') and obj.token:
@@ -317,6 +325,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
             'token_number', 'token_status', 'token_id',
             'invoice_id', 'invoice_number', 'invoice_status',
             'consultation_fee', 'total_amount', 'is_paid', 'arrival_status',
+            'is_existing_patient', 'is_new_patient',
             'created_at',
         ]
         read_only_fields = [
@@ -352,6 +361,8 @@ class AppointmentSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         from django.db import transaction
+        is_existing_flag = validated_data.pop('is_existing_patient', None)
+        is_new_flag = validated_data.pop('is_new_patient', None)
         doctor = validated_data['doctor']
         with transaction.atomic():
             DoctorProfile.objects.select_for_update().get(id=doctor.id)
@@ -363,7 +374,12 @@ class AppointmentSerializer(serializers.ModelSerializer):
                 appointment_date=validated_data['appointment_date'],
                 appointment_time=validated_data['appointment_time'],
             )
-            return super().create(validated_data)
+            instance = super().create(validated_data)
+            if is_existing_flag is not None:
+                instance.is_existing_patient = is_existing_flag
+            if is_new_flag is not None:
+                instance.is_new_patient = is_new_flag
+            return instance
 
 
 class TokenSerializer(serializers.ModelSerializer):

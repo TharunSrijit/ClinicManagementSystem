@@ -64,6 +64,16 @@ export const PatientDetailsPage = () => {
             <span style={{ background: 'var(--primary-light)', color: 'var(--primary)', padding: '3px 10px', borderRadius: '4px', fontWeight: 700, fontSize: '0.85rem' }}>
               {patient.patient_id || `#${patient.id}`}
             </span>
+            <span style={{
+              background: patient.is_existing ? '#dcfce7' : '#e0f2fe',
+              color: patient.is_existing ? '#15803d' : '#0369a1',
+              padding: '3px 10px',
+              borderRadius: '4px',
+              fontWeight: 700,
+              fontSize: '0.85rem'
+            }}>
+              {patient.is_existing ? 'Existing Patient (Reg Fee: ₹0)' : 'Newly Registered Patient'}
+            </span>
           </div>
           <p className="page-subtitle">Patient demographic profile and registration history.</p>
         </div>
