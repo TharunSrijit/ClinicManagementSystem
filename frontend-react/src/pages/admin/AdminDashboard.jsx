@@ -3,9 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   UsersRound,
   Stethoscope,
-  UserRoundCog,
-  Pill,
-  Microscope,
   CreditCard
 } from 'lucide-react';
 import adminService from '../../services/adminService';
@@ -129,69 +126,6 @@ export const AdminDashboard = () => {
           icon={CreditCard}
           subtitle="Recorded receipts"
         />
-      </div>
-
-      {/* Quick Navigation Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '28px' }}>
-        <div
-          className="card"
-          style={{ cursor: 'pointer', textAlign: 'center', padding: '24px 20px' }}
-          onClick={() => navigate('/admin/users')}
-        >
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: 'var(--primary)' }}>
-            <UsersRound size={28} strokeWidth={1.8} />
-          </div>
-          <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Users & Roles</div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Provision accounts & credentials</div>
-        </div>
-
-        <div
-          className="card"
-          style={{ cursor: 'pointer', textAlign: 'center', padding: '24px 20px' }}
-          onClick={() => navigate('/admin/doctors')}
-        >
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: 'var(--primary)' }}>
-            <Stethoscope size={28} strokeWidth={1.8} />
-          </div>
-          <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Doctor Directory</div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Fees, schedules & specialties</div>
-        </div>
-
-        <div
-          className="card"
-          style={{ cursor: 'pointer', textAlign: 'center', padding: '24px 20px' }}
-          onClick={() => navigate('/admin/staff')}
-        >
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: 'var(--primary)' }}>
-            <UserRoundCog size={28} strokeWidth={1.8} />
-          </div>
-          <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Staff Members</div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Receptionists, techs & pharmacists</div>
-        </div>
-
-        <div
-          className="card"
-          style={{ cursor: 'pointer', textAlign: 'center', padding: '24px 20px' }}
-          onClick={() => navigate('/admin/medicines')}
-        >
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: 'var(--primary)' }}>
-            <Pill size={28} strokeWidth={1.8} />
-          </div>
-          <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Medicines Master</div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Formulary drug definitions</div>
-        </div>
-
-        <div
-          className="card"
-          style={{ cursor: 'pointer', textAlign: 'center', padding: '24px 20px' }}
-          onClick={() => navigate('/admin/lab-tests')}
-        >
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: 'var(--primary)' }}>
-            <Microscope size={28} strokeWidth={1.8} />
-          </div>
-          <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Lab Tests Master</div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Diagnostic catalog & pricing</div>
-        </div>
       </div>
 
       {/* Recent User Accounts Table */}

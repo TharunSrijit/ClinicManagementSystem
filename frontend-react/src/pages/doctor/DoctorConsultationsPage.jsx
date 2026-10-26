@@ -705,7 +705,7 @@ export const DoctorConsultationsPage = () => {
               Prescribe Medications
             </h4>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 1fr auto', gap: '8px', alignItems: 'flex-end', marginBottom: '12px' }}>
+            <div className="prescription-inputs-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 1fr auto', gap: '8px', alignItems: 'flex-end', marginBottom: '12px' }}>
               <div>
                 <label className="form-label" style={{ fontSize: '0.78rem' }}>Medicine</label>
                 <select

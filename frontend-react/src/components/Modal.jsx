@@ -27,7 +27,7 @@ export const Modal = ({ isOpen, onClose, title, children, maxWidth = '550px' }) 
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 1000,
-        padding: '16px'
+        padding: '12px'
       }}
       onClick={onClose}
     >
@@ -36,7 +36,7 @@ export const Modal = ({ isOpen, onClose, title, children, maxWidth = '550px' }) 
           background: 'var(--surface)',
           borderRadius: 'var(--radius-md)',
           width: '100%',
-          maxWidth,
+          maxWidth: `min(calc(100vw - 24px), ${maxWidth})`,
           boxShadow: 'var(--shadow-md)',
           border: '1px solid var(--border)',
           overflow: 'hidden',
@@ -48,14 +48,15 @@ export const Modal = ({ isOpen, onClose, title, children, maxWidth = '550px' }) 
       >
         <div
           style={{
-            padding: '18px 24px',
+            padding: '14px 18px',
             borderBottom: '1px solid var(--border)',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between'
+            justifyContent: 'space-between',
+            gap: '12px'
           }}
         >
-          <h3 style={{ fontSize: '1.15rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {title}
           </h3>
           <button
@@ -65,13 +66,14 @@ export const Modal = ({ isOpen, onClose, title, children, maxWidth = '550px' }) 
               color: 'var(--text-secondary)',
               padding: '4px 8px',
               borderRadius: 'var(--radius-sm)',
-              lineHeight: 1
+              lineHeight: 1,
+              flexShrink: 0
             }}
           >
             ✕
           </button>
         </div>
-        <div style={{ padding: '24px', overflowY: 'auto' }}>
+        <div style={{ padding: '18px', overflowY: 'auto' }}>
           {children}
         </div>
       </div>

@@ -21,9 +21,13 @@ import {
   Receipt,
   History,
   Package,
-  Award
+  Award,
+  PanelLeftClose,
+  PanelLeftOpen,
+  X
 } from 'lucide-react';
 import useAuth from '../hooks/useAuth';
+import useSidebar from '../hooks/useSidebar';
 import { ROLES } from '../utils/constants';
 
 const NAV_ITEMS = {
@@ -73,6 +77,7 @@ const NAV_ITEMS = {
 
 export const Sidebar = () => {
   const { user } = useAuth();
+  const { isCollapsed, toggleCollapsed, isMobileOpen, closeMobileSidebar } = useSidebar();
   const location = useLocation();
   const role = user?.role;
   const items = NAV_ITEMS[role] || [];
@@ -100,48 +105,104 @@ export const Sidebar = () => {
   }
 
   return (
-    <aside className="sidebar">
-      <div className="sidebar-header">
-        <div className="sidebar-brand-icon">
-          <Hospital size={22} strokeWidth={2} color="var(--primary)" />
-        </div>
-        <div>
-          <div className="sidebar-brand-title">MedCore CMS</div>
-          <div className="sidebar-brand-subtitle">Clinic Management</div>
-        </div>
-      </div>
-
-      <nav className="sidebar-nav">
-        {items.map((item) => {
-          const isActive = activeItem?.path === item.path;
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`nav-link ${isActive ? 'active' : ''}`}
-            >
-              {Icon && <Icon size={20} strokeWidth={1.9} style={{ flexShrink: 0 }} />}
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
-
-      <div className="sidebar-footer">
-        <div className="user-profile-badge">
-          <div className="user-avatar">
-            {(user?.fullName || user?.username || 'U')[0].toUpperCase()}
-          </div>
-          <div style={{ overflow: 'hidden' }}>
-            <div className="user-info-name" style={{ whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-              {user?.fullName || user?.username}
+    <>
+      {isMobileOpen && (
+        <div
+          className="sidebar-backdrop"
+          onClick={closeMobileSidebar}
+          aria-hidden="true"
+        />
+      )}
+      <aside
+        className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileOpen ? 'mobile-open' : ''}`}
+        aria-label="Main Navigation"
+      >
+        <div className="sidebar-header">
+          <div className="sidebar-brand-group">
+            <div className="sidebar-brand-icon" title="MedCore CMS">
+              <Hospital size={22} strokeWidth={2} color="var(--primary)" />
             </div>
-            <div className="user-info-role">{user?.role}</div>
+            {!isCollapsed && (
+              <div className="sidebar-brand-text">
+                <div className="sidebar-brand-title">MedCore CMS</div>
+                <div className="sidebar-brand-subtitle">Clinic Management</div>
+              </div>
+            )}
+          </div>
+
+          <div className="sidebar-header-actions">
+            {/* Desktop collapse/expand toggle */}
+            <button
+              type="button"
+              className="sidebar-toggle-btn desktop-only"
+              onClick={toggleCollapsed}
+              aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              aria-expanded={!isCollapsed}
+              title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              {isCollapsed ? (
+                <PanelLeftOpen size={18} strokeWidth={2} />
+              ) : (
+                <PanelLeftClose size={18} strokeWidth={2} />
+              )}
+            </button>
+
+            {/* Mobile drawer close button */}
+            <button
+              type="button"
+              className="sidebar-close-btn mobile-only"
+              onClick={closeMobileSidebar}
+              aria-label="Close navigation menu"
+              title="Close menu"
+            >
+              <X size={20} strokeWidth={2} />
+            </button>
           </div>
         </div>
-      </div>
-    </aside>
+
+        <nav className="sidebar-nav" aria-label="Sidebar Sections">
+          {items.map((item) => {
+            const isActive = activeItem?.path === item.path;
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`nav-link ${isActive ? 'active' : ''}`}
+                title={isCollapsed ? item.label : undefined}
+                onClick={closeMobileSidebar}
+                aria-current={isActive ? 'page' : undefined}
+              >
+                {Icon && <Icon size={20} strokeWidth={1.9} style={{ flexShrink: 0 }} />}
+                {!isCollapsed && <span className="nav-label">{item.label}</span>}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="sidebar-footer">
+          <div
+            className="user-profile-badge"
+            title={isCollapsed ? `${user?.fullName || user?.username} (${user?.role})` : undefined}
+          >
+            <div className="user-avatar">
+              {(user?.fullName || user?.username || 'U')[0].toUpperCase()}
+            </div>
+            {!isCollapsed && (
+              <div className="user-info-text" style={{ overflow: 'hidden' }}>
+                <div
+                  className="user-info-name"
+                  style={{ whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}
+                >
+                  {user?.fullName || user?.username}
+                </div>
+                <div className="user-info-role">{user?.role}</div>
+              </div>
+            )}
+          </div>
+        </div>
+      </aside>
+    </>
   );
 };
 
