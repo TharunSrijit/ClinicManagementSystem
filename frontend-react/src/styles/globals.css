@@ -341,7 +341,7 @@ input, select, textarea {
 .page-title {
   font-size: 1.6rem;
   font-weight: 700;
-  color: var(--text-main);
+  color: var(text-main);
 }
 
 .page-subtitle {
@@ -360,7 +360,7 @@ input, select, textarea {
 
 .card {
   background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(border-subtle);
   border-radius: var(--radius-md);
   padding: 20px;
   box-shadow: var(--shadow-card);
@@ -369,7 +369,7 @@ input, select, textarea {
 
 .card:hover {
   transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(shadow-md);
 }
 
 /* Badges */
@@ -377,7 +377,7 @@ input, select, textarea {
   display: inline-flex;
   align-items: center;
   padding: 3px 10px;
-  border-radius: var(--radius-full);
+  border-radius: var(radius-full);
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -399,29 +399,29 @@ input, select, textarea {
   padding: 9px 18px;
   font-size: 0.9rem;
   font-weight: 600;
-  border-radius: var(--radius-sm);
-  transition: all var(--transition-fast);
+  border-radius: var(radius-sm);
+  transition: all var(transition-fast);
 }
 
 .btn-primary {
-  background: var(--primary);
+  background: var(primary);
   color: white;
 }
 .btn-primary:hover {
-  background: var(--primary-hover);
+  background: var(primary-hover);
 }
 
 .btn-outline {
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(border-subtle);
   color: var(--text-main);
   background: white;
 }
 .btn-outline:hover {
-  background: var(--bg-hover);
+  background: var(bg-hover);
 }
 
 .btn-danger {
-  background: var(--danger);
+  background: var(danger);
   color: white;
 }
 .btn-danger:hover {
@@ -432,9 +432,9 @@ input, select, textarea {
 .table-responsive {
   overflow-x: auto;
   background: white;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-subtle);
-  box-shadow: var(--shadow-sm);
+  border-radius: var(radius-md);
+  border: 1px solid var(border-subtle);
+  box-shadow: var(shadow-sm);
 }
 
 .table {
@@ -448,13 +448,13 @@ input, select, textarea {
   background: #f8fafc;
   padding: 12px 16px;
   font-weight: 600;
-  color: var(--text-muted);
-  border-bottom: 1px solid var(--border-subtle);
+  color: var(text-muted);
+  border-bottom: 1px solid var(border-subtle);
 }
 
 .table td {
   padding: 14px 16px;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(border-subtle);
   color: var(--text-main);
 }
 
@@ -482,29 +482,29 @@ input, select, textarea {
 .form-control, .form-select {
   width: 100%;
   padding: 9px 12px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(border-subtle);
+  border-radius: var(radius-sm);
   background-color: #ffffff;
   color: var(--text-main);
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  transition: border-color var(transition-fast), box-shadow var(--transition-fast);
   outline: none;
 }
 
 .form-control:focus, .form-select:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-light);
+  border-color: var(primary);
+  box-shadow: 0 0 0 3px var(primary-light);
 }
 
 .form-control:disabled, .form-select:disabled {
   background-color: #f1f5f9;
   cursor: not-allowed;
-  color: var(--text-muted);
+  color: var(text-muted);
 }
 
 /* Alerts */
 .alert {
   padding: 12px 16px;
-  border-radius: var(--radius-sm);
+  border-radius: var(radius-sm);
   margin-bottom: 20px;
   font-size: 0.9rem;
   display: flex;
@@ -514,25 +514,25 @@ input, select, textarea {
 }
 
 .alert-success {
-  background: var(--success-light);
+  background: var(success-light);
   color: #14532d;
   border-color: #bbf7d0;
 }
 
 .alert-danger {
-  background: var(--danger-light);
+  background: var(danger-light);
   color: #7f1d1d;
   border-color: #fecaca;
 }
 
 .alert-info {
-  background: var(--info-light);
+  background: var(info-light);
   color: #1e3a8a;
   border-color: #bfdbfe;
 }
 
 .alert-warning {
-  background: var(--warning-light);
+  background: var(warning-light);
   color: #78350f;
   border-color: #fde68a;
 }
@@ -559,15 +559,16 @@ input, select, textarea {
   font-size: 0.82rem;
 }
 
+ HEAD
 /* ============================================================
    Error message shown INSIDE the input box
    (used by Medical Registration # in AdminDoctorsPage.jsx)
    ============================================================ */
 .input-with-error {
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(border-subtle);
+  border-radius: var(radius-sm);
   background: #ffffff;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  transition: border-color var(transition-fast), box-shadow var(transition-fast);
 }
 
 .input-with-error .form-control {
@@ -577,17 +578,17 @@ input, select, textarea {
 }
 
 .input-with-error:focus-within {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-light);
+  border-color: var(primary);
+  box-shadow: 0 0 0 3px var(primary-light);
 }
 
 .input-with-error.has-error {
-  border-color: var(--danger);
+  border-color: var(danger);
 }
 
 .input-with-error.has-error:focus-within {
-  border-color: var(--danger);
-  box-shadow: 0 0 0 3px var(--danger-light);
+  border-color: var(danger);
+  box-shadow: 0 0 0 3px var(danger-light);
 }
 
 .inside-error {
@@ -595,17 +596,372 @@ input, select, textarea {
   padding: 0 12px 8px;
   font-size: 0.75rem;
   line-height: 1.3;
-  color: var(--danger);
+  color: var(danger);
 }
 
 /* Existing classes used by Specialization / Qualification fields */
 .form-control.is-invalid {
-  border-color: var(--danger);
+  border-color: var(danger);
 }
 
 .field-error {
   display: block;
   margin-top: 4px;
   font-size: 0.75rem;
-  color: var(--danger);
+  color: var(danger);
 }  
+
+/* Printable Receipt Styles */
+.receipt-wrapper {
+  background: #ffffff;
+  color: #1e293b;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+}
+
+.receipt-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: var(radius-md, 8px);
+  padding: 28px 32px;
+  max-width: 760px;
+  margin: 0 auto;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.receipt-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-bottom: 18px;
+  border-bottom: 2px solid #0284c7;
+  margin-bottom: 18px;
+}
+
+.receipt-clinic-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 4px 0;
+}
+
+.receipt-clinic-sub {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.receipt-doc-title {
+  text-align: right;
+}
+
+.receipt-doc-name {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0284c7;
+  letter-spacing: 0.5px;
+  margin: 0 0 6px 0;
+}
+
+.receipt-stamp-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.stamp-paid {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1.5px solid #16a34a;
+}
+
+.stamp-partial {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1.5px solid #f59e0b;
+}
+
+.stamp-pending {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1.5px solid #ef4444;
+}
+
+.receipt-meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  font-size: 0.86rem;
+}
+
+.receipt-meta-item {
+  display: flex;
+  margin-bottom: 5px;
+}
+
+.receipt-meta-label {
+  color: #64748b;
+  width: 120px;
+  flex-shrink: 0;
+  font-weight: 500;
+}
+
+.receipt-meta-value {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.receipt-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+  font-size: 0.88rem;
+}
+
+.receipt-table th {
+  background: #f1f5f9;
+  color: #334155;
+  font-weight: 600;
+  padding: 9px 12px;
+  text-align: left;
+  border-bottom: 2px solid #cbd5e1;
+}
+
+.receipt-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  color: #334155;
+}
+
+.receipt-table-totals td {
+  padding: 6px 12px;
+  border-bottom: none;
+}
+
+.receipt-table-totals.grand-total td {
+  border-top: 2px solid #0f172a;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+  padding-top: 10px;
+}
+
+.receipt-payments-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  margin-top: 8px;
+}
+
+.receipt-payments-table th {
+  background: #f8fafc;
+  color: #475569;
+  padding: 6px 10px;
+  border: 1px solid #e2e8f0;
+  text-align: left;
+}
+
+.receipt-payments-table td {
+  padding: 6px 10px;
+  border: 1px solid #e2e8f0;
+  color: #334155;
+}
+
+.receipt-footer-notes {
+  margin-top: 24px;
+  padding-top: 14px;
+  border-top: 1px dashed #cbd5e1;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.receipt-signature-line {
+  text-align: center;
+  border-top: 1px solid #94a3b8;
+  padding-top: 4px;
+  width: 170px;
+  font-size: 0.78rem;
+  color: #334155;
+  font-weight: 600;
+}
+
+/* Dedicated receipt print portal (hidden on screen, displayed in print) */
+#receipt-print-portal {
+  display: none;
+}
+
+/* Print specific rules: hide browser navigation, dashboard and isolate receipt */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm 12mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: 100% !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide entire interactive web application shell */
+  #root {
+    display: none !important;
+  }
+
+  .sidebar,
+  .topbar,
+  .navbar,
+  .dashboard-shell,
+  .page-body,
+  .filter-toolbar,
+  .data-table-container,
+  .modal-backdrop,
+  .no-print,
+  button,
+  .alert {
+    display: none !important;
+  }
+
+  /* Display dedicated printable container directly on document.body */
+  #receipt-print-portal,
+  #printable-receipt-portal {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    border: none !important;
+    visibility: visible !important;
+    overflow: visible !important;
+    z-index: auto !important;
+  }
+
+  #receipt-print-portal *,
+  #printable-receipt-portal * {
+    visibility: visible !important;
+  }
+
+  .receipt-card {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+  }
+
+  .receipt-header {
+    border-bottom: 2px solid #0284c7 !important;
+    padding-bottom: 14px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .receipt-meta-grid {
+    background: #f8fafc !important;
+    border: 1px solid #cbd5e1 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    margin-bottom: 16px !important;
+    padding: 12px 16px !important;
+  }
+
+  .receipt-meta-label {
+    color: #475569 !important;
+  }
+
+  .receipt-meta-value {
+    color: #0f172a !important;
+  }
+
+  .receipt-table {
+    margin-bottom: 16px !important;
+  }
+
+  .receipt-table th,
+  .receipt-payments-table th {
+    background: #f1f5f9 !important;
+    color: #1e293b !important;
+    border-bottom: 2px solid #cbd5e1 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .receipt-table td,
+  .receipt-payments-table td {
+    border-bottom: 1px solid #e2e8f0 !important;
+    color: #1e293b !important;
+  }
+
+  .receipt-table-totals.grand-total td {
+    border-top: 2px solid #0f172a !important;
+    color: #0f172a !important;
+  }
+
+  .receipt-stamp-badge {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .stamp-paid {
+    background: #dcfce7 !important;
+    color: #15803d !important;
+    border: 1.5px solid #16a34a !important;
+  }
+
+  .stamp-partial {
+    background: #fef3c7 !important;
+    color: #b45309 !important;
+    border: 1.5px solid #f59e0b !important;
+  }
+
+  .stamp-pending {
+    background: #fee2e2 !important;
+    color: #b91c1c !important;
+    border: 1.5px solid #ef4444 !important;
+  }
+
+  .receipt-footer-notes {
+    margin-top: 20px !important;
+    padding-top: 12px !important;
+    border-top: 1px dashed #94a3b8 !important;
+  }
+
+  /* Prevent awkward page splits */
+  .receipt-header,
+  .receipt-meta-grid,
+  .receipt-footer-notes {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .receipt-table tr,
+  .receipt-payments-table tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+}
+
+/* >>>> 35c0574e1e0162057054fe5c66ed275bd1>>>6b6f04 */

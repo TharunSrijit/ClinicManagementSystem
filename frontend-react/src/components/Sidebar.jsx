@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
 import { ROLES } from '../utils/constants';
 
@@ -48,8 +48,31 @@ const NAV_ITEMS = {
 
 export const Sidebar = () => {
   const { user } = useAuth();
+  const location = useLocation();
   const role = user?.role;
   const items = NAV_ITEMS[role] || [];
+
+  const currentPath = location.pathname.replace(/\/+$/, '') || '/';
+
+  // 1. Exact match takes highest priority
+  let activeItem = items.find((item) => item.path === currentPath);
+
+  // 2. If no exact match (e.g. nested /patients/:id), match the longest prefix
+  if (!activeItem) {
+    const prefixMatches = items.filter(
+      (item) => currentPath.startsWith(item.path + '/')
+    );
+    if (prefixMatches.length > 0) {
+      activeItem = prefixMatches.reduce((longest, curr) =>
+        curr.path.length > longest.path.length ? curr : longest
+      );
+    }
+  }
+
+  // 3. Handle known route aliases
+  if (!activeItem && currentPath === '/receptionist/queue') {
+    activeItem = items.find((item) => item.path === '/receptionist/tokens');
+  }
 
   return (
     <aside className="sidebar">
@@ -62,17 +85,19 @@ export const Sidebar = () => {
       </div>
 
       <nav className="sidebar-nav">
-        {items.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            end={item.path.split('/').length <= 2}
-            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-          >
-            <span style={{ fontSize: '1.1rem' }}>{item.icon}</span>
-            <span>{item.label}</span>
-          </NavLink>
-        ))}
+        {items.map((item) => {
+          const isActive = activeItem?.path === item.path;
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`nav-link ${isActive ? 'active' : ''}`}
+            >
+              <span style={{ fontSize: '1.1rem' }}>{item.icon}</span>
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
       </nav>
 
       <div className="sidebar-footer">

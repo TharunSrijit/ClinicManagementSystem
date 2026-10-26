@@ -29,8 +29,8 @@ import ReceptionistBillingPage from '../pages/receptionist/ReceptionistBillingPa
 import DoctorDashboard from '../pages/doctor/DoctorDashboard';
 import DoctorAppointmentsPage from '../pages/doctor/DoctorAppointmentsPage';
 import DoctorQueuePage from '../pages/doctor/DoctorQueuePage';
-import DoctorPatientsPage from '../pages/doctor/DoctorPatientsPage';
-import DoctorPatientDetailsPage from '../pages/doctor/DoctorPatientDetailsPage';
+import DoctorPatients from '../pages/doctor/DoctorPatients';
+import DoctorPatientDetails from '../pages/doctor/DoctorPatientDetails';
 import DoctorConsultationsPage from '../pages/doctor/DoctorConsultationsPage';
 import DoctorPrescriptionsPage from '../pages/doctor/DoctorPrescriptionsPage';
 import DoctorLabOrdersPage from '../pages/doctor/DoctorLabOrdersPage';
@@ -101,8 +101,8 @@ export const AppRoutes = () => {
         <Route index element={<DoctorDashboard />} />
         <Route path="appointments" element={<DoctorAppointmentsPage />} />
         <Route path="queue" element={<DoctorQueuePage />} />
-        <Route path="patients" element={<DoctorPatientsPage />} />
-        <Route path="patients/:id" element={<DoctorPatientDetailsPage />} />
+        <Route path="patients" element={<DoctorPatients />} />
+        <Route path="patients/:id" element={<DoctorPatientDetails />} />
         <Route path="consultations" element={<DoctorConsultationsPage />} />
         <Route path="prescriptions" element={<DoctorPrescriptionsPage />} />
         <Route path="lab-orders" element={<DoctorLabOrdersPage />} />

@@ -12,3 +12,7 @@ backend/ClinicManagement/.env
 venv/
 jarvis/
 .venv/
+
+# Django settings
+# **/settings.py
+# settings.py

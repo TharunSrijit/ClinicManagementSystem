@@ -694,8 +694,211 @@ class ClinicAppointmentApiTests(APITestCase):
         self.assertEqual(res_refresh.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
+    # ------------------------------------------------------------------------
+    # 7. Token-Based vs Unscheduled (Tokenless) Consultation Workflows
+    # ------------------------------------------------------------------------
+    def test_token_based_consultation_with_valid_token_succeeds(self):
+        """Workflow A: Consultation with an appointment having an active token succeeds."""
+        from apibackendapp.models import Token
+        appt = Appointment.objects.create(
+            doctor=self.doctor1_profile,
+            patient=self.patient1,
+            receptionist=self.receptionist_profile,
+            appointment_type='ADVANCE',
+            appointment_date=datetime.date(2026, 10, 24),
+            appointment_time=datetime.time(10, 0),
+            status='CONFIRMED',
+        )
+        token = Token.objects.create(
+            appointment=appt,
+            token_number=1,
+            token_date=datetime.date(2026, 10, 24),
+            status='WAITING'
+        )
+
+        self.client.force_authenticate(user=self.doctor1_user)
+        res = self.client.post('/api/doctor/consultations/', {
+            'appointment': appt.id,
+            'patient': self.patient1.id,
+            'visit_type': 'TOKEN_BASED',
+            'symptoms': 'Headache and fatigue',
+            'diagnosis': 'Tension headache',
+            'clinical_notes': 'Vitals normal',
+            'treatment_plan': 'Rest and hydration'
+        })
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data['visit_type'], 'TOKEN_BASED')
+        self.assertEqual(res.data['token_number'], 1)
+        self.assertEqual(res.data['appointment'], appt.id)
+
+    def test_token_based_consultation_without_token_rejected(self):
+        """Workflow A: Consultation with appointment that has no queue token is rejected."""
+        appt = Appointment.objects.create(
+            doctor=self.doctor1_profile,
+            patient=self.patient1,
+            receptionist=self.receptionist_profile,
+            appointment_type='ADVANCE',
+            appointment_date=datetime.date(2026, 10, 24),
+            appointment_time=datetime.time(10, 0),
+            status='CONFIRMED',
+        )
+        self.client.force_authenticate(user=self.doctor1_user)
+        res = self.client.post('/api/doctor/consultations/', {
+            'appointment': appt.id,
+            'patient': self.patient1.id,
+            'visit_type': 'TOKEN_BASED',
+            'symptoms': 'Fever',
+            'diagnosis': 'Viral',
+        })
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('token', str(res.data))
+
+    def test_token_based_consultation_with_cancelled_token_rejected(self):
+        """Workflow A: Consultation with cancelled token is rejected."""
+        from apibackendapp.models import Token
+        appt = Appointment.objects.create(
+            doctor=self.doctor1_profile,
+            patient=self.patient1,
+            receptionist=self.receptionist_profile,
+            appointment_type='ADVANCE',
+            appointment_date=datetime.date(2026, 10, 24),
+            appointment_time=datetime.time(10, 0),
+            status='CONFIRMED',
+        )
+        Token.objects.create(
+            appointment=appt,
+            token_number=2,
+            token_date=datetime.date(2026, 10, 24),
+            status='CANCELLED'
+        )
+        self.client.force_authenticate(user=self.doctor1_user)
+        res = self.client.post('/api/doctor/consultations/', {
+            'appointment': appt.id,
+            'patient': self.patient1.id,
+            'visit_type': 'TOKEN_BASED',
+            'symptoms': 'Fever',
+            'diagnosis': 'Viral',
+        })
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_unscheduled_consultation_start_and_billing_succeeds(self):
+        """Workflow B: An authorized doctor can start unscheduled consultation without token."""
+        self.client.force_authenticate(user=self.doctor1_user)
+        res = self.client.post('/api/doctor/consultations/start_unscheduled/', {
+            'patient': self.patient2.id,
+            'visit_reason': 'Emergency walk-in chest discomfort'
+        })
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data['visit_type'], 'UNSCHEDULED')
+        self.assertIsNone(res.data['appointment'])
+        self.assertIsNone(res.data['token_number'])
+        self.assertEqual(res.data['status'], 'IN_PROGRESS')
+        self.assertEqual(res.data['visit_reason'], 'Emergency walk-in chest discomfort')
+
+        # Verify pending ConsultationInvoice created automatically
+        from apibackendapp.models import ConsultationInvoice
+        consult_id = res.data['id']
+        inv = ConsultationInvoice.objects.filter(consultation_id=consult_id).first()
+        self.assertIsNotNone(inv)
+        self.assertEqual(inv.status, 'PENDING')
+        self.assertEqual(inv.consultation_fee, self.doctor1_profile.consultation_fee)
+
+        # Doctor completes consultation record
+        patch_res = self.client.patch(f'/api/doctor/consultations/{consult_id}/', {
+            'symptoms': 'Chest discomfort and shortness of breath',
+            'diagnosis': 'Costochondritis',
+            'status': 'COMPLETED'
+        })
+        self.assertEqual(patch_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(patch_res.data['status'], 'COMPLETED')
+
+    def test_unscheduled_consultation_duplicate_active_prevented(self):
+        """Workflow B: Duplicate IN_PROGRESS unscheduled consultation for same patient today is prevented."""
+        self.client.force_authenticate(user=self.doctor1_user)
+        res1 = self.client.post('/api/doctor/consultations/start_unscheduled/', {
+            'patient': self.patient3.id,
+            'visit_reason': 'Walk-in visit'
+        })
+        self.assertEqual(res1.status_code, status.HTTP_201_CREATED)
+
+        # Calling start_unscheduled again returns the existing in-progress consultation without creating duplicate
+        res2 = self.client.post('/api/doctor/consultations/start_unscheduled/', {
+            'patient': self.patient3.id,
+            'visit_reason': 'Walk-in visit 2'
+        })
+        self.assertEqual(res2.status_code, status.HTTP_200_OK)
+        self.assertEqual(res2.data['id'], res1.data['id'])
+
+    def test_unauthenticated_user_cannot_start_consultation(self):
+        """Security: Unauthenticated user is rejected with 401."""
+        self.client.logout()
+        res = self.client.post('/api/doctor/consultations/start_unscheduled/', {
+            'patient': self.patient1.id,
+        })
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_non_doctor_cannot_use_doctor_consultation_workflow(self):
+        """Security: Non-doctor (e.g. receptionist) is rejected with 403."""
+        self.client.force_authenticate(user=self.receptionist_user)
+        res = self.client.post('/api/doctor/consultations/start_unscheduled/', {
+            'patient': self.patient1.id,
+        })
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_both_consultation_types_appear_in_patient_history(self):
+        """Both token-based and unscheduled consultations appear in patient's consultation history."""
+        from apibackendapp.models import Token, Consultation
+        # 1. Token-based consultation
+        appt = Appointment.objects.create(
+            doctor=self.doctor1_profile,
+            patient=self.patient1,
+            receptionist=self.receptionist_profile,
+            appointment_type='ADVANCE',
+            appointment_date=datetime.date(2026, 10, 24),
+            appointment_time=datetime.time(10, 0),
+            status='CONFIRMED',
+        )
+        Token.objects.create(
+            appointment=appt,
+            token_number=10,
+            token_date=datetime.date(2026, 10, 24),
+            status='COMPLETED'
+        )
+        c1 = Consultation.objects.create(
+            doctor=self.doctor1_profile,
+            patient=self.patient1,
+            appointment=appt,
+            visit_type='TOKEN_BASED',
+            status='COMPLETED',
+            diagnosis='Routine checkup'
+        )
+
+        # 2. Unscheduled consultation
+        c2 = Consultation.objects.create(
+            doctor=self.doctor1_profile,
+            patient=self.patient1,
+            appointment=None,
+            visit_type='UNSCHEDULED',
+            status='COMPLETED',
+            visit_reason='Walk-in rash',
+            diagnosis='Allergic dermatitis'
+        )
+
+        self.client.force_authenticate(user=self.doctor1_user)
+        res = self.client.get(f'/api/doctor/consultations/?patient={self.patient1.id}')
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        returned_ids = [c['id'] for c in res.data]
+        self.assertIn(c1.id, returned_ids)
+        self.assertIn(c2.id, returned_ids)
+
+        # Verify visit types in response
+        consult_map = {c['id']: c for c in res.data}
+        self.assertEqual(consult_map[c1.id]['visit_type'], 'TOKEN_BASED')
+        self.assertEqual(consult_map[c2.id]['visit_type'], 'UNSCHEDULED')
+
+
 # ----------------------------------------------------------------------------
-# 7. Concurrency Test (InnoDB Locking Verification)
+# 8. Concurrency Test (InnoDB Locking Verification)
 # ----------------------------------------------------------------------------
 class BookingConcurrencyTests(TransactionTestCase):
     def setUp(self):

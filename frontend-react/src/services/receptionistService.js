@@ -43,6 +43,18 @@ export const receptionistService = {
     return apiClient.post('/receptionist/appointments/', data);
   },
 
+  confirmArrival(id) {
+    return apiClient.post(`/receptionist/appointments/${id}/confirm_arrival/`);
+  },
+
+  issueToken(id) {
+    return apiClient.post(`/receptionist/appointments/${id}/issue_token/`);
+  },
+
+  collectFee(id, paymentData = {}) {
+    return apiClient.post(`/receptionist/appointments/${id}/collect_fee/`, paymentData);
+  },
+
   checkInAppointment(id) {
     return apiClient.post(`/receptionist/appointments/${id}/check_in/`);
   },
@@ -63,8 +75,28 @@ export const receptionistService = {
     return apiClient.post('/receptionist/tokens/', tokenData);
   },
 
+  callNextToken(id) {
+    return apiClient.post(`/receptionist/tokens/${id}/call_next/`);
+  },
+
+  completeToken(id) {
+    return apiClient.post(`/receptionist/tokens/${id}/complete/`);
+  },
+
+  cancelToken(id) {
+    return apiClient.post(`/receptionist/tokens/${id}/cancel/`);
+  },
+
   getConsultationInvoices() {
     return apiClient.list('/receptionist/consultation-invoices/');
+  },
+
+  getConsultationInvoice(id) {
+    return apiClient.get(`/receptionist/consultation-invoices/${id}/`);
+  },
+
+  getClinicConfiguration() {
+    return apiClient.get('/receptionist/clinic-configuration/');
   },
 
   createConsultationPayment(paymentData) {

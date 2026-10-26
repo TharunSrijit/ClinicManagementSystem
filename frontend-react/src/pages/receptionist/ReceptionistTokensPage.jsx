@@ -4,13 +4,34 @@ import DataTable from '../../components/DataTable';
 import Badge from '../../components/Badge';
 import { formatDate, formatTime } from '../../utils/formatters';
 
+const extractErrorMessage = (err, fallback = 'Operation failed.') => {
+  const data = err?.data || err?.response?.data;
+  if (!data) return err?.message || fallback;
+  if (typeof data === 'string') return data;
+  if (data.detail) return data.detail;
+  if (data.message) return data.message;
+  if (typeof data === 'object') {
+    const fieldMsgs = Object.entries(data).map(
+      ([field, msg]) => `${field}: ${Array.isArray(msg) ? msg.join(' ') : String(msg)}`
+    );
+    if (fieldMsgs.length > 0) return fieldMsgs.join(' | ');
+  }
+  return err?.message || fallback;
+};
+
 export const ReceptionistTokensPage = () => {
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
   const [tokens, setTokens] = useState([]);
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [selectedStatus, setSelectedStatus] = useState('ALL');
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(null);
   const [feedback, setFeedback] = useState({ message: '', type: '' });
+
+  const showFeedback = (message, type = 'success') => {
+    setFeedback({ message, type });
+    setTimeout(() => setFeedback({ message: '', type: '' }), 5000);
+  };
 
   const loadTokens = useCallback(async () => {
     setLoading(true);
@@ -22,7 +43,7 @@ export const ReceptionistTokensPage = () => {
       setTokens(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to load token queue:', err);
-      setFeedback({ message: 'Could not load tokens from server.', type: 'danger' });
+      showFeedback('Could not load tokens from server.', 'danger');
     } finally {
       setLoading(false);
     }
@@ -31,6 +52,21 @@ export const ReceptionistTokensPage = () => {
   useEffect(() => {
     loadTokens();
   }, [loadTokens]);
+
+  const handleCancel = async (tokenId) => {
+    if (!window.confirm('Cancel this queue token?')) return;
+    setActionLoading(tokenId);
+    try {
+      await receptionistService.cancelToken(tokenId);
+      showFeedback(`Token #${tokenId} cancelled.`, 'info');
+      await loadTokens();
+    } catch (err) {
+      console.error('Cancel token error:', err);
+      showFeedback(`Failed to cancel token: ${extractErrorMessage(err)}`, 'danger');
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   const columns = [
     {
@@ -42,7 +78,7 @@ export const ReceptionistTokensPage = () => {
             fontSize: '1.1rem',
             fontWeight: 700,
             color: 'var(--primary)',
-            background: 'var(--primary-light)',
+            background: 'var(--primary-light, #e0f2fe)',
             padding: '4px 10px',
             borderRadius: 'var(--radius-sm)'
           }}
@@ -62,6 +98,22 @@ export const ReceptionistTokensPage = () => {
       render: (row) => <span>{row.doctor_name || 'Doctor'}</span>
     },
     {
+      header: 'Type & Slot',
+      key: 'appointment_type',
+      render: (row) => (
+        <div>
+          <span style={{ fontSize: '0.82rem', fontWeight: 500 }}>
+            {row.appointment_type === 'WALK_IN' ? '🚶 Walk-In' : '📅 Advance'}
+          </span>
+          {row.appointment_time && (
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+              {formatTime(row.appointment_time)}
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
       header: 'Date & Time Issued',
       key: 'created_at',
       render: (row) => (
@@ -72,14 +124,53 @@ export const ReceptionistTokensPage = () => {
       )
     },
     {
-      header: 'Appointment Ref',
+      header: 'Appt Ref',
       key: 'appointment',
       render: (row) => <span>Appt #{row.appointment}</span>
     },
     {
       header: 'Queue Status',
       key: 'status',
-      render: (row) => <Badge status={row.status} />
+      render: (row) => (
+        <div>
+          <Badge status={row.status} />
+          {row.status === 'CALLED' && (
+            <div style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600, marginTop: '2px' }}>
+              In Consultation
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      header: 'Actions',
+      key: 'actions',
+      render: (row) => {
+        const isLoading = actionLoading === row.id;
+        if (row.status === 'COMPLETED') {
+          return <span style={{ color: 'var(--success)', fontWeight: 600, fontSize: '0.82rem' }}>✓ Consulted</span>;
+        }
+        if (row.status === 'CALLED') {
+          return <span style={{ color: 'var(--primary)', fontWeight: 600, fontSize: '0.82rem' }}>Doctor Calling</span>;
+        }
+        if (row.status === 'CANCELLED') {
+          return <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>Cancelled</span>;
+        }
+
+        return (
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <button
+              className="btn btn-outline btn-sm"
+              style={{ color: 'var(--danger)', borderColor: 'var(--border-subtle)' }}
+              onClick={() => handleCancel(row.id)}
+              disabled={isLoading}
+              title="Cancel queue token"
+            >
+              {isLoading ? '...' : 'Cancel Token'}
+            </button>
+          </div>
+        );
+      }
     }
   ];
 
@@ -123,9 +214,8 @@ export const ReceptionistTokensPage = () => {
                 onChange={(e) => setSelectedStatus(e.target.value)}
               >
                 <option value="ALL">All Statuses</option>
-                <option value="ISSUED">ISSUED (Waiting)</option>
-                <option value="CALLED">CALLED</option>
-                <option value="IN_CONSULTATION">IN_CONSULTATION</option>
+                <option value="WAITING">WAITING (In Waiting Room)</option>
+                <option value="CALLED">CALLED (With Doctor)</option>
                 <option value="COMPLETED">COMPLETED</option>
                 <option value="CANCELLED">CANCELLED</option>
               </select>
@@ -140,7 +230,7 @@ export const ReceptionistTokensPage = () => {
               setSelectedStatus('ALL');
             }}
           >
-            Reset Filters
+            Today's Tokens
           </button>
         </div>
       </div>
@@ -149,7 +239,7 @@ export const ReceptionistTokensPage = () => {
         columns={columns}
         data={tokens}
         loading={loading}
-        emptyMessage="No queue tokens found for the selected date and status."
+        emptyMessage="No active tokens found for the selected date and status."
       />
     </div>
   );

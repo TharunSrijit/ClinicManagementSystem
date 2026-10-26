@@ -10,6 +10,7 @@ from .views import (
     DoctorLabTestOrderViewSet,
     DoctorLabTestResultViewSet,
     DoctorPatientViewSet,
+    DoctorPatientDirectoryViewSet,
     DoctorMedicalHistoryViewSet,
     DoctorMasterMedicineViewSet,
     DoctorMasterDosageViewSet,
@@ -37,6 +38,7 @@ router.register(r'lab-results',         DoctorLabTestResultViewSet,     basename
 
 # Patients (read-only)
 router.register(r'patients',            DoctorPatientViewSet,           basename='doctor-patients')
+router.register(r'patients-directory',  DoctorPatientDirectoryViewSet,  basename='doctor-patients-directory')
 router.register(r'medical-history',     DoctorMedicalHistoryViewSet,    basename='doctor-medical-history')
 
 # Reference lists (read-only)

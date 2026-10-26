@@ -1,14 +1,17 @@
 import datetime
+
 from django.core.exceptions import ValidationError
+from decimal import Decimal
+
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
 from django.contrib.auth.models import AbstractUser
 
 
-# ---------------------------------------------------------------------------
+
 # 1. USER & ROLE PROFILES
-# ---------------------------------------------------------------------------
+
 
 def default_doctor_available_days():
     return ['MON', 'TUE', 'WED', 'THU', 'FRI']
@@ -92,7 +95,8 @@ class DoctorProfile(models.Model):
     slot_minutes = models.PositiveSmallIntegerField(default=15)
 
     def __str__(self):
-        return f"Dr. {self.user.get_full_name()}"
+        name = self.user.get_full_name().strip() or self.user.username
+        return f"Dr. {name}"
 
 
 class LabTechnicianProfile(models.Model):
@@ -135,9 +139,9 @@ class PharmacistProfile(models.Model):
         return self.user.get_full_name() or self.user.username
 
 
-# ---------------------------------------------------------------------------
+
 # 2. PATIENT
-# ---------------------------------------------------------------------------
+
 
 class Patient(models.Model):
 
@@ -247,13 +251,14 @@ class MedicalHistory(models.Model):
         return f"{self.patient} - {self.medical_condition}"
 
 
-# ---------------------------------------------------------------------------
+
 # 3. APPOINTMENTS
-# ---------------------------------------------------------------------------
+
 
 class Appointment(models.Model):
 
     STATUS_CHOICES = [
+        ('PENDING', 'Pending Payment'),
         ('BOOKED', 'Booked'),
         ('CONFIRMED', 'Confirmed'),
         ('COMPLETED', 'Completed'),
@@ -308,7 +313,7 @@ class Appointment(models.Model):
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
-        default='BOOKED'
+        default='PENDING'
     )
 
     created_at = models.DateTimeField(
@@ -323,9 +328,40 @@ class Appointment(models.Model):
         )
 
 
-# ---------------------------------------------------------------------------
-# 4. CONSULTATION BILLING
-# ---------------------------------------------------------------------------
+
+# 4. CLINIC CONFIGURATION & CONSULTATION BILLING
+
+class ClinicConfiguration(models.Model):
+    """
+    Clinic-wide configuration for clinic identity and administrative fees.
+    """
+    clinic_name = models.CharField(max_length=150, default="City Health Clinic")
+    clinic_address = models.TextField(blank=True, default="123 Health Ave, Medical District, City - 560001")
+    clinic_phone = models.CharField(max_length=50, blank=True, default="+91 98765 43210")
+    clinic_email = models.EmailField(blank=True, default="contact@cityhealthclinic.com")
+    registration_fee = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('100.00'))
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Clinic Configuration"
+        verbose_name_plural = "Clinic Configuration"
+
+    @classmethod
+    def get_instance(cls):
+        obj = cls.objects.first()
+        if not obj:
+            obj = cls.objects.create(
+                clinic_name="City Health Clinic",
+                clinic_address="123 Health Ave, Medical District, City - 560001",
+                clinic_phone="+91 98765 43210",
+                clinic_email="contact@cityhealthclinic.com",
+                registration_fee=Decimal('100.00'),
+            )
+        return obj
+
+    def __str__(self):
+        return f"{self.clinic_name} (Registration Fee: ₹{self.registration_fee})"
+
 
 class ConsultationInvoice(models.Model):
 
@@ -350,12 +386,28 @@ class ConsultationInvoice(models.Model):
     appointment = models.OneToOneField(
         Appointment,
         on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='consultation_invoice'
+    )
+
+    consultation = models.OneToOneField(
+        'Consultation',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name='consultation_invoice'
     )
 
     consultation_fee = models.DecimalField(
         max_digits=10,
         decimal_places=2
+    )
+
+    registration_fee = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0
     )
 
     discount = models.DecimalField(
@@ -462,9 +514,22 @@ class Token(models.Model):
 
 class Consultation(models.Model):
 
+    VISIT_TYPE_CHOICES = [
+        ('TOKEN_BASED', 'Token-Based'),
+        ('UNSCHEDULED', 'Unscheduled'),
+    ]
+
+    STATUS_CHOICES = [
+        ('IN_PROGRESS', 'In Progress'),
+        ('COMPLETED', 'Completed'),
+        ('CANCELLED', 'Cancelled'),
+    ]
+
     appointment = models.OneToOneField(
         Appointment,
         on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name='consultation'
     )
 
@@ -478,6 +543,23 @@ class Consultation(models.Model):
         Patient,
         on_delete=models.PROTECT,
         related_name='consultations'
+    )
+
+    visit_type = models.CharField(
+        max_length=20,
+        choices=VISIT_TYPE_CHOICES,
+        default='TOKEN_BASED'
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='COMPLETED'
+    )
+
+    visit_reason = models.TextField(
+        blank=True,
+        default=''
     )
 
     symptoms = models.TextField(
@@ -504,9 +586,9 @@ class Consultation(models.Model):
         return f"{self.patient} - {self.consultation_date}"
 
 
-# ---------------------------------------------------------------------------
+
 # 5. PRESCRIPTION
-# ---------------------------------------------------------------------------
+
 
 class MasterDosage(models.Model):
 
@@ -639,9 +721,9 @@ class PrescriptionItem(models.Model):
         return f"{self.prescription} - {self.medicine}"
 
 
-# ---------------------------------------------------------------------------
+
 # 6. LAB MODULE
-# ---------------------------------------------------------------------------
+
 
 class MasterLabTest(models.Model):
 
@@ -779,9 +861,9 @@ class LabTestResult(models.Model):
         return f"Result - {self.order.order_number}"
 
 
-# ---------------------------------------------------------------------------
+
 # 7. PHARMACY - DISPENSE
-# ---------------------------------------------------------------------------
+
 
 class Dispense(models.Model):
 
@@ -858,9 +940,9 @@ class DispenseItem(models.Model):
         return f"{self.medicine} - {self.quantity}"
 
 
-# ---------------------------------------------------------------------------
+
 # 8. STOCK / PRICE MASTER
-# ---------------------------------------------------------------------------
+
 
 class StockMaster(models.Model):
 
@@ -971,9 +1053,9 @@ class PriceList(models.Model):
         return f"{self.medicine} - {self.selling_price}"
 
 
-# ---------------------------------------------------------------------------
+
 # 9. LAB & PHARMACY BILLING
-# ---------------------------------------------------------------------------
+
 
 class LabInvoice(models.Model):
 
