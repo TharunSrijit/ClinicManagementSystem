@@ -12,22 +12,23 @@ export const LabBillingPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [transactionId, setTransactionId] = useState('');
+  const [paymentAmount, setPaymentAmount] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState({ message: '', type: '' });
 
   const showFeedback = (message, type = 'success') => {
     setFeedback({ message, type });
-    setTimeout(() => setFeedback({ message: '', type: '' }), 5000);
+    window.setTimeout(() => setFeedback({ message: '', type: '' }), 5000);
   };
 
   const loadInvoices = useCallback(async () => {
-    setLoading(true);
     try {
       const data = await labService.getInvoices();
-      setInvoices(Array.isArray(data) ? data : []);
+      setInvoices(data);
+      setFeedback({ message: '', type: '' });
     } catch (err) {
       console.error('Failed to load lab invoices:', err);
-      showFeedback('Could not fetch lab billing statements.', 'danger');
+      showFeedback(err.message || 'Could not fetch lab billing statements.', 'danger');
     } finally {
       setLoading(false);
     }
@@ -37,26 +38,37 @@ export const LabBillingPage = () => {
     loadInvoices();
   }, [loadInvoices]);
 
-  const handleOpenPayment = (inv) => {
-    setSelectedInvoice(inv);
+  const handleOpenPayment = (invoice) => {
+    setSelectedInvoice(invoice);
     setPaymentMethod('CASH');
     setTransactionId('');
+    setPaymentAmount(invoice.balance || '0.00');
     setIsModalOpen(true);
   };
 
-  const handleSettlePayment = async (e) => {
-    e.preventDefault();
-    if (!selectedInvoice) return;
+  const handleSettlePayment = async (event) => {
+    event.preventDefault();
+    if (!selectedInvoice || !selectedInvoice.lab_order) {
+      showFeedback('This invoice is missing its lab order reference.', 'danger');
+      return;
+    }
+    if (Number(paymentAmount) <= 0 || Number(paymentAmount) > Number(selectedInvoice.balance)) {
+      showFeedback('Enter a payment amount greater than zero and no greater than the balance due.', 'danger');
+      return;
+    }
+    if (paymentMethod !== 'CASH' && !transactionId.trim()) {
+      showFeedback('Enter the transaction/reference ID for this payment method.', 'danger');
+      return;
+    }
 
     setSubmitting(true);
     try {
-      await labService.createPayment({
-        invoice: selectedInvoice.id,
-        amount: selectedInvoice.total_amount,
+      await labService.recordPayment(selectedInvoice.lab_order, {
+        amount: paymentAmount,
         payment_method: paymentMethod,
-        transaction_id: transactionId.trim() || undefined
+        transaction_id: transactionId.trim()
       });
-      showFeedback(`Payment recorded for Lab Invoice #${selectedInvoice.invoice_number || selectedInvoice.id}!`);
+      showFeedback(`Payment recorded for invoice ${selectedInvoice.invoice_number}.`);
       setIsModalOpen(false);
       await loadInvoices();
     } catch (err) {
@@ -78,28 +90,38 @@ export const LabBillingPage = () => {
       )
     },
     {
-      header: 'Patient Name',
+      header: 'Patient',
       key: 'patient_name',
-      render: (row) => <span style={{ fontWeight: 600 }}>{row.patient_name || `Patient #${row.patient}`}</span>
+      render: (row) => row.patient_name || `Patient #${row.patient}`
+    },
+    {
+      header: 'Test',
+      key: 'test_name'
     },
     {
       header: 'Order Reference',
-      key: 'order',
-      render: (row) => <span>Order #{row.order}</span>
+      key: 'order_number',
+      render: (row) => row.order_number || `#${row.lab_order}`
     },
     {
-      header: 'Total Tariff',
+      header: 'Total',
       key: 'total_amount',
-      render: (row) => (
-        <span style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.95rem' }}>
-          ₹{Number(row.total_amount || 0).toFixed(2)}
-        </span>
-      )
+      render: (row) => `₹${Number(row.total_amount || 0).toFixed(2)}`
+    },
+    {
+      header: 'Paid',
+      key: 'paid_amount',
+      render: (row) => `₹${Number(row.paid_amount || 0).toFixed(2)}`
+    },
+    {
+      header: 'Balance',
+      key: 'balance',
+      render: (row) => `₹${Number(row.balance || 0).toFixed(2)}`
     },
     {
       header: 'Invoice Date',
       key: 'created_at',
-      render: (row) => <span>{formatDate(row.created_at)}</span>
+      render: (row) => formatDate(row.created_at)
     },
     {
       header: 'Status',
@@ -111,14 +133,14 @@ export const LabBillingPage = () => {
       key: 'actions',
       render: (row) => {
         if (row.status === 'PAID') {
-          return <span style={{ color: 'var(--success)', fontWeight: 600, fontSize: '0.85rem' }}>✓ Settled</span>;
+          return <span style={{ color: 'var(--success)', fontWeight: 600, fontSize: '0.85rem' }}>Settled</span>;
+        }
+        if (row.status === 'CANCELLED' || Number(row.balance) <= 0) {
+          return <span style={{ color: 'var(--text-muted)' }}>Unavailable</span>;
         }
         return (
-          <button
-            className="btn btn-primary btn-sm"
-            onClick={() => handleOpenPayment(row)}
-          >
-            Collect Payment
+          <button className="btn btn-primary btn-sm" onClick={() => handleOpenPayment(row)}>
+            Record Payment
           </button>
         );
       }
@@ -130,16 +152,21 @@ export const LabBillingPage = () => {
       <div className="page-header">
         <div>
           <h1 className="page-title">Diagnostic Laboratory Billing</h1>
-          <p className="page-subtitle">Diagnostic invoices, test fee collection, and settlement logs.</p>
+          <p className="page-subtitle">Review laboratory invoices, balances, and payment records.</p>
         </div>
-        <button className="btn btn-outline" onClick={loadInvoices}>
-          🔄 Refresh Statements
+        <button
+          className="btn btn-outline"
+          onClick={() => {
+            setLoading(true);
+            loadInvoices();
+          }}
+          disabled={loading}
+        >
+          {loading ? 'Refreshing...' : 'Refresh Statements'}
         </button>
       </div>
 
-      {feedback.message && (
-        <div className={`alert alert-${feedback.type}`}>{feedback.message}</div>
-      )}
+      {feedback.message && <div className={`alert alert-${feedback.type}`}>{feedback.message}</div>}
 
       <DataTable
         columns={columns}
@@ -148,68 +175,70 @@ export const LabBillingPage = () => {
         emptyMessage="No laboratory invoices on file."
       />
 
-      {/* Payment Settlement Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={`Collect Diagnostic Fee: ${selectedInvoice?.invoice_number || ''}`}
+        title={`Record Payment: ${selectedInvoice?.invoice_number || ''}`}
       >
         {selectedInvoice && (
           <form onSubmit={handleSettlePayment}>
-            <div style={{ background: '#f8fafc', padding: '16px', borderRadius: 'var(--radius-sm)', marginBottom: '20px', border: '1px solid var(--border-subtle)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Patient</span>
-                <span style={{ fontWeight: 600 }}>{selectedInvoice.patient_name}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-subtle)', paddingTop: '8px' }}>
-                <span style={{ fontWeight: 700 }}>Total Payable</span>
-                <span style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '1.1rem' }}>
-                  ₹{Number(selectedInvoice.total_amount || 0).toFixed(2)}
-                </span>
-              </div>
+            <div className="card" style={{ padding: '16px', marginBottom: '20px' }}>
+              <div><strong>Patient:</strong> {selectedInvoice.patient_name}</div>
+              <div><strong>Test:</strong> {selectedInvoice.test_name}</div>
+              <div><strong>Balance due:</strong> ₹{Number(selectedInvoice.balance || 0).toFixed(2)}</div>
             </div>
 
             <div className="form-group">
-              <label className="form-label">Payment Mode *</label>
+              <label className="form-label" htmlFor="lab-payment-amount">Payment amount *</label>
+              <input
+                id="lab-payment-amount"
+                type="number"
+                className="form-control"
+                min="0.01"
+                max={selectedInvoice.balance}
+                step="0.01"
+                required
+                value={paymentAmount}
+                onChange={(event) => setPaymentAmount(event.target.value)}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="lab-payment-method">Payment method *</label>
               <select
+                id="lab-payment-method"
                 className="form-select"
                 value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
+                onChange={(event) => setPaymentMethod(event.target.value)}
                 required
               >
                 <option value="CASH">Cash</option>
                 <option value="CARD">Credit / Debit Card</option>
                 <option value="UPI">UPI / QR Code</option>
+                <option value="ONLINE">Online</option>
               </select>
             </div>
 
             {paymentMethod !== 'CASH' && (
               <div className="form-group">
-                <label className="form-label">Transaction / UTR Reference</label>
+                <label className="form-label" htmlFor="lab-transaction-id">Transaction / reference ID *</label>
                 <input
+                  id="lab-transaction-id"
                   type="text"
                   className="form-control"
-                  placeholder="e.g. UPI8837493"
+                  required
                   value={transactionId}
-                  onChange={(e) => setTransactionId(e.target.value)}
+                  onChange={(event) => setTransactionId(event.target.value)}
                 />
               </div>
             )}
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
-              <button
-                type="button"
-                className="btn btn-outline"
-                onClick={() => setIsModalOpen(false)}
-              >
+              <button type="button" className="btn btn-outline" onClick={() => setIsModalOpen(false)}>
                 Cancel
               </button>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={submitting}
-              >
-                {submitting ? 'Recording...' : `Collect ₹${Number(selectedInvoice.total_amount || 0).toFixed(2)}`}
+              <button type="submit" className="btn btn-primary" disabled={submitting}>
+                {submitting ? 'Recording...' : 'Record Payment'}
               </button>
             </div>
           </form>

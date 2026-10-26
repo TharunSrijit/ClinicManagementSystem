@@ -34,6 +34,7 @@ const NAV_ITEMS = {
   [ROLES.LAB_TECHNICIAN]: [
     { label: 'Dashboard', path: '/lab', icon: '📊' },
     { label: 'Lab Test Orders', path: '/lab/orders', icon: '🧪' },
+    { label: 'All Lab Tests', path: '/lab/all-tests', icon: '📚' },
     { label: 'Test Results', path: '/lab/results', icon: '📝' },
     { label: 'Lab Billing', path: '/lab/billing', icon: '💳' }
   ],

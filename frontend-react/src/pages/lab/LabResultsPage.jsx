@@ -9,11 +9,9 @@ import { formatDate } from '../../utils/formatters';
 export const LabResultsPage = () => {
   const [searchParams] = useSearchParams();
   const preselectedOrderId = searchParams.get('order') || '';
-
   const [results, setResults] = useState([]);
-  const [inProgressOrders, setInProgressOrders] = useState([]);
+  const [processingOrders, setProcessingOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-
   const [isModalOpen, setIsModalOpen] = useState(Boolean(preselectedOrderId));
   const [selectedOrderId, setSelectedOrderId] = useState(preselectedOrderId);
   const [resultValue, setResultValue] = useState('');
@@ -24,21 +22,33 @@ export const LabResultsPage = () => {
 
   const showFeedback = (message, type = 'success') => {
     setFeedback({ message, type });
-    setTimeout(() => setFeedback({ message: '', type: '' }), 5000);
+    window.setTimeout(() => setFeedback({ message: '', type: '' }), 5000);
   };
 
   const loadData = useCallback(async () => {
-    setLoading(true);
     try {
-      const [resData, ordersData] = await Promise.all([
-        labService.getLabResults().catch(() => []),
-        labService.getLabOrders('IN_PROGRESS').catch(() => [])
+      const [resultRows, completedOrders, processingOrdersData] = await Promise.all([
+        labService.getLabResults(),
+        labService.getLabOrders({ status: 'COMPLETED' }),
+        labService.getLabOrders({ status: 'PROCESSING' })
       ]);
-      setResults(Array.isArray(resData) ? resData : []);
-      setInProgressOrders(Array.isArray(ordersData) ? ordersData : []);
+      const completedById = new Map(completedOrders.map((order) => [String(order.id), order]));
+      setResults(resultRows.map((result) => {
+        const order = completedById.get(String(result.order));
+        return {
+          ...result,
+          patient_name: order?.patient_name || result.patient_name,
+          patient_code: order?.patient_code,
+          unit: order?.unit,
+          normal_range: order?.normal_range,
+          order_number: order?.order_number
+        };
+      }));
+      setProcessingOrders(processingOrdersData);
+      setFeedback({ message: '', type: '' });
     } catch (err) {
       console.error('Failed to load lab results:', err);
-      showFeedback('Could not fetch test results from server.', 'danger');
+      showFeedback(err.message || 'Could not load test results and orders.', 'danger');
     } finally {
       setLoading(false);
     }
@@ -48,38 +58,34 @@ export const LabResultsPage = () => {
     loadData();
   }, [loadData]);
 
-  const handleSubmitResult = async (e) => {
-    e.preventDefault();
-    if (!selectedOrderId) {
-      alert('Please select an active lab test order.');
-      return;
-    }
-    if (!resultValue.trim()) {
-      alert('Please enter observed test result values.');
+  const selectedOrder = processingOrders.find((order) => String(order.id) === String(selectedOrderId));
+
+  const handleSubmitResult = async (event) => {
+    event.preventDefault();
+    if (!selectedOrder || !resultValue.trim()) {
+      showFeedback('Select a processing order and enter its result.', 'danger');
       return;
     }
 
     setSubmitting(true);
     try {
-      await labService.createLabResult({
-        order: Number(selectedOrderId),
-        result_value: resultValue.trim(),
+      const submittedValue = `${resultValue.trim()}${selectedOrder.unit ? ` ${selectedOrder.unit}` : ''}`;
+      await labService.submitResult(selectedOrder.id, {
+        result_value: submittedValue,
         result_status: resultStatus,
-        remarks: remarks.trim() || 'Analyzed according to laboratory protocols.'
+        remarks: remarks.trim()
       });
 
-      // Complete order
-      await labService.completeOrder(selectedOrderId).catch(() => {});
-
-      showFeedback('Test result recorded and published successfully!');
+      showFeedback('Result submitted. The backend has completed the order and made the result available to its doctor.');
       setIsModalOpen(false);
       setResultValue('');
+      setResultStatus('NORMAL');
       setRemarks('');
       setSelectedOrderId('');
       await loadData();
     } catch (err) {
-      console.error('Failed to record result:', err);
-      showFeedback(err.message || 'Result entry failed.', 'danger');
+      console.error('Failed to submit lab result:', err);
+      showFeedback(err.message || 'Result submission failed.', 'danger');
     } finally {
       setSubmitting(false);
     }
@@ -87,17 +93,31 @@ export const LabResultsPage = () => {
 
   const columns = [
     {
-      header: 'Result ID',
-      key: 'id',
-      render: (row) => <span style={{ fontWeight: 600 }}>#{row.id}</span>
+      header: 'Order #',
+      key: 'order_number',
+      render: (row) => row.order_number || `#${row.order}`
     },
     {
-      header: 'Test Investigation',
-      key: 'test_name',
-      render: (row) => <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>{row.test_name || `Test #${row.order}`}</span>
+      header: 'Patient',
+      key: 'patient_name',
+      render: (row) => (
+        <span>
+          {row.patient_name || 'Patient details unavailable'}
+          {row.patient_code && <><br /><small>{row.patient_code}</small></>}
+        </span>
+      )
     },
     {
-      header: 'Observed Measurement',
+      header: 'Test',
+      key: 'test_name'
+    },
+    {
+      header: 'Reference Range',
+      key: 'normal_range',
+      render: (row) => row.normal_range || '—'
+    },
+    {
+      header: 'Result',
       key: 'result_value',
       render: (row) => (
         <span style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '0.95rem' }}>
@@ -106,19 +126,19 @@ export const LabResultsPage = () => {
       )
     },
     {
-      header: 'Pathological Classification',
+      header: 'Classification',
       key: 'result_status',
       render: (row) => <Badge status={row.result_status} />
     },
     {
       header: 'Technician Remarks',
       key: 'remarks',
-      render: (row) => <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{row.remarks || 'Normal morphology'}</span>
+      render: (row) => row.remarks || '—'
     },
     {
       header: 'Report Date',
       key: 'result_date',
-      render: (row) => <span>{formatDate(row.result_date || row.created_at)}</span>
+      render: (row) => formatDate(row.result_date)
     }
   ];
 
@@ -127,7 +147,7 @@ export const LabResultsPage = () => {
       <div className="page-header">
         <div>
           <h1 className="page-title">Diagnostic Test Findings & Reports</h1>
-          <p className="page-subtitle">Verified laboratory test values, clinical observations, and pathological classifications.</p>
+          <p className="page-subtitle">Enter results for processing orders and review completed laboratory reports.</p>
         </div>
         <button
           className="btn btn-primary"
@@ -135,97 +155,107 @@ export const LabResultsPage = () => {
             setSelectedOrderId(preselectedOrderId || '');
             setIsModalOpen(true);
           }}
+          disabled={processingOrders.length === 0 || loading}
         >
-          + Enter Test Findings
+          Enter Test Result
         </button>
       </div>
 
-      {feedback.message && (
-        <div className={`alert alert-${feedback.type}`}>{feedback.message}</div>
-      )}
+      {feedback.message && <div className={`alert alert-${feedback.type}`}>{feedback.message}</div>}
 
       <DataTable
         columns={columns}
         data={results}
         loading={loading}
-        emptyMessage="No laboratory test results recorded yet."
+        emptyMessage="No completed laboratory results are available."
       />
 
-      {/* Enter Test Findings Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title="Record Laboratory Test Findings"
+        title="Record Laboratory Test Result"
       >
         <form onSubmit={handleSubmitResult}>
           <div className="form-group">
-            <label className="form-label">Select In-Progress Test Order *</label>
+            <label className="form-label" htmlFor="result-order">Processing order *</label>
             <select
+              id="result-order"
               className="form-select"
               required
               value={selectedOrderId}
-              onChange={(e) => setSelectedOrderId(e.target.value)}
+              onChange={(event) => setSelectedOrderId(event.target.value)}
             >
-              <option value="">-- Choose In-Progress Order --</option>
-              {inProgressOrders.map((ord) => (
-                <option key={ord.id} value={ord.id}>
-                  Order #{ord.order_number || ord.id} — {ord.test_name} ({ord.patient_name || `Patient #${ord.patient}`})
+              <option value="">-- Select a processing order --</option>
+              {processingOrders.map((order) => (
+                <option key={order.id} value={order.id}>
+                  {order.order_number} — {order.test_name} — {order.patient_name}
                 </option>
               ))}
             </select>
           </div>
 
+          {selectedOrder && (
+            <div className="card" style={{ padding: '16px', marginBottom: '16px' }}>
+              <div><strong>Patient:</strong> {selectedOrder.patient_name} ({selectedOrder.patient_code})</div>
+              <div><strong>Test:</strong> {selectedOrder.test_name}</div>
+              <div><strong>Reference range:</strong> {selectedOrder.normal_range || 'Not specified'}</div>
+              <div><strong>Unit:</strong> {selectedOrder.unit || 'Not specified'}</div>
+            </div>
+          )}
+
           <div className="form-group">
-            <label className="form-label">Observed Test Value / Measurement *</label>
+            <label className="form-label" htmlFor="result-value">
+              Result value{selectedOrder?.unit ? ` (${selectedOrder.unit})` : ''} *
+            </label>
             <input
+              id="result-value"
               type="text"
               className="form-control"
               required
-              placeholder="e.g. 14.2 g/dL, Positive, 110 mg/dL"
+              maxLength="2000"
+              placeholder="Enter the observed result"
               value={resultValue}
-              onChange={(e) => setResultValue(e.target.value)}
+              onChange={(event) => setResultValue(event.target.value)}
             />
           </div>
 
           <div className="form-group">
-            <label className="form-label">Result Classification *</label>
+            <label className="form-label" htmlFor="result-status">Result classification *</label>
             <select
+              id="result-status"
               className="form-select"
               required
               value={resultStatus}
-              onChange={(e) => setResultStatus(e.target.value)}
+              onChange={(event) => setResultStatus(event.target.value)}
             >
-              <option value="NORMAL">NORMAL (Within reference limits)</option>
-              <option value="ABNORMAL">ABNORMAL (Outside reference range)</option>
-              <option value="CRITICAL">CRITICAL (Requires urgent attention)</option>
+              <option value="NORMAL">Normal</option>
+              <option value="ABNORMAL">Abnormal</option>
+              <option value="CRITICAL">Critical</option>
             </select>
           </div>
 
           <div className="form-group">
-            <label className="form-label">Clinical Remarks & Technician Observations</label>
+            <label className="form-label" htmlFor="result-remarks">Technician remarks</label>
             <textarea
+              id="result-remarks"
               className="form-control"
               rows="3"
-              placeholder="Specimen handled under standard temperature conditions. No hemolysis..."
+              maxLength="2000"
               value={remarks}
-              onChange={(e) => setRemarks(e.target.value)}
+              onChange={(event) => setRemarks(event.target.value)}
             />
           </div>
 
+          <p className="form-label">
+            Submitting a result completes this order in the current backend workflow.
+          </p>
+
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
-            <button
-              type="button"
-              className="btn btn-outline"
-              onClick={() => setIsModalOpen(false)}
-            >
+            <button type="button" className="btn btn-outline" onClick={() => setIsModalOpen(false)}>
               Cancel
             </button>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={submitting}
-            >
-              {submitting ? 'Recording...' : 'Publish Test Findings'}
+            <button type="submit" className="btn btn-primary" disabled={submitting || !selectedOrder}>
+              {submitting ? 'Submitting...' : 'Submit Result & Complete Order'}
             </button>
           </div>
         </form>

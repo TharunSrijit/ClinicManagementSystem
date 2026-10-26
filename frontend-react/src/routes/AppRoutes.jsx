@@ -139,6 +139,7 @@ export const AppRoutes = () => {
       >
         <Route index element={<LabDashboard />} />
         <Route path="orders" element={<LabOrdersPage />} />
+        <Route path="all-tests" element={<LabOrdersPage />} />
         <Route path="results" element={<LabResultsPage />} />
         <Route path="billing" element={<LabBillingPage />} />
         <Route path="*" element={<NotFoundPage />} />

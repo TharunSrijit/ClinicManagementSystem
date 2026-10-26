@@ -1,53 +1,89 @@
 import apiClient from './apiClient';
 
+const buildQuery = (filters = {}) => {
+  const params = new URLSearchParams();
+
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== null && value !== undefined && value !== '') {
+      params.set(key, String(value));
+    }
+  });
+
+  const query = params.toString();
+  return query ? `?${query}` : '';
+};
+
+const orderAction = (id, action, data = {}) =>
+  apiClient.post(`/lab/lab-orders/${id}/${action}/`, data);
+
 export const labService = {
   getProfile() {
     return apiClient.get('/lab/profile/');
   },
 
-  getLabOrders(status = null, patientId = null) {
-    const params = [];
-    if (status) params.push(`status=${encodeURIComponent(status)}`);
-    if (patientId) params.push(`patient=${encodeURIComponent(patientId)}`);
-    const query = params.length ? `?${params.join('&')}` : '';
-    return apiClient.list(`/lab/lab-orders/${query}`);
+  getLabOrders(status = null, patientId = null, search = '') {
+    const filters = typeof status === 'object' && status !== null
+      ? { ...status }
+      : { status, patient: patientId, search };
+
+    if (filters.patientId && !filters.patient) {
+      filters.patient = filters.patientId;
+      delete filters.patientId;
+    }
+
+    return apiClient.list(`/lab/lab-orders/${buildQuery(filters)}`);
+  },
+
+  getLabOrder(id) {
+    return apiClient.get(`/lab/lab-orders/${id}/`);
+  },
+
+  getSummary() {
+    return apiClient.get('/lab/lab-orders/summary/');
+  },
+
+  generateBill(id, discount = '0') {
+    return orderAction(id, 'generate_bill', { discount });
+  },
+
+  recordPayment(id, paymentData) {
+    return orderAction(id, 'record_payment', paymentData);
   },
 
   collectSample(id) {
-    return apiClient.post(`/lab/lab-orders/${id}/collect_sample/`);
+    return orderAction(id, 'collect_sample');
   },
 
   startProcessing(id) {
-    return apiClient.post(`/lab/lab-orders/${id}/start_processing/`);
+    return orderAction(id, 'start_processing');
   },
 
-  completeOrder(id) {
-    return apiClient.post(`/lab/lab-orders/${id}/complete/`);
+  submitResult(id, resultData) {
+    return orderAction(id, 'submit_result', resultData);
+  },
+
+  cancelOrder(id) {
+    return orderAction(id, 'cancel');
   },
 
   getLabResults(orderId = null) {
-    const query = orderId ? `?order=${encodeURIComponent(orderId)}` : '';
-    return apiClient.list(`/lab/lab-results/${query}`);
+    return apiClient.list(`/lab/lab-results/${buildQuery({ order: orderId })}`);
   },
 
-  createLabResult(resultData) {
-    return apiClient.post('/lab/lab-results/', resultData);
+  getInvoices(filters = {}) {
+    return apiClient.list(`/lab/invoices/${buildQuery(filters)}`);
   },
 
-  getInvoices() {
-    return apiClient.list('/lab/invoices/');
+  getPayments(invoiceId = null) {
+    return apiClient.list(`/lab/payments/${buildQuery({ invoice: invoiceId })}`);
   },
 
-  createPayment(paymentData) {
-    return apiClient.post('/lab/payments/', paymentData);
+  getTests(name = '') {
+    return apiClient.list(`/lab/tests/${buildQuery({ name })}`);
   },
 
-  getTests() {
-    return apiClient.list('/lab/tests/');
-  },
-
-  getPatients() {
-    return apiClient.list('/lab/patients/');
+  getPatients(name = '') {
+    return apiClient.list(`/lab/patients/${buildQuery({ name })}`);
   }
 };
 
