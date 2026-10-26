@@ -1,15 +1,31 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  PackageCheck,
+  CreditCard,
+  AlertCircle,
+  CheckCircle2,
+  Printer,
+  FileText
+} from 'lucide-react';
 import pharmacyService from '../../services/pharmacyService';
 import DataTable from '../../components/DataTable';
 import Badge from '../../components/Badge';
+import Modal from '../../components/Modal';
+import PharmacyReceipt from '../../components/PharmacyReceipt';
 import { formatDate } from '../../utils/formatters';
 
 export const PharmacyDispensesPage = () => {
+  const navigate = useNavigate();
   const [dispenses, setDispenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [actionLoading, setActionLoading] = useState(null);
   const [feedback, setFeedback] = useState({ message: '', type: '' });
+
+  // Receipt Modal
+  const [receiptInvoice, setReceiptInvoice] = useState(null);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
 
   const showFeedback = (message, type = 'success') => {
     setFeedback({ message, type });
@@ -33,11 +49,23 @@ export const PharmacyDispensesPage = () => {
     loadDispenses();
   }, [loadDispenses]);
 
-  const handleConfirmDispense = async (id) => {
-    setActionLoading(id);
+  const handleConfirmDispense = async (row) => {
+    if (row.invoice_status && row.invoice_status !== 'PAID') {
+      showFeedback(
+        `Payment gating: Invoice #${row.invoice_number || row.invoice_id} is unpaid. Payment must be recorded before dispensing.`,
+        'danger'
+      );
+      return;
+    }
+
+    if (!window.confirm(`Confirm medication fulfillment for Dispense #${row.dispense_number || row.id}? This will deduct inventory stock.`)) {
+      return;
+    }
+
+    setActionLoading(row.id);
     try {
-      await pharmacyService.dispenseOrder(id);
-      showFeedback('Dispensation marked as completed.');
+      await pharmacyService.dispenseOrder(row.id);
+      showFeedback(`Dispensation #${row.dispense_number || row.id} confirmed and inventory deducted.`);
       await loadDispenses();
     } catch (err) {
       showFeedback(`Dispensation confirmation failed: ${err.message}`, 'danger');
@@ -47,7 +75,7 @@ export const PharmacyDispensesPage = () => {
   };
 
   const handleCancelDispense = async (id) => {
-    if (!window.confirm('Are you sure you want to cancel this dispense record?')) return;
+    if (!window.confirm('Are you sure you want to cancel this dispense record? Linked unpaid invoices will also be cancelled.')) return;
     setActionLoading(id);
     try {
       await pharmacyService.cancelDispense(id);
@@ -60,20 +88,43 @@ export const PharmacyDispensesPage = () => {
     }
   };
 
+  const handleViewReceipt = async (row) => {
+    if (!row.invoice_id) {
+      showFeedback('No invoice linked to this dispense record.', 'danger');
+      return;
+    }
+    try {
+      const inv = await pharmacyService.getInvoice(row.invoice_id);
+      setReceiptInvoice(inv);
+      setIsReceiptModalOpen(true);
+    } catch (err) {
+      showFeedback('Could not load invoice receipt details.', 'danger');
+    }
+  };
+
   const columns = [
     {
       header: 'Dispense #',
       key: 'dispense_number',
       render: (row) => (
-        <span style={{ fontWeight: 600, color: 'var(--primary)' }}>
-          {row.dispense_number || `#${row.id}`}
-        </span>
+        <div>
+          <span style={{ fontWeight: 700, color: 'var(--primary)' }}>
+            {row.dispense_number || `#${row.id}`}
+          </span>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            {formatDate(row.created_at)}
+          </div>
+        </div>
       )
     },
     {
       header: 'Prescription Ref',
       key: 'prescription',
-      render: (row) => <span>Rx #{row.prescription}</span>
+      render: (row) => (
+        <div>
+          <span style={{ fontWeight: 600 }}>{row.prescription_number || `Rx #${row.prescription}`}</span>
+        </div>
+      )
     },
     {
       header: 'Patient Name',
@@ -81,17 +132,48 @@ export const PharmacyDispensesPage = () => {
       render: (row) => <span style={{ fontWeight: 600 }}>{row.patient_name || `Patient #${row.patient}`}</span>
     },
     {
-      header: 'Dispensed Date',
-      key: 'dispensed_at',
-      render: (row) => <span>{formatDate(row.dispensed_at || row.created_at)}</span>
+      header: 'Linked Bill & Payment',
+      key: 'invoice_number',
+      render: (row) => {
+        if (!row.invoice_id) {
+          return <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No Bill</span>;
+        }
+        const isPaid = row.invoice_status === 'PAID';
+        return (
+          <div>
+            <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+              Bill {row.invoice_number || `#${row.invoice_id}`}
+            </div>
+            <div>
+              <span
+                style={{
+                  display: 'inline-block',
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  background: isPaid ? '#dcfce7' : '#fef3c7',
+                  color: isPaid ? '#15803d' : '#b45309'
+                }}
+              >
+                {isPaid ? 'PAID' : 'UNPAID'}
+              </span>
+            </div>
+          </div>
+        );
+      }
     },
     {
       header: 'Notes / Remarks',
       key: 'notes',
-      render: (row) => <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{row.notes || '—'}</span>
+      render: (row) => (
+        <span style={{ fontSize: '0.82rem', color: row.notes ? '#334155' : 'var(--text-muted)' }}>
+          {row.notes || '—'}
+        </span>
+      )
     },
     {
-      header: 'Status',
+      header: 'Dispense Status',
       key: 'status',
       render: (row) => <Badge status={row.status} />
     },
@@ -100,15 +182,35 @@ export const PharmacyDispensesPage = () => {
       key: 'actions',
       render: (row) => {
         if (row.status === 'PENDING') {
+          const isPaid = row.invoice_status === 'PAID';
           return (
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                className="btn btn-primary btn-sm"
-                onClick={() => handleConfirmDispense(row.id)}
-                disabled={actionLoading === row.id}
-              >
-                Confirm
-              </button>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              {isPaid ? (
+                <button
+                  className="btn btn-primary btn-sm"
+                  style={{ background: '#16a34a', borderColor: '#16a34a' }}
+                  onClick={() => handleConfirmDispense(row)}
+                  disabled={actionLoading === row.id}
+                  title="Fulfill medicines and deduct inventory"
+                >
+                  <PackageCheck size={13} style={{ marginRight: '4px' }} />
+                  {actionLoading === row.id ? 'Fulfilling...' : 'Confirm Dispense'}
+                </button>
+              ) : (
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() =>
+                    navigate(
+                      `/pharmacy/billing?highlight=${row.invoice_id}&openPayment=true`
+                    )
+                  }
+                  title="Payment required before dispensing. Go to Billing."
+                >
+                  <CreditCard size={13} style={{ marginRight: '4px' }} />
+                  Collect Payment
+                </button>
+              )}
+
               <button
                 className="btn btn-outline btn-sm"
                 style={{ color: 'var(--danger)' }}
@@ -120,6 +222,21 @@ export const PharmacyDispensesPage = () => {
             </div>
           );
         }
+
+        if (row.status === 'DISPENSED' && row.invoice_id) {
+          return (
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={() => handleViewReceipt(row)}
+              title="View & Print Pharmacy Receipt"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+            >
+              <Printer size={13} />
+              Receipt
+            </button>
+          );
+        }
+
         return <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>—</span>;
       }
     }
@@ -130,10 +247,10 @@ export const PharmacyDispensesPage = () => {
       <div className="page-header">
         <div>
           <h1 className="page-title">Dispense History & Audit Log</h1>
-          <p className="page-subtitle">Historical records of pharmaceutical fulfillments and inventory deductions.</p>
+          <p className="page-subtitle">Historical records of pharmaceutical fulfillments, partial dispensing, and inventory deductions.</p>
         </div>
         <button className="btn btn-outline" onClick={loadDispenses}>
-          🔄 Refresh
+          Refresh
         </button>
       </div>
 
@@ -173,6 +290,21 @@ export const PharmacyDispensesPage = () => {
         loading={loading}
         emptyMessage="No medication dispenses logged."
       />
+
+      {/* Printable Receipt Modal */}
+      <Modal
+        isOpen={isReceiptModalOpen}
+        onClose={() => setIsReceiptModalOpen(false)}
+        title="Official Pharmacy Tax Invoice & Receipt"
+        size="lg"
+      >
+        {receiptInvoice && (
+          <PharmacyReceipt
+            invoice={receiptInvoice}
+            onPrint={() => window.print()}
+          />
+        )}
+      </Modal>
     </div>
   );
 };

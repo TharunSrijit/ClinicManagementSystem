@@ -1,5 +1,14 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  CalendarDays,
+  Clock,
+  CheckCircle2,
+  Stethoscope,
+  UsersRound,
+  TestTube,
+  ListOrdered
+} from 'lucide-react';
 import doctorService from '../../services/doctorService';
 import StatCard from '../../components/StatCard';
 import Badge from '../../components/Badge';
@@ -71,8 +80,8 @@ export const DoctorDashboard = () => {
       header: 'Type',
       key: 'appointment_type',
       render: (row) => (
-        <span style={{ fontSize: '0.8rem' }}>
-          {row.appointment_type === 'WALK_IN' ? '🚶 Walk-In' : '📅 Advance'}
+        <span style={{ fontSize: '0.82rem', fontWeight: 500 }}>
+          {row.appointment_type === 'WALK_IN' ? 'Walk-In' : 'Advance'}
         </span>
       )
     },
@@ -112,7 +121,7 @@ export const DoctorDashboard = () => {
             className="btn btn-outline"
             onClick={loadDashboardData}
           >
-            🔄 Refresh
+            Refresh
           </button>
           <button
             className="btn btn-primary"
@@ -132,13 +141,13 @@ export const DoctorDashboard = () => {
         <StatCard
           title="Today's Appointments"
           value={todayAppts.length}
-          icon="📅"
+          icon={CalendarDays}
           subtitle="Scheduled for today"
         />
         <StatCard
           title="Patients in Queue"
           value={inQueueCount}
-          icon="⏳"
+          icon={Clock}
           subtitle="Awaiting consultation"
           trend="Live Queue"
           trendType="neutral"
@@ -146,26 +155,26 @@ export const DoctorDashboard = () => {
         <StatCard
           title="Visits Completed Today"
           value={completedTodayCount}
-          icon="✅"
+          icon={CheckCircle2}
           subtitle="Consulted and closed"
           trendType="positive"
         />
         <StatCard
           title="Consultations Logged"
           value={consultations.length}
-          icon="🩺"
+          icon={Stethoscope}
           subtitle="Historical visits"
         />
         <StatCard
           title="Patient Roster"
           value={patients.length}
-          icon="👥"
+          icon={UsersRound}
           subtitle="Assigned to your care"
         />
         <StatCard
           title="Active Lab Orders"
           value={labOrders.filter(l => l.status !== 'COMPLETED').length}
-          icon="🧪"
+          icon={TestTube}
           subtitle="Pending results"
         />
       </div>
@@ -174,40 +183,48 @@ export const DoctorDashboard = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '28px' }}>
         <div
           className="card"
-          style={{ cursor: 'pointer', textAlign: 'center', padding: '20px' }}
+          style={{ cursor: 'pointer', textAlign: 'center', padding: '24px 20px' }}
           onClick={() => navigate('/doctor/appointments')}
         >
-          <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📅</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: 'var(--primary)' }}>
+            <CalendarDays size={28} strokeWidth={1.8} />
+          </div>
           <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>My Appointments</div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Full appointment calendar</div>
         </div>
 
         <div
           className="card"
-          style={{ cursor: 'pointer', textAlign: 'center', padding: '20px' }}
+          style={{ cursor: 'pointer', textAlign: 'center', padding: '24px 20px' }}
           onClick={() => navigate('/doctor/queue')}
         >
-          <div style={{ fontSize: '2rem', marginBottom: '8px' }}>👥</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: 'var(--primary)' }}>
+            <ListOrdered size={28} strokeWidth={1.8} />
+          </div>
           <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Today's Queue</div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Manage patient queue tokens</div>
         </div>
 
         <div
           className="card"
-          style={{ cursor: 'pointer', textAlign: 'center', padding: '20px' }}
+          style={{ cursor: 'pointer', textAlign: 'center', padding: '24px 20px' }}
           onClick={() => navigate('/doctor/consultations')}
         >
-          <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🩺</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: 'var(--primary)' }}>
+            <Stethoscope size={28} strokeWidth={1.8} />
+          </div>
           <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Consultations</div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Clinical history & diagnoses</div>
         </div>
 
         <div
           className="card"
-          style={{ cursor: 'pointer', textAlign: 'center', padding: '20px' }}
+          style={{ cursor: 'pointer', textAlign: 'center', padding: '24px 20px' }}
           onClick={() => navigate('/doctor/lab-orders')}
         >
-          <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🧪</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: 'var(--primary)' }}>
+            <TestTube size={28} strokeWidth={1.8} />
+          </div>
           <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Lab Orders</div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Investigative test requests</div>
         </div>

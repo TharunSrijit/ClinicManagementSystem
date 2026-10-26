@@ -1,5 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  FlaskConical,
+  TestTube,
+  Microscope,
+  CheckCircle2,
+  XCircle,
+  CreditCard,
+  Clock,
+  FileChartColumn,
+  Receipt
+} from 'lucide-react';
 import labService from '../../services/labService';
 import StatCard from '../../components/StatCard';
 import Badge from '../../components/Badge';
@@ -136,33 +147,41 @@ export const LabDashboard = () => {
       {feedback.message && <div className={`alert alert-${feedback.type}`}>{feedback.message}</div>}
 
       <div className="grid-stats">
-        <StatCard title="Total Requests" value={total} icon="📥" subtitle="All lab orders" />
-        <StatCard title="Awaiting Payment" value={counts.PAYMENT_PENDING} icon="💳" subtitle="Payment required" />
-        <StatCard title="Pending Sample Collection" value={counts.PAID} icon="🩸" subtitle="Paid and ready" />
-        <StatCard title="Samples Collected" value={counts.SAMPLE_COLLECTED} icon="🧪" subtitle="Awaiting processing" />
-        <StatCard title="Processing" value={counts.PROCESSING} icon="🔬" subtitle="Tests in progress" />
-        <StatCard title="Completed" value={counts.COMPLETED} icon="✅" subtitle="Results available" />
-        <StatCard title="Cancelled" value={counts.CANCELLED} icon="⛔" subtitle="Cancelled orders" />
+        <StatCard title="Total Requests" value={total} icon={FlaskConical} subtitle="All lab orders" />
+        <StatCard title="Awaiting Payment" value={counts.PAYMENT_PENDING} icon={CreditCard} subtitle="Payment required" />
+        <StatCard title="Pending Sample Collection" value={counts.PAID} icon={Clock} subtitle="Paid and ready" />
+        <StatCard title="Samples Collected" value={counts.SAMPLE_COLLECTED} icon={TestTube} subtitle="Awaiting processing" />
+        <StatCard title="Processing" value={counts.PROCESSING} icon={Microscope} subtitle="Tests in progress" />
+        <StatCard title="Completed" value={counts.COMPLETED} icon={CheckCircle2} subtitle="Results available" />
+        <StatCard title="Cancelled" value={counts.CANCELLED} icon={XCircle} subtitle="Cancelled orders" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '28px' }}>
-        <div className="card" style={{ cursor: 'pointer', textAlign: 'center', padding: '20px' }} onClick={() => navigate('/lab/orders')}>
-          <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🧪</div>
+        <div className="card" style={{ cursor: 'pointer', textAlign: 'center', padding: '24px 20px' }} onClick={() => navigate('/lab/orders')}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: 'var(--primary)' }}>
+            <TestTube size={28} strokeWidth={1.8} />
+          </div>
           <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Lab Test Orders</div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Manage workflow actions</div>
         </div>
-        <div className="card" style={{ cursor: 'pointer', textAlign: 'center', padding: '20px' }} onClick={() => navigate('/lab/all-tests')}>
-          <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📚</div>
+        <div className="card" style={{ cursor: 'pointer', textAlign: 'center', padding: '24px 20px' }} onClick={() => navigate('/lab/all-tests')}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: 'var(--primary)' }}>
+            <FlaskConical size={28} strokeWidth={1.8} />
+          </div>
           <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>All Lab Tests</div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Search current and historical orders</div>
         </div>
-        <div className="card" style={{ cursor: 'pointer', textAlign: 'center', padding: '20px' }} onClick={() => navigate('/lab/results')}>
-          <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📝</div>
+        <div className="card" style={{ cursor: 'pointer', textAlign: 'center', padding: '24px 20px' }} onClick={() => navigate('/lab/results')}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: 'var(--primary)' }}>
+            <FileChartColumn size={28} strokeWidth={1.8} />
+          </div>
           <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Test Results</div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Enter and review findings</div>
         </div>
-        <div className="card" style={{ cursor: 'pointer', textAlign: 'center', padding: '20px' }} onClick={() => navigate('/lab/billing')}>
-          <div style={{ fontSize: '2rem', marginBottom: '8px' }}>💳</div>
+        <div className="card" style={{ cursor: 'pointer', textAlign: 'center', padding: '24px 20px' }} onClick={() => navigate('/lab/billing')}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: 'var(--primary)' }}>
+            <Receipt size={28} strokeWidth={1.8} />
+          </div>
           <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Laboratory Billing</div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Invoices and payments</div>
         </div>

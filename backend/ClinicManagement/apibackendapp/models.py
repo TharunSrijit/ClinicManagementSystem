@@ -65,6 +65,20 @@ class ReceptionistProfile(models.Model):
         return self.user.get_full_name() or self.user.username
 
 
+class Specialization(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True, default='')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
 class DoctorProfile(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
@@ -932,6 +946,11 @@ class Dispense(models.Model):
 
     dispense_date = models.DateTimeField(
         auto_now_add=True
+    )
+
+    notes = models.TextField(
+        blank=True,
+        default=''
     )
 
     def __str__(self):

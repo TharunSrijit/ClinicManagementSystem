@@ -103,7 +103,7 @@ export const DoctorPrescriptionsPage = () => {
           onClick={() => setSelectedRx(row)}
           title="View full prescription details"
         >
-          👁️ Details
+          Details
         </button>
       )
     }
@@ -117,7 +117,7 @@ export const DoctorPrescriptionsPage = () => {
           <p className="page-subtitle">Medication regimens authored and issued by your clinical practice.</p>
         </div>
         <button className="btn btn-outline" onClick={loadPrescriptions}>
-          🔄 Refresh
+          Refresh
         </button>
       </div>
 
@@ -191,7 +191,7 @@ export const DoctorPrescriptionsPage = () => {
 
             <div>
               <h4 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '8px' }}>
-                💊 Prescribed Medications ({selectedRx.items?.length || 0})
+                Prescribed Medications ({selectedRx.items?.length || 0})
               </h4>
               {Array.isArray(selectedRx.items) && selectedRx.items.length > 0 ? (
                 <div style={{ overflowX: 'auto' }}>

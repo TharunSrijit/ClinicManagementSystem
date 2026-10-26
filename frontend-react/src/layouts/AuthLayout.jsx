@@ -1,5 +1,6 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
+import { Hospital } from 'lucide-react';
 
 export const AuthLayout = () => {
   return (
@@ -25,12 +26,11 @@ export const AuthLayout = () => {
               borderRadius: '16px',
               background: 'linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%)',
               color: 'white',
-              fontSize: '2rem',
               boxShadow: 'var(--shadow-md)',
               marginBottom: '14px'
             }}
           >
-            🏥
+            <Hospital size={30} strokeWidth={2} />
           </div>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.03em', margin: 0 }}>
             MedCore Clinic

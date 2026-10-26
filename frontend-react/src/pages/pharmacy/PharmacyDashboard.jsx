@@ -1,5 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  ClipboardList,
+  Pill,
+  AlertTriangle,
+  ReceiptText,
+  History,
+  Package
+} from 'lucide-react';
 import pharmacyService from '../../services/pharmacyService';
 import StatCard from '../../components/StatCard';
 import Badge from '../../components/Badge';
@@ -99,7 +107,7 @@ export const PharmacyDashboard = () => {
           <p className="page-subtitle">Medication dispensation queue, formulary stock inventory, and sales billing.</p>
         </div>
         <button className="btn btn-outline" onClick={loadPharmacyData}>
-          🔄 Refresh
+          Refresh
         </button>
       </div>
 
@@ -112,7 +120,7 @@ export const PharmacyDashboard = () => {
         <StatCard
           title="Prescriptions in Queue"
           value={pendingRxCount}
-          icon="📋"
+          icon={ClipboardList}
           subtitle="Awaiting dispensation"
           trend="Live Queue"
           trendType="neutral"
@@ -120,21 +128,21 @@ export const PharmacyDashboard = () => {
         <StatCard
           title="Orders Dispensed"
           value={dispensesCount}
-          icon="💊"
+          icon={Pill}
           subtitle="Medications fulfilled"
           trendType="positive"
         />
         <StatCard
           title="Low Stock Warnings"
           value={lowStockCount}
-          icon="⚠️"
+          icon={AlertTriangle}
           subtitle="At or below reorder limit"
           trendType={lowStockCount > 0 ? 'negative' : 'positive'}
         />
         <StatCard
           title="Pharmacy Invoices"
           value={invoices.length}
-          icon="🧾"
+          icon={ReceiptText}
           subtitle="Total statements"
         />
       </div>
@@ -143,40 +151,48 @@ export const PharmacyDashboard = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '28px' }}>
         <div
           className="card"
-          style={{ cursor: 'pointer', textAlign: 'center', padding: '20px' }}
+          style={{ cursor: 'pointer', textAlign: 'center', padding: '24px 20px' }}
           onClick={() => navigate('/pharmacy/prescriptions')}
         >
-          <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📋</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: 'var(--primary)' }}>
+            <ClipboardList size={28} strokeWidth={1.8} />
+          </div>
           <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Prescriptions Queue</div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Dispense patient drugs</div>
         </div>
 
         <div
           className="card"
-          style={{ cursor: 'pointer', textAlign: 'center', padding: '20px' }}
+          style={{ cursor: 'pointer', textAlign: 'center', padding: '24px 20px' }}
           onClick={() => navigate('/pharmacy/dispenses')}
         >
-          <div style={{ fontSize: '2rem', marginBottom: '8px' }}>💊</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: 'var(--primary)' }}>
+            <History size={28} strokeWidth={1.8} />
+          </div>
           <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Dispense History</div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Fulfilled batches & logs</div>
         </div>
 
         <div
           className="card"
-          style={{ cursor: 'pointer', textAlign: 'center', padding: '20px' }}
+          style={{ cursor: 'pointer', textAlign: 'center', padding: '24px 20px' }}
           onClick={() => navigate('/pharmacy/stock')}
         >
-          <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📦</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: 'var(--primary)' }}>
+            <Package size={28} strokeWidth={1.8} />
+          </div>
           <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Medicine Stock</div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Inventory quantities & expiry</div>
         </div>
 
         <div
           className="card"
-          style={{ cursor: 'pointer', textAlign: 'center', padding: '20px' }}
+          style={{ cursor: 'pointer', textAlign: 'center', padding: '24px 20px' }}
           onClick={() => navigate('/pharmacy/billing')}
         >
-          <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🧾</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: 'var(--primary)' }}>
+            <ReceiptText size={28} strokeWidth={1.8} />
+          </div>
           <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Pharmacy Billing</div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Pharmacy statements & receipts</div>
         </div>

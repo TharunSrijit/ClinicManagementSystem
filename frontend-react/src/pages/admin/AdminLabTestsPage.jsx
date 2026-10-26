@@ -253,7 +253,7 @@
 //             />
 //           </div>
 //           <button className="btn btn-outline btn-sm" onClick={loadLabTests}>
-//             🔄 Refresh Test Master
+//             Refresh Test Master
 //           </button>
 //         </div>
 //       </div>
@@ -399,6 +399,18 @@ const emptyForm = {
   is_active: true
 };
 
+const labTestCategories = [
+  'Hematology',
+  'Biochemistry',
+  'Microbiology',
+  'Immunology',
+  'Pathology',
+  'Endocrinology',
+  'Cardiology',
+  'Radiology',
+  'Other'
+];
+
 const labTestUnits = ['ng/mL', 'mg/L', 'mmol/L', 'cells/µL'];
 
 export const AdminLabTestsPage = () => {
@@ -413,6 +425,7 @@ export const AdminLabTestsPage = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [feedback, setFeedback] = useState({ message: '', type: '' });
+  const [formErrors, setFormErrors] = useState({});
   const [form, setForm] = useState({ ...emptyForm });
 
   const showFeedback = (message, type = 'success') => {
@@ -440,17 +453,20 @@ export const AdminLabTestsPage = () => {
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingLabTest(null);
+    setFormErrors({});
     setForm({ ...emptyForm });
   };
 
   const openCreateModal = () => {
     setEditingLabTest(null);
+    setFormErrors({});
     setForm({ ...emptyForm });
     setIsModalOpen(true);
   };
 
   const openEditModal = (labTest) => {
     setEditingLabTest(labTest);
+    setFormErrors({});
     setForm({
       test_code: labTest.test_code || '',
       test_name: labTest.test_name || '',
@@ -466,13 +482,37 @@ export const AdminLabTestsPage = () => {
 
   const handleSaveLabTest = async (event) => {
     event.preventDefault();
+
+    const errors = {};
+    const trimmedName = form.test_name.trim();
+
+    if (!trimmedName || trimmedName.length < 2) {
+      errors.test_name = 'Lab test name must contain at least 2 characters.';
+    }
+
+    if (!form.category || !form.category.trim()) {
+      errors.category = 'Please select a category.';
+    }
+
+    if (!form.unit || !form.unit.trim()) {
+      errors.unit = 'Please select a measurement unit.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      showFeedback('Please correct the validation errors below.', 'danger');
+      return;
+    }
+
+    setFormErrors({});
     setSubmitting(true);
     try {
       const labTestData = {
         ...form,
         test_code: form.test_code.trim(),
-        test_name: form.test_name.trim(),
+        test_name: trimmedName,
         category: form.category.trim(),
+        unit: form.unit.trim(),
         price: Number(form.price)
       };
       if (editingLabTest) {
@@ -650,7 +690,7 @@ export const AdminLabTestsPage = () => {
             />
           </div>
           <button className="btn btn-outline btn-sm" onClick={loadLabTests}>
-            🔄 Refresh Test Master
+            Refresh Test Master
           </button>
         </div>
       </div>
@@ -689,41 +729,74 @@ export const AdminLabTestsPage = () => {
                 type="text"
                 className="form-control"
                 required
+                minLength="2"
                 pattern="[A-Za-z0-9]+( [A-Za-z0-9]+)*"
                 title="Use letters, numbers, and spaces only."
                 value={form.test_name}
-                onChange={(event) => setForm({ ...form, test_name: event.target.value })}
+                onChange={(event) => {
+                  setForm({ ...form, test_name: event.target.value });
+                  if (formErrors.test_name) setFormErrors((prev) => ({ ...prev, test_name: null }));
+                }}
                 placeholder="e.g. Complete Blood Count CBC"
               />
+              {formErrors.test_name && (
+                <span className="form-error" style={{ color: 'var(--danger)', fontSize: '0.85rem', marginTop: '4px', display: 'block' }}>
+                  {formErrors.test_name}
+                </span>
+              )}
             </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
             <div className="form-group">
               <label className="form-label">Category *</label>
-              <input
-                type="text"
+              <select
                 className="form-control"
                 required
-                pattern="[A-Za-z]+( [A-Za-z]+)*"
-                title="Category must contain letters only."
                 value={form.category}
-                onChange={(event) => setForm({ ...form, category: event.target.value })}
-                placeholder="e.g. Hematology, Biochemistry"
-              />
+                onChange={(event) => {
+                  setForm({ ...form, category: event.target.value });
+                  if (formErrors.category) setFormErrors((prev) => ({ ...prev, category: null }));
+                }}
+              >
+                <option value="">Select category</option>
+                {labTestCategories.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+                {form.category && !labTestCategories.includes(form.category) && (
+                  <option value={form.category}>{form.category}</option>
+                )}
+              </select>
+              {formErrors.category && (
+                <span className="form-error" style={{ color: 'var(--danger)', fontSize: '0.85rem', marginTop: '4px', display: 'block' }}>
+                  {formErrors.category}
+                </span>
+              )}
             </div>
             <div className="form-group">
               <label className="form-label">Unit of Measure *</label>
-              <input
-                type="text"
+              <select
                 className="form-control"
                 required
-                pattern="ng/mL|mg/L|mmol/L|cells/µL"
-                title="Enter ng/mL, mg/L, mmol/L, or cells/µL."
                 value={form.unit}
-                onChange={(event) => setForm({ ...form, unit: event.target.value })}
-                placeholder="e.g. ng/mL"
-              />
+                onChange={(event) => {
+                  setForm({ ...form, unit: event.target.value });
+                  if (formErrors.unit) setFormErrors((prev) => ({ ...prev, unit: null }));
+                }}
+              >
+                <option value="">Select measurement unit</option>
+                {labTestUnits.map((u) => (
+                  <option key={u} value={u}>{u}</option>
+                ))}
+                {form.unit && !labTestUnits.includes(form.unit) && (
+                  <option value={form.unit}>{form.unit}</option>
+                )}
+              </select>
+              {formErrors.unit && (
+                <span className="form-error" style={{ color: 'var(--danger)', fontSize: '0.85rem', marginTop: '4px', display: 'block' }}>
+                  {formErrors.unit}
+                </span>
+              )}
             </div>
             <div className="form-group">
               <label className="form-label">Tariff Price (₹) *</label>

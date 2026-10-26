@@ -184,7 +184,7 @@ export const ReceptionistPatientsPage = () => {
             className="btn btn-outline btn-sm"
             onClick={() => loadPatients(searchTerm)}
           >
-            🔄 Refresh
+            Refresh
           </button>
         </form>
       </div>

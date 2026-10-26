@@ -95,7 +95,7 @@ export const DoctorLabOrdersPage = () => {
           <p className="page-subtitle">Track status of pathology, hematology, and biochemistry investigations requested by you.</p>
         </div>
         <button className="btn btn-outline" onClick={loadOrders}>
-          🔄 Refresh Orders
+          Refresh Orders
         </button>
       </div>
 

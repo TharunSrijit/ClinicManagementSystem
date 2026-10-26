@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { AlertCircle } from 'lucide-react';
 import doctorService from '../../services/doctorService';
 import Modal from '../../components/Modal';
 import { formatDate } from '../../utils/formatters';
@@ -158,14 +159,16 @@ export const DoctorPatientDetails = () => {
     return (
       <div style={{ maxWidth: '600px', margin: '40px auto', textAlign: 'center' }}>
         <div className="card" style={{ padding: '40px' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '16px' }}>⚠️</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px', color: 'var(--danger)' }}>
+            <AlertCircle size={44} strokeWidth={1.8} />
+          </div>
           <h2 style={{ fontSize: '1.3rem', color: 'var(--danger)', marginBottom: '8px' }}>Patient Record Not Found</h2>
           <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>
             {error || `Clinical record for Patient #${id} does not exist or you lack authorization.`}
           </p>
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
             <button className="btn btn-outline" onClick={fetchPatientData}>
-              🔄 Try Again
+              Try Again
             </button>
             <Link to="/doctor/patients" className="btn btn-primary">
               ← Return to Patients Directory
@@ -231,7 +234,7 @@ export const DoctorPatientDetails = () => {
               onClick={() => navigate(`/doctor/consultations?appointment=${todayAppt.id}`)}
               title={`Start token-based consultation (Token #${todayAppt.token_number})`}
             >
-              🎫 Start Consultation
+              Start Consultation
             </button>
           ) : todayAppt && todayAppt.status === 'COMPLETED' ? (
             <button className="btn btn-outline" disabled title="Patient already consulted today">
@@ -248,7 +251,7 @@ export const DoctorPatientDetails = () => {
                   : 'Start unscheduled consultation directly without a queue token'
               }
             >
-              ⚡ Start Unscheduled
+              Start Unscheduled
             </button>
           )}
         </div>
@@ -333,14 +336,14 @@ export const DoctorPatientDetails = () => {
                 onClick={handleStartConsultation}
                 style={{ width: '100%' }}
               >
-                🩺 Start Consultation
+                Start Consultation
               </button>
               <button
                 className="btn btn-outline btn-sm"
                 onClick={() => navigate(`/doctor/consultations?patient=${patient.id}`)}
                 style={{ width: '100%' }}
               >
-                📋 View All Consultations
+                View All Consultations
               </button>
             </div>
           </div>
@@ -399,7 +402,7 @@ export const DoctorPatientDetails = () => {
                           fontWeight: 600
                         }}
                       >
-                        ⚠️ Allergies: {item.allergies}
+                        Allergies: {item.allergies}
                       </div>
                     )}
 
@@ -461,7 +464,7 @@ export const DoctorPatientDetails = () => {
                             style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', fontSize: '0.75rem' }}
                             title="Unscheduled consultation conducted without a queue token"
                           >
-                            ⚡ Unscheduled (Tokenless)
+                            Unscheduled (Tokenless)
                           </span>
                         ) : (
                           <span
@@ -469,7 +472,7 @@ export const DoctorPatientDetails = () => {
                             style={{ background: '#e0e7ff', color: '#3730a3', border: '1px solid #c7d2fe', fontSize: '0.75rem' }}
                             title="Token-based consultation with scheduled appointment"
                           >
-                            🎫 Token-Based {c.token_number ? `(Token #${c.token_number})` : ''}
+                            Token-Based {c.token_number ? `(Token #${c.token_number})` : ''}
                           </span>
                         )}
                         <span
@@ -609,7 +612,7 @@ export const DoctorPatientDetails = () => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '0.95rem' }}>
-                          💊 {rx.prescription_number || `Rx #${rx.id}`}
+                          {rx.prescription_number || `Rx #${rx.id}`}
                         </span>
                         {rx.consultation && (
                           <span style={{ fontSize: '0.75rem', background: '#f1f5f9', color: 'var(--text-muted)', padding: '2px 6px', borderRadius: '4px' }}>
@@ -687,7 +690,7 @@ export const DoctorPatientDetails = () => {
               lineHeight: '1.5'
             }}
           >
-            <strong>⚡ Workflow B: Unscheduled (Tokenless) Consultation</strong>
+            <strong>Workflow B: Unscheduled (Tokenless) Consultation</strong>
             <p style={{ margin: '6px 0 0 0', fontSize: '0.85rem' }}>
               Patient <strong>{patient.first_name} {patient.last_name}</strong> has no queue token or appointment scheduled for today. Starting this consultation will record a tokenless clinical visit and automatically generate a pending consultation invoice.
             </p>
@@ -762,7 +765,7 @@ export const DoctorPatientDetails = () => {
               disabled={unscheduledModal.submitting}
               style={{ minWidth: '150px' }}
             >
-              {unscheduledModal.submitting ? 'Initiating...' : 'Confirm & Start 🩺'}
+              {unscheduledModal.submitting ? 'Initiating...' : 'Confirm & Start'}
             </button>
           </div>
         </form>

@@ -1,5 +1,16 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  Stethoscope,
+  CheckCircle2,
+  Clock,
+  Play,
+  Pause,
+  Trash2,
+  AlertCircle,
+  UserCheck,
+  Search
+} from 'lucide-react';
 import adminService from '../../services/adminService';
 import DataTable from '../../components/DataTable';
 import Modal from '../../components/Modal';
@@ -120,7 +131,9 @@ const DoctorActionMenu = ({ doctor, onEdit, onDelete, onToggleActive, isActionBu
               onToggleActive(doctor);
             }}
           >
-            <span style={{ fontSize: '0.9rem' }}>{doctor.is_active ? '⏸️' : '▶️'}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+              {doctor.is_active ? <Pause size={14} /> : <Play size={14} />}
+            </span>
             {doctor.is_active ? 'Deactivate Doctor' : 'Activate Doctor'}
           </button>
           <button
@@ -132,7 +145,9 @@ const DoctorActionMenu = ({ doctor, onEdit, onDelete, onToggleActive, isActionBu
               onDelete(doctor);
             }}
           >
-            <span style={{ fontSize: '0.9rem' }}>🗑️</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+              <Trash2 size={14} />
+            </span>
             Delete Doctor
           </button>
         </div>
@@ -155,6 +170,9 @@ export const AdminDoctorsPage = () => {
   const [feedback, setFeedback] = useState({ message: '', type: '' });
   const [fieldErrors, setFieldErrors] = useState({});
 
+  // Dynamic Specializations state
+  const [specializationsList, setSpecializationsList] = useState([]);
+
   // Search & Filter state
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSpecialization, setSelectedSpecialization] = useState('ALL');
@@ -162,7 +180,7 @@ export const AdminDoctorsPage = () => {
 
   const createFormDefaults = {
     user: '',
-    specialization: 'General Medicine',
+    specialization: '',
     qualification: 'MBBS, MD',
     contact_number: '',
     date_of_joining: getTodayDate(),
@@ -215,14 +233,26 @@ export const AdminDoctorsPage = () => {
     }
   }, []);
 
+  const loadSpecializations = useCallback(async () => {
+    try {
+      const data = await adminService.getSpecializations();
+      setSpecializationsList(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Failed to load specializations:', err);
+    }
+  }, []);
+
   useEffect(() => {
     loadDoctors();
-  }, [loadDoctors]);
+    loadSpecializations();
+  }, [loadDoctors, loadSpecializations]);
 
   const handleCreateDoctor = async (e) => {
     e.preventDefault();
     const errors = {};
-    if (!/^[A-Za-z ]+$/.test(form.specialization.trim())) {
+    if (!form.specialization || !form.specialization.trim()) {
+      errors.specialization = 'Please select a specialization.';
+    } else if (!/^[A-Za-z &,-]+$/.test(form.specialization.trim())) {
       errors.specialization = 'Specialization contains letters only.';
     }
     if (!/^[A-Za-z]+(( ?, ?| )[A-Za-z]+)*$/.test(form.qualification.trim())) {
@@ -343,16 +373,25 @@ export const AdminDoctorsPage = () => {
     }
   };
 
-  // Dynamic specializations list from actual API data
+  // Dynamic specializations list from backend catalog & active doctor records
   const specializations = useMemo(() => {
     const set = new Set();
+    specializationsList.forEach((s) => {
+      if (s.name && (s.is_active || form.specialization === s.name)) {
+        set.add(s.name.trim());
+      }
+    });
     doctors.forEach((d) => {
       if (d.specialization && d.specialization.trim()) {
         set.add(d.specialization.trim());
       }
     });
+    if (form.specialization && form.specialization.trim()) {
+      set.add(form.specialization.trim());
+    }
     return Array.from(set).sort();
-  }, [doctors]);
+  }, [specializationsList, doctors, form.specialization]);
+
 
   // Combined filtering logic
   const filteredDoctors = useMemo(() => {
@@ -555,21 +594,21 @@ export const AdminDoctorsPage = () => {
           title="Total Doctors"
           value={totalCount}
           subtitle="Registered in clinic directory"
-          icon="🩺"
+          icon={Stethoscope}
           color="primary"
         />
         <StatCard
           title="Active Doctors"
           value={activeCount}
           subtitle="Currently available for appointments"
-          icon="🟢"
+          icon={CheckCircle2}
           color="success"
         />
         <StatCard
           title="Inactive Doctors"
           value={inactiveCount}
           subtitle="Profiles temporarily paused"
-          icon="⚪"
+          icon={Clock}
           color="warning"
         />
       </div>
@@ -646,7 +685,9 @@ export const AdminDoctorsPage = () => {
         <DataTable columns={columns} data={[]} loading={true} />
       ) : loadError ? (
         <div className="registry-state-card">
-          <div className="registry-state-icon">⚠️</div>
+          <div className="registry-state-icon">
+            <AlertCircle size={36} color="var(--danger)" strokeWidth={1.8} />
+          </div>
           <div className="registry-state-title">Unable to Load Doctor Profiles</div>
           <div className="registry-state-desc">{loadError}</div>
           <button type="button" className="btn btn-primary" onClick={loadDoctors}>
@@ -655,7 +696,9 @@ export const AdminDoctorsPage = () => {
         </div>
       ) : doctors.length === 0 ? (
         <div className="registry-state-card">
-          <div className="registry-state-icon">👨‍⚕️</div>
+          <div className="registry-state-icon">
+            <UserCheck size={36} color="var(--primary)" strokeWidth={1.8} />
+          </div>
           <div className="registry-state-title">No doctors registered yet.</div>
           <div className="registry-state-desc">
             Get started by registering your clinic's first doctor practice profile.
@@ -675,7 +718,9 @@ export const AdminDoctorsPage = () => {
         </div>
       ) : filteredDoctors.length === 0 ? (
         <div className="registry-state-card">
-          <div className="registry-state-icon">🔍</div>
+          <div className="registry-state-icon">
+            <Search size={36} color="var(--text-muted)" strokeWidth={1.8} />
+          </div>
           <div className="registry-state-title">No doctors match your search.</div>
           <div className="registry-state-desc">
             No doctors matched your current search and filter combination. Try clearing your
@@ -841,12 +886,9 @@ export const AdminDoctorsPage = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div className="form-group">
               <label className="form-label">Specialization *</label>
-              <input
-                type="text"
+              <select
                 className={`form-control${fieldErrors.specialization ? ' is-invalid' : ''}`}
                 required
-                pattern="[A-Za-z ]+"
-                title="Specialization contains letters only."
                 aria-invalid={Boolean(fieldErrors.specialization)}
                 aria-describedby={
                   fieldErrors.specialization ? 'doctor-specialization-error' : undefined
@@ -856,8 +898,14 @@ export const AdminDoctorsPage = () => {
                   setForm({ ...form, specialization: e.target.value });
                   setFieldErrors({ ...fieldErrors, specialization: '' });
                 }}
-                placeholder="e.g. Cardiology, Pediatrics"
-              />
+              >
+                <option value="">Select Specialization</option>
+                {specializations.map((spec) => (
+                  <option key={spec} value={spec}>
+                    {spec}
+                  </option>
+                ))}
+              </select>
               {fieldErrors.specialization && (
                 <small id="doctor-specialization-error" className="field-error" role="alert">
                   {fieldErrors.specialization}

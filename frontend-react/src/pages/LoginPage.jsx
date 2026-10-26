@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AlertCircle } from 'lucide-react';
 import useAuth from '../hooks/useAuth';
 import { ROLE_DASHBOARDS, ROLES } from '../utils/constants';
 
@@ -70,7 +71,7 @@ export const LoginPage = () => {
             gap: '8px'
           }}
         >
-          <span>⚠️</span>
+          <AlertCircle size={16} strokeWidth={2} style={{ flexShrink: 0 }} />
           <span>{errorMessage}</span>
         </div>
       )}

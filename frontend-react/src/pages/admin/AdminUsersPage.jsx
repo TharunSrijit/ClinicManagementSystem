@@ -302,7 +302,7 @@ export const AdminUsersPage = () => {
           </div>
 
           <button className="btn btn-outline btn-sm" onClick={loadUsers}>
-            🔄 Refresh Directory
+            Refresh Directory
           </button>
         </div>
       </div>

@@ -165,7 +165,7 @@ export const ReceptionistAppointmentsPage = () => {
               }}
               title={`Queue Token #${row.token_number} (${row.token_status || 'WAITING'})`}
             >
-              🎫 Token #{row.token_number}
+              Token #{row.token_number}
             </span>
           ) : row.status === 'CONFIRMED' ? (
             row.is_paid ? (
@@ -198,7 +198,7 @@ export const ReceptionistAppointmentsPage = () => {
                 }}
                 title="Arrival confirmed; awaiting consultation fee payment"
               >
-                ⏳ Awaiting Fee
+                Awaiting Fee
               </span>
             )
           ) : (
@@ -246,7 +246,7 @@ export const ReceptionistAppointmentsPage = () => {
       key: 'appointment_type',
       render: (row) => (
         <span style={{ fontSize: '0.82rem', fontWeight: 500 }}>
-          {row.appointment_type === 'WALK_IN' ? '🚶 Walk-In' : '📅 Advance'}
+          {row.appointment_type === 'WALK_IN' ? 'Walk-In' : 'Advance'}
         </span>
       )
     },
@@ -267,7 +267,7 @@ export const ReceptionistAppointmentsPage = () => {
                 borderRadius: '4px'
               }}
             >
-              📍 Arrived
+              Arrived
             </span>
           );
         }
@@ -299,7 +299,7 @@ export const ReceptionistAppointmentsPage = () => {
                   borderRadius: '3px'
                 }}
               >
-                ✓ Paid
+                Paid
               </span>
             ) : (
               <span
@@ -314,7 +314,7 @@ export const ReceptionistAppointmentsPage = () => {
                   borderRadius: '3px'
                 }}
               >
-                ⏳ Unpaid
+                Unpaid
               </span>
             )}
           </div>
@@ -345,7 +345,7 @@ export const ReceptionistAppointmentsPage = () => {
                 disabled={isLoading}
                 title="Confirm advance appointment arrival"
               >
-                {isLoading ? '...' : '📍 Confirm Arrival'}
+                {isLoading ? 'Confirming...' : 'Confirm Arrival'}
               </button>
             )}
 
@@ -358,7 +358,7 @@ export const ReceptionistAppointmentsPage = () => {
                 disabled={isLoading}
                 title="Collect consultation fee"
               >
-                💳 Collect Fee
+                Collect Fee
               </button>
             )}
 
@@ -370,7 +370,7 @@ export const ReceptionistAppointmentsPage = () => {
                 disabled={isLoading}
                 title="Issue next queue token (fee paid)"
               >
-                {isLoading ? '...' : '🎫 Issue Token'}
+                {isLoading ? 'Issuing...' : 'Issue Token'}
               </button>
             )}
 
@@ -481,7 +481,7 @@ export const ReceptionistAppointmentsPage = () => {
               Today's Appts
             </button>
             <button className="btn btn-outline btn-sm" onClick={loadData}>
-              🔄 Refresh
+              Refresh
             </button>
           </div>
         </div>
@@ -513,7 +513,7 @@ export const ReceptionistAppointmentsPage = () => {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Type:</span>
-                <span>{selectedApptForPay.appointment_type === 'WALK_IN' ? '🚶 Walk-In' : '📅 Advance'}</span>
+                <span>{selectedApptForPay.appointment_type === 'WALK_IN' ? 'Walk-In' : 'Advance'}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid var(--border-subtle)', fontSize: '1.05rem' }}>
                 <span style={{ fontWeight: 600 }}>Total Fee Payable:</span>

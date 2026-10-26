@@ -1,49 +1,73 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import {
+  Hospital,
+  LayoutDashboard,
+  CalendarDays,
+  ListOrdered,
+  UsersRound,
+  ClipboardList,
+  FileText,
+  TestTube,
+  Pill,
+  CalendarPlus,
+  UserRoundPlus,
+  ReceiptText,
+  Stethoscope,
+  UserRoundCog,
+  Microscope,
+  FlaskConical,
+  FileChartColumn,
+  Receipt,
+  History,
+  Package,
+  Award
+} from 'lucide-react';
 import useAuth from '../hooks/useAuth';
 import { ROLES } from '../utils/constants';
 
 const NAV_ITEMS = {
   [ROLES.DOCTOR]: [
-    { label: 'Dashboard', path: '/doctor', icon: '📊' },
-    { label: 'My Appointments', path: '/doctor/appointments', icon: '📅' },
-    { label: "Today's Queue", path: '/doctor/queue', icon: '👥' },
-    { label: 'Patients', path: '/doctor/patients', icon: '👤' },
-    { label: 'Consultations', path: '/doctor/consultations', icon: '🩺' },
-    { label: 'Prescriptions', path: '/doctor/prescriptions', icon: '📋' },
-    { label: 'Lab Orders', path: '/doctor/lab-orders', icon: '🧪' },
-    { label: 'Reference Meds', path: '/doctor/medicines', icon: '💊' }
+    { label: 'Dashboard', path: '/doctor', icon: LayoutDashboard },
+    { label: 'My Appointments', path: '/doctor/appointments', icon: CalendarDays },
+    { label: "Today's Queue", path: '/doctor/queue', icon: ListOrdered },
+    { label: 'Patients', path: '/doctor/patients', icon: UsersRound },
+    { label: 'Consultations', path: '/doctor/consultations', icon: ClipboardList },
+    { label: 'Prescriptions', path: '/doctor/prescriptions', icon: FileText },
+    { label: 'Lab Orders', path: '/doctor/lab-orders', icon: TestTube },
+    { label: 'Reference Meds', path: '/doctor/medicines', icon: Pill }
   ],
   [ROLES.RECEPTIONIST]: [
-    { label: 'Dashboard', path: '/receptionist', icon: '📊' },
-    { label: 'Appointments', path: '/receptionist/appointments', icon: '📅' },
-    { label: 'Book Appointment', path: '/receptionist/appointments/book', icon: '➕' },
-    { label: 'Token Queue', path: '/receptionist/tokens', icon: '🎫' },
-    { label: 'Patients', path: '/receptionist/patients', icon: '👥' },
-    { label: 'Register Patient', path: '/receptionist/patients/register', icon: '📝' },
-    { label: 'Billing & Invoices', path: '/receptionist/billing', icon: '🧾' }
+    { label: 'Dashboard', path: '/receptionist', icon: LayoutDashboard },
+    { label: 'Appointments', path: '/receptionist/appointments', icon: CalendarDays },
+    { label: 'Book Appointment', path: '/receptionist/appointments/book', icon: CalendarPlus },
+    { label: 'Token Queue', path: '/receptionist/tokens', icon: ListOrdered },
+    { label: 'Patients', path: '/receptionist/patients', icon: UsersRound },
+    { label: 'Register Patient', path: '/receptionist/patients/register', icon: UserRoundPlus },
+    { label: 'Billing & Invoices', path: '/receptionist/billing', icon: ReceiptText }
   ],
   [ROLES.ADMIN]: [
-    { label: 'System Overview', path: '/admin', icon: '📊' },
-    { label: 'Users & Roles', path: '/admin/users', icon: '👥' },
-    { label: 'Doctors', path: '/admin/doctors', icon: '👨‍⚕️' },
-    { label: 'Staff Members', path: '/admin/staff', icon: '👔' },
-    { label: 'Medicines Master', path: '/admin/medicines', icon: '💊' },
-    { label: 'Lab Tests Master', path: '/admin/lab-tests', icon: '🔬' }
+    { label: 'System Overview', path: '/admin', icon: LayoutDashboard },
+    { label: 'Users & Roles', path: '/admin/users', icon: UsersRound },
+    { label: 'Doctors', path: '/admin/doctors', icon: Stethoscope },
+    { label: 'Specializations', path: '/admin/specializations', icon: Award },
+    { label: 'Staff Members', path: '/admin/staff', icon: UserRoundCog },
+    { label: 'Medicines Master', path: '/admin/medicines', icon: Pill },
+    { label: 'Lab Tests Master', path: '/admin/lab-tests', icon: Microscope }
   ],
   [ROLES.LAB_TECHNICIAN]: [
-    { label: 'Dashboard', path: '/lab', icon: '📊' },
-    { label: 'Lab Test Orders', path: '/lab/orders', icon: '🧪' },
-    { label: 'All Lab Tests', path: '/lab/all-tests', icon: '📚' },
-    { label: 'Test Results', path: '/lab/results', icon: '📝' },
-    { label: 'Lab Billing', path: '/lab/billing', icon: '💳' }
+    { label: 'Dashboard', path: '/lab', icon: LayoutDashboard },
+    { label: 'Lab Test Orders', path: '/lab/orders', icon: TestTube },
+    { label: 'All Lab Tests', path: '/lab/all-tests', icon: FlaskConical },
+    { label: 'Test Results', path: '/lab/results', icon: FileChartColumn },
+    { label: 'Lab Billing', path: '/lab/billing', icon: Receipt }
   ],
   [ROLES.PHARMACIST]: [
-    { label: 'Dashboard', path: '/pharmacy', icon: '📊' },
-    { label: 'Prescriptions Queue', path: '/pharmacy/prescriptions', icon: '📋' },
-    { label: 'Dispense History', path: '/pharmacy/dispenses', icon: '💊' },
-    { label: 'Medicine Stock', path: '/pharmacy/stock', icon: '📦' },
-    { label: 'Pharmacy Billing', path: '/pharmacy/billing', icon: '🧾' }
+    { label: 'Dashboard', path: '/pharmacy', icon: LayoutDashboard },
+    { label: 'Prescriptions Queue', path: '/pharmacy/prescriptions', icon: ClipboardList },
+    { label: 'Dispense History', path: '/pharmacy/dispenses', icon: History },
+    { label: 'Medicine Stock', path: '/pharmacy/stock', icon: Package },
+    { label: 'Pharmacy Billing', path: '/pharmacy/billing', icon: ReceiptText }
   ]
 };
 
@@ -78,7 +102,9 @@ export const Sidebar = () => {
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
-        <div className="sidebar-brand-icon">🏥</div>
+        <div className="sidebar-brand-icon">
+          <Hospital size={22} strokeWidth={2} color="#ffffff" />
+        </div>
         <div>
           <div className="sidebar-brand-title">MedCore CMS</div>
           <div className="sidebar-brand-subtitle">Clinic Management</div>
@@ -88,13 +114,14 @@ export const Sidebar = () => {
       <nav className="sidebar-nav">
         {items.map((item) => {
           const isActive = activeItem?.path === item.path;
+          const Icon = item.icon;
           return (
             <Link
               key={item.path}
               to={item.path}
               className={`nav-link ${isActive ? 'active' : ''}`}
             >
-              <span style={{ fontSize: '1.1rem' }}>{item.icon}</span>
+              {Icon && <Icon size={20} strokeWidth={1.9} style={{ flexShrink: 0 }} />}
               <span>{item.label}</span>
             </Link>
           );

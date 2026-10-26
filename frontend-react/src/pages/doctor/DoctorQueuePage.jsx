@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Target } from 'lucide-react';
 import doctorService from '../../services/doctorService';
 import DataTable from '../../components/DataTable';
 import Badge from '../../components/Badge';
@@ -207,7 +208,7 @@ export const DoctorQueuePage = () => {
             fontSize: '0.8rem'
           }}
         >
-          {row.appointment_type === 'WALK_IN' ? '🚶 Walk-In' : '📅 Advance'}
+          {row.appointment_type === 'WALK_IN' ? 'Walk-In' : 'Advance'}
         </span>
       )
     },
@@ -302,7 +303,7 @@ export const DoctorQueuePage = () => {
           </p>
         </div>
         <button className="btn btn-outline" onClick={loadQueue}>
-          🔄 Refresh Queue
+          Refresh Queue
         </button>
       </div>
 
@@ -332,7 +333,7 @@ export const DoctorQueuePage = () => {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '1.25rem' }}>🎯</span>
+              <Target size={20} color="var(--primary)" strokeWidth={2} />
               <h2 style={{ fontSize: '1.15rem', margin: 0, fontWeight: 700, color: 'var(--text-main)' }}>
                 Recommended Next Patient
               </h2>
@@ -397,7 +398,7 @@ export const DoctorQueuePage = () => {
                 Type & Slot Time
               </span>
               <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>
-                {recommendedPatient.appointment_type === 'WALK_IN' ? '🚶 Walk-In' : '📅 Advance'}
+                {recommendedPatient.appointment_type === 'WALK_IN' ? 'Walk-In' : 'Advance'}
               </div>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                 {recommendedPatient.appointment_time ? formatTime(recommendedPatient.appointment_time) : 'Today'}

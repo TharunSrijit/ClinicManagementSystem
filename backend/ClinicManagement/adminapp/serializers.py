@@ -8,6 +8,7 @@ from apibackendapp.models import (
     DoctorProfile,
     LabTechnicianProfile,
     PharmacistProfile,
+    Specialization,
     default_doctor_available_days,
     validate_date_of_joining_not_future,
 )
@@ -343,6 +344,36 @@ class AdminDoctorProfileSerializer(serializers.ModelSerializer):
         return profile
 
 
+class SpecializationSerializer(serializers.ModelSerializer):
+    doctors_count = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = Specialization
+        fields = [
+            'id', 'name', 'description', 'is_active',
+            'created_at', 'updated_at', 'doctors_count',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'doctors_count']
+
+    def get_doctors_count(self, obj):
+        return DoctorProfile.objects.filter(specialization__iexact=obj.name).count()
+
+    def validate_name(self, value):
+        trimmed = (value or '').strip()
+        if not trimmed:
+            raise serializers.ValidationError('Specialization name cannot be empty.')
+        if len(trimmed) < 2:
+            raise serializers.ValidationError('Specialization name must contain at least 2 characters.')
+        if not re.fullmatch(r'[A-Za-z &,-]+', trimmed):
+            raise serializers.ValidationError('Specialization name contains letters only.')
+        qs = Specialization.objects.filter(name__iexact=trimmed)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError('A specialization with this name already exists.')
+        return trimmed
+
+
 # ============================================================================
 # DASHBOARD
 # ============================================================================
@@ -354,6 +385,7 @@ class RevenueBreakdownSerializer(serializers.Serializer):
 
 
 class DashboardStatsSerializer(serializers.Serializer):
+    total_users = serializers.IntegerField(required=False)
     total_patients = serializers.IntegerField()
     total_doctors = serializers.IntegerField()
     total_receptionists = serializers.IntegerField()
@@ -368,4 +400,5 @@ class DashboardStatsSerializer(serializers.Serializer):
     pending_pharmacy_invoices = serializers.IntegerField()
 
     revenue_this_month = RevenueBreakdownSerializer()
+    consultation_revenue = serializers.DecimalField(max_digits=12, decimal_places=2, required=False)
     low_stock_items = serializers.IntegerField()

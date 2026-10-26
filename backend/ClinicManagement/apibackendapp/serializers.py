@@ -1,8 +1,7 @@
- 
-from django.db import transaction
-import re
-
+from datetime import date as date_cls, timedelta
 from decimal import Decimal
+import re
+from django.db import transaction
 
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -579,6 +578,15 @@ class InitialStockBatchSerializer(serializers.ModelSerializer):
             'purchase_price', 'selling_price',
         ]
 
+    def validate_expiry_date(self, value):
+        if value:
+            min_date = date_cls.today() + timedelta(days=15)
+            if value < min_date:
+                raise serializers.ValidationError(
+                    f'Expiry date must be at least 15 calendar days from today (on or after {min_date.isoformat()}).'
+                )
+        return value
+
 
 class MasterMedicineSerializer(serializers.ModelSerializer):
     stock_level = serializers.SerializerMethodField()
@@ -601,10 +609,24 @@ class MasterMedicineSerializer(serializers.ModelSerializer):
         ]
 
     def validate_generic_name(self, value):
-        if value and value[0].isdigit():
+        trimmed = (value or '').strip()
+        if len(trimmed) < 2:
+            raise serializers.ValidationError(
+                'Medicine name must contain at least 2 characters.'
+            )
+        if trimmed and trimmed[0].isdigit():
             raise serializers.ValidationError(
                 'Medicine name must not start with a number.'
             )
+        return value
+
+    def validate_medicine_name(self, value):
+        if value is not None:
+            trimmed = (value or '').strip()
+            if len(trimmed) < 2:
+                raise serializers.ValidationError(
+                    'Medicine name must contain at least 2 characters.'
+                )
         return value
 
     def get_stock_level(self, obj):
@@ -658,7 +680,12 @@ class MasterLabTestSerializer(serializers.ModelSerializer):
         return value
 
     def validate_test_name(self, value):
-        if not re.fullmatch(r'[A-Za-z0-9]+(?: [A-Za-z0-9]+)*', value):
+        trimmed = (value or '').strip()
+        if len(trimmed) < 2:
+            raise serializers.ValidationError(
+                'Test name must contain at least 2 characters.'
+            )
+        if not re.fullmatch(r'[A-Za-z0-9]+(?: [A-Za-z0-9]+)*', trimmed):
             raise serializers.ValidationError(
                 'Test name may contain only letters, numbers, and spaces.'
             )

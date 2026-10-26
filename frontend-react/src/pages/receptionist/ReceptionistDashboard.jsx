@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  CalendarDays,
+  ListOrdered,
+  UsersRound,
+  Stethoscope,
+  ReceiptText
+} from 'lucide-react';
 import receptionistService from '../../services/receptionistService';
 import StatCard from '../../components/StatCard';
 import Badge from '../../components/Badge';
@@ -86,13 +93,13 @@ export const ReceptionistDashboard = () => {
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
           <Link to="/receptionist/appointments/book" className="btn btn-primary">
-            📅 Book Appointment
+            Book Appointment
           </Link>
           <Link to="/receptionist/patients/register" className="btn btn-outline">
-            👤 Register Patient
+            Register Patient
           </Link>
           <button onClick={loadDashboardData} className="btn btn-outline" title="Refresh">
-            🔄
+            Refresh
           </button>
         </div>
       </div>
@@ -103,28 +110,28 @@ export const ReceptionistDashboard = () => {
           title="Total Scheduled"
           value={appointments.length}
           subtitle="All active appointments"
-          icon="📅"
+          icon={CalendarDays}
           color="primary"
         />
         <StatCard
           title="Active Tokens"
           value={activeTokens}
           subtitle="Waiting in reception"
-          icon="🎫"
+          icon={ListOrdered}
           color="warning"
         />
         <StatCard
           title="Patients Enrolled"
           value={patients.length}
           subtitle="Registered clinic members"
-          icon="👥"
+          icon={UsersRound}
           color="info"
         />
         <StatCard
           title="On-Duty Doctors"
           value={doctors.length}
           subtitle="Available for consultation"
-          icon="🩺"
+          icon={Stethoscope}
           color="success"
         />
       </div>
@@ -132,7 +139,9 @@ export const ReceptionistDashboard = () => {
       {/* Quick Navigation Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '28px' }}>
         <Link to="/receptionist/appointments" className="card" style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '18px' }}>
-          <div style={{ fontSize: '1.8rem', background: 'var(--primary-light)', padding: '10px', borderRadius: 'var(--radius-sm)' }}>📅</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--primary-light)', width: '44px', height: '44px', borderRadius: 'var(--radius-sm)', color: 'var(--primary)', flexShrink: 0 }}>
+            <CalendarDays size={22} strokeWidth={1.9} />
+          </div>
           <div>
             <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>Appointment Desk</div>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>View & filter all bookings</div>
@@ -140,7 +149,9 @@ export const ReceptionistDashboard = () => {
         </Link>
 
         <Link to="/receptionist/tokens" className="card" style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '18px' }}>
-          <div style={{ fontSize: '1.8rem', background: 'var(--warning-light)', padding: '10px', borderRadius: 'var(--radius-sm)' }}>🎫</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--warning-light)', width: '44px', height: '44px', borderRadius: 'var(--radius-sm)', color: '#b45309', flexShrink: 0 }}>
+            <ListOrdered size={22} strokeWidth={1.9} />
+          </div>
           <div>
             <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>Live Token Queue</div>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Manage patient order & check-ins</div>
@@ -148,7 +159,9 @@ export const ReceptionistDashboard = () => {
         </Link>
 
         <Link to="/receptionist/patients" className="card" style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '18px' }}>
-          <div style={{ fontSize: '1.8rem', background: 'var(--info-light)', padding: '10px', borderRadius: 'var(--radius-sm)' }}>👥</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--info-light)', width: '44px', height: '44px', borderRadius: 'var(--radius-sm)', color: '#0284c7', flexShrink: 0 }}>
+            <UsersRound size={22} strokeWidth={1.9} />
+          </div>
           <div>
             <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>Patients Directory</div>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Search records & histories</div>
@@ -156,7 +169,9 @@ export const ReceptionistDashboard = () => {
         </Link>
 
         <Link to="/receptionist/billing" className="card" style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '18px' }}>
-          <div style={{ fontSize: '1.8rem', background: 'var(--success-light)', padding: '10px', borderRadius: 'var(--radius-sm)' }}>🧾</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--success-light)', width: '44px', height: '44px', borderRadius: 'var(--radius-sm)', color: '#15803d', flexShrink: 0 }}>
+            <ReceiptText size={22} strokeWidth={1.9} />
+          </div>
           <div>
             <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>Billing & Cashier</div>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Invoices & payment records</div>

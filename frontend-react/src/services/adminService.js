@@ -191,6 +191,22 @@ export const adminService = {
 
   getPharmacyInvoices() {
     return apiClient.list('/admin/pharmacy-invoices/');
+  },
+
+  getSpecializations(params) {
+    return apiClient.list('/admin/specializations/', { params });
+  },
+
+  createSpecialization(data) {
+    return apiClient.post('/admin/specializations/', data);
+  },
+
+  updateSpecialization(id, data) {
+    return apiClient.patch(`/admin/specializations/${id}/`, data);
+  },
+
+  deleteSpecialization(id) {
+    return apiClient.delete(`/admin/specializations/${id}/`);
   }
 };
 

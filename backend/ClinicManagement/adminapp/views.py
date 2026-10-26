@@ -2,9 +2,9 @@ from datetime import date as date_cls, timedelta
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.db.models.deletion import ProtectedError
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -15,6 +15,7 @@ from apibackendapp.models import (
     DoctorProfile,
     LabTechnicianProfile,
     PharmacistProfile,
+    Specialization,
     Patient,
     Appointment,
     MasterDosage,
@@ -54,6 +55,7 @@ from .serializers import (
     AdminDoctorProfileSerializer,
     AdminStaffCreateSerializer,
     DashboardStatsSerializer,
+    SpecializationSerializer,
 )
 
 
@@ -92,8 +94,15 @@ class AdminUserViewSet(viewsets.ModelViewSet):
 
         return queryset
 
+    def perform_create(self, serializer):
+        user = serializer.save()
+        self._ensure_role_profile(user)
+
     def perform_update(self, serializer):
         user = serializer.save()
+        self._ensure_role_profile(user)
+
+    def _ensure_role_profile(self, user):
         # Ensure role-specific profile exists if role was assigned/changed
         role = user.role
         if role == 'DOCTOR' and not hasattr(user, 'doctor_profile'):
@@ -111,7 +120,7 @@ class AdminUserViewSet(viewsets.ModelViewSet):
                 employee_id=f"REC{user.id:04d}",
                 phone=user.phone or ''
             )
-        elif role == 'LAB_TECHNICIAN' and not hasattr(user, 'labtechnician_profile'):
+        elif role == 'LAB_TECHNICIAN' and not hasattr(user, 'lab_technician_profile'):
             LabTechnicianProfile.objects.create(
                 user=user,
                 employee_id=f"LAB{user.id:04d}",
@@ -326,6 +335,12 @@ class AdminReceptionistProfileViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdminRole]
     queryset = ReceptionistProfile.objects.all().select_related('user')
 
+    def get_queryset(self):
+        missing = User.objects.filter(role='RECEPTIONIST', receptionist_profile__isnull=True)
+        for u in missing:
+            ReceptionistProfile.objects.create(user=u, employee_id=f"REC{u.id:04d}", phone=u.phone or '')
+        return ReceptionistProfile.objects.all().select_related('user').order_by('-user__date_joined')
+
 
 class AdminDoctorProfileViewSet(viewsets.ModelViewSet):
     serializer_class = AdminDoctorProfileSerializer
@@ -356,16 +371,100 @@ class AdminDoctorProfileViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+DEFAULT_SPECIALIZATIONS = [
+    'General Medicine',
+    'Cardiology',
+    'Dermatology',
+    'Pediatrics',
+    'Neurology',
+    'Orthopaedics',
+    'Gynecology & Obstetrics',
+    'ENT',
+    'Ophthalmology',
+    'Psychiatry',
+    'Pulmonology',
+    'Radiology',
+    'Pathology',
+    'Anesthesiology',
+    'Emergency Medicine',
+    'General Surgery',
+    'Gastroenterology',
+    'Nephrology',
+    'Urology',
+    'Oncology',
+    'Endocrinology',
+    'Neurosurgery',
+]
+
+
+class AdminSpecializationViewSet(viewsets.ModelViewSet):
+    serializer_class = SpecializationSerializer
+    queryset = Specialization.objects.all().order_by('name')
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [permissions.IsAuthenticated()]
+        return [IsAdminRole()]
+
+    def get_queryset(self):
+        if not Specialization.objects.exists():
+            for name in DEFAULT_SPECIALIZATIONS:
+                Specialization.objects.get_or_create(name=name, defaults={'is_active': True})
+            for spec in DoctorProfile.objects.values_list('specialization', flat=True).distinct():
+                if spec and spec.strip():
+                    Specialization.objects.get_or_create(name=spec.strip(), defaults={'is_active': True})
+
+        qs = Specialization.objects.all().order_by('name')
+        active_only = self.request.query_params.get('active_only')
+        if active_only == 'true':
+            qs = qs.filter(is_active=True)
+        return qs
+
+    def perform_update(self, serializer):
+        old_name = self.get_object().name
+        instance = serializer.save()
+        if old_name != instance.name:
+            DoctorProfile.objects.filter(specialization__iexact=old_name).update(specialization=instance.name)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        doctor_count = DoctorProfile.objects.filter(specialization__iexact=instance.name).count()
+        if doctor_count > 0:
+            instance.is_active = False
+            instance.save(update_fields=['is_active'])
+            return Response(
+                {
+                    'detail': f"Specialization '{instance.name}' is assigned to {doctor_count} doctor(s) and has been deactivated instead of deleted to protect doctor records.",
+                    'is_active': False
+                },
+                status=status.HTTP_200_OK
+            )
+        instance.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class AdminLabTechnicianProfileViewSet(viewsets.ModelViewSet):
     serializer_class = LabTechnicianProfileSerializer
     permission_classes = [IsAdminRole]
     queryset = LabTechnicianProfile.objects.all().select_related('user')
+
+    def get_queryset(self):
+        missing = User.objects.filter(role='LAB_TECHNICIAN', lab_technician_profile__isnull=True)
+        for u in missing:
+            LabTechnicianProfile.objects.create(user=u, employee_id=f"LAB{u.id:04d}", qualification='B.Sc MLT', phone=u.phone or '')
+        return LabTechnicianProfile.objects.all().select_related('user').order_by('-user__date_joined')
 
 
 class AdminPharmacistProfileViewSet(viewsets.ModelViewSet):
     serializer_class = PharmacistProfileSerializer
     permission_classes = [IsAdminRole]
     queryset = PharmacistProfile.objects.all().select_related('user')
+
+    def get_queryset(self):
+        missing = User.objects.filter(role='PHARMACIST', pharmacist_profile__isnull=True)
+        for u in missing:
+            PharmacistProfile.objects.create(user=u, employee_id=f"PHM{u.id:04d}", qualification='B.Pharm', phone=u.phone or '')
+        return PharmacistProfile.objects.all().select_related('user').order_by('-user__date_joined')
 
 
 # ============================================================================
@@ -477,10 +576,23 @@ class AdminMasterMedicineViewSet(viewsets.ModelViewSet):
                 latest.save()
             else:
                 default_expiry = date_cls.today() + timedelta(days=365)
+                resolved_expiry = expiry_date or default_expiry
+                parsed_expiry = None
+                if isinstance(resolved_expiry, str):
+                    try:
+                        parsed_expiry = date_cls.fromisoformat(resolved_expiry)
+                    except ValueError:
+                        parsed_expiry = None
+                elif isinstance(resolved_expiry, date_cls):
+                    parsed_expiry = resolved_expiry
+                if parsed_expiry and parsed_expiry < date_cls.today() + timedelta(days=15):
+                    raise serializers.ValidationError({
+                        'expiry_date': f'Expiry date must be at least 15 calendar days from today (on or after {(date_cls.today() + timedelta(days=15)).isoformat()}).'
+                    })
                 StockMaster.objects.create(
                     medicine=medicine,
                     batch_number=str(batch_number).strip() if batch_number else f"BATCH-{medicine.id:04d}",
-                    expiry_date=expiry_date or default_expiry,
+                    expiry_date=resolved_expiry,
                     quantity=max(0, int(quantity or 0)),
                     purchase_price=Decimal(str(purchase_price or 0.00)),
                     selling_price=Decimal(str(selling_price or 10.00)),
@@ -709,7 +821,10 @@ class AdminDashboardView(APIView):
                 status='PAID', created_at__date__gte=month_start
             ).aggregate(total=Sum('total_amount'))['total'] or 0
 
+        consultation_revenue = paid_total(ConsultationInvoice)
+
         data = {
+            'total_users': User.objects.count(),
             'total_patients': Patient.objects.count(),
             'total_doctors': DoctorProfile.objects.count(),
             'total_receptionists': ReceptionistProfile.objects.count(),
@@ -732,10 +847,11 @@ class AdminDashboardView(APIView):
             ).count(),
 
             'revenue_this_month': {
-                'consultation': paid_total(ConsultationInvoice),
+                'consultation': consultation_revenue,
                 'lab': paid_total(LabInvoice),
                 'pharmacy': paid_total(PharmacyInvoice),
             },
+            'consultation_revenue': consultation_revenue,
 
             'low_stock_items': StockMaster.objects.filter(
                 quantity__lte=LOW_STOCK_THRESHOLD

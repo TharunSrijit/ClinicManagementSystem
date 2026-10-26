@@ -1,4 +1,5 @@
 import React from 'react';
+import { LogOut } from 'lucide-react';
 import useAuth from '../hooks/useAuth';
 import Badge from './Badge';
 
@@ -36,7 +37,7 @@ export const Navbar = () => {
         )}
 
         <button onClick={logout} className="btn-logout" title="Sign out of system">
-          <span>🚪</span>
+          <LogOut size={16} strokeWidth={2} />
           <span>Logout</span>
         </button>
       </div>

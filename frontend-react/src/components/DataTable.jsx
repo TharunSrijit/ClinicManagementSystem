@@ -1,4 +1,5 @@
 import React from 'react';
+import { Inbox } from 'lucide-react';
 
 export const DataTable = ({
   columns = [],
@@ -24,7 +25,9 @@ export const DataTable = ({
   if (!data || data.length === 0) {
     return (
       <div className="table-responsive" style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--text-muted)' }}>
-        <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📋</div>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px', color: 'var(--text-muted)' }}>
+          <Inbox size={38} strokeWidth={1.5} />
+        </div>
         <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '1rem' }}>{emptyMessage}</div>
         <div style={{ fontSize: '0.85rem', marginTop: '4px' }}>There are currently no items to display.</div>
       </div>

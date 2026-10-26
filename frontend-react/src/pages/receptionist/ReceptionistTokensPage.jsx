@@ -127,7 +127,7 @@ export const ReceptionistTokensPage = () => {
       render: (row) => (
         <div>
           <span style={{ fontSize: '0.82rem', fontWeight: 500 }}>
-            {row.appointment_type === 'WALK_IN' ? '🚶 Walk-In' : '📅 Appointment'}
+            {row.appointment_type === 'WALK_IN' ? 'Walk-In' : 'Appointment'}
           </span>
           {row.appointment_time && (
             <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
@@ -191,7 +191,7 @@ export const ReceptionistTokensPage = () => {
           <p className="page-subtitle">Real-time clinic consultation queue tracking patient arrival and consultation status.</p>
         </div>
         <button className="btn btn-outline" onClick={loadTokens}>
-          🔄 Refresh Queue
+          Refresh Queue
         </button>
       </div>
 

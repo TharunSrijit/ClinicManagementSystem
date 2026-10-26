@@ -1,6 +1,8 @@
 import React from 'react';
 
 export const StatCard = ({ title, value, subtitle, icon, trend, color = 'primary' }) => {
+  const Icon = icon;
+
   return (
     <div className={`card stat-card stat-card-${color}`}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -17,26 +19,33 @@ export const StatCard = ({ title, value, subtitle, icon, trend, color = 'primary
             </div>
           )}
         </div>
-        {icon && (
+        {Icon && (
           <div style={{
-            fontSize: '1.4rem',
             width: '44px',
             height: '44px',
             borderRadius: 'var(--radius-md)',
             background: 'var(--bg-hover)',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            color: 'var(--primary)',
+            flexShrink: 0
           }}>
-            {icon}
+            <Icon size={24} strokeWidth={1.9} aria-hidden="true" />
           </div>
         )}
       </div>
       {trend && (
         <div style={{ marginTop: '12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ color: trend.isPositive ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>
-            {trend.isPositive ? '↑' : '↓'} {trend.text}
-          </span>
+          {typeof trend === 'object' ? (
+            <span style={{ color: trend.isPositive ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>
+              {trend.isPositive ? '↑' : '↓'} {trend.text}
+            </span>
+          ) : (
+            <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>
+              {trend}
+            </span>
+          )}
         </div>
       )}
     </div>

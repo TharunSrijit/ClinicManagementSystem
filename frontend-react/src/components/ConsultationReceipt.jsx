@@ -1,4 +1,5 @@
 import React from 'react';
+import { Hospital } from 'lucide-react';
 import { formatDate, formatTime } from '../utils/formatters';
 
 export const ConsultationReceipt = ({ invoice }) => {
@@ -25,7 +26,7 @@ export const ConsultationReceipt = ({ invoice }) => {
       <div className="receipt-header">
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-            <span style={{ fontSize: '1.4rem' }}>🏥</span>
+            <Hospital size={24} strokeWidth={2} color="#0284c7" />
             <h2 className="receipt-clinic-title">{clinicName}</h2>
           </div>
           {clinicAddress && <p className="receipt-clinic-sub">{clinicAddress}</p>}
@@ -41,13 +42,13 @@ export const ConsultationReceipt = ({ invoice }) => {
           <div className="receipt-doc-name">{docTitle}</div>
           <div>
             {invoice.status === 'PAID' && (
-              <span className="receipt-stamp-badge stamp-paid">✓ PAID IN FULL</span>
+              <span className="receipt-stamp-badge stamp-paid">PAID IN FULL</span>
             )}
             {invoice.status === 'PARTIAL' && (
-              <span className="receipt-stamp-badge stamp-partial">⚠ PARTIALLY PAID</span>
+              <span className="receipt-stamp-badge stamp-partial">PARTIALLY PAID</span>
             )}
             {invoice.status === 'PENDING' && (
-              <span className="receipt-stamp-badge stamp-pending">⏳ PENDING PAYMENT</span>
+              <span className="receipt-stamp-badge stamp-pending">PENDING PAYMENT</span>
             )}
             {invoice.status === 'CANCELLED' && (
               <span className="receipt-stamp-badge stamp-pending">CANCELLED</span>

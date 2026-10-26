@@ -132,7 +132,7 @@ export const DoctorMedicinesPage = () => {
             className="btn btn-outline btn-sm"
             onClick={loadMedicines}
           >
-            🔄 Refresh
+            Refresh
           </button>
         </form>
       </div>

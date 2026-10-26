@@ -180,7 +180,7 @@ export const PharmacyStockPage = () => {
           <p className="page-subtitle">Warehouse batches, current stock counts, expiry surveillance, and reorder levels.</p>
         </div>
         <button className="btn btn-outline" onClick={loadStock}>
-          🔄 Refresh Stock
+          Refresh Stock
         </button>
       </div>
 
@@ -206,7 +206,7 @@ export const PharmacyStockPage = () => {
               className={`btn btn-sm ${lowStockOnly ? 'btn-danger' : 'btn-outline'}`}
               onClick={() => setLowStockOnly(!lowStockOnly)}
             >
-              {lowStockOnly ? '✓ Showing Low Stock Only' : 'Filter Low Stock Warnings'}
+              {lowStockOnly ? 'Showing Low Stock Only' : 'Filter Low Stock Warnings'}
             </button>
           </div>
         </div>

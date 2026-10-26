@@ -204,7 +204,7 @@ export const BookAppointmentPage = () => {
                 }}
               >
                 <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '1rem' }}>
-                  🚶 Walk-In Booking
+                  Walk-In Booking
                 </div>
                 <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '4px' }}>
                   Patient is present at clinic today. Issues token on arrival confirmation.
@@ -223,7 +223,7 @@ export const BookAppointmentPage = () => {
                 }}
               >
                 <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '1rem' }}>
-                  📅 Advance Appointment
+                  Advance Appointment
                 </div>
                 <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '4px' }}>
                   Scheduled 1 to 7 days ahead. Arrival and token issued on the visit date.
@@ -279,7 +279,7 @@ export const BookAppointmentPage = () => {
               }}>
                 <div>
                   <div style={{ fontWeight: 600, color: isExistingPatient ? '#166534' : '#1e40af', fontSize: '0.88rem' }}>
-                    {isExistingPatient ? '👤 Existing Patient (Registration Fee Waived)' : '✨ Newly Registered Patient (Registration Fee Applies)'}
+                    {isExistingPatient ? 'Existing Patient (Registration Fee Waived)' : 'Newly Registered Patient (Registration Fee Applies)'}
                   </div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>
                     {isExistingPatient

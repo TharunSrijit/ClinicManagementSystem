@@ -453,7 +453,7 @@
 //           </div>
 
 //           <button className="btn btn-outline btn-sm" onClick={loadMedicines}>
-//             🔄 Refresh Formulary
+//             Refresh Formulary
 //           </button>
 //         </div>
 //       </div>
@@ -1187,7 +1187,7 @@
 //           </div>
 
 //           <button className="btn btn-outline btn-sm" onClick={loadMedicines}>
-//             🔄 Refresh Formulary
+//             Refresh Formulary
 //           </button>
 //         </div>
 //       </div>
@@ -1455,6 +1455,7 @@
 
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { AlertTriangle } from 'lucide-react';
 import adminService from '../../services/adminService';
 import DataTable from '../../components/DataTable';
 import Modal from '../../components/Modal';
@@ -1467,11 +1468,42 @@ const stockFormDefaults = {
   selling_price: ''
 };
 
+const medicineCategories = [
+  'Tablet',
+  'Capsule',
+  'Syrup',
+  'Injection',
+  'Cream',
+  'Drops',
+  'Analgesic',
+  'Antibiotic',
+  'Other'
+];
+
+const packagingUnits = [
+  'Strip',
+  'Tablet',
+  'Bottle',
+  'Box',
+  'Tube',
+  'Vial',
+  'Capsule'
+];
+
+const getMinAllowedExpiryDate = () => {
+  const d = new Date();
+  d.setDate(d.getDate() + 15);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const medicineFormDefaults = {
   generic_name: '',
-  category: 'Analgesic',
+  category: '',
   manufacturer: '',
-  unit: 'Strip (10 tabs)',
+  unit: '',
   description: '',
   reorder_level: 10,
   is_active: true,
@@ -1485,7 +1517,7 @@ const getDaysUntilExpiry = (expiryDate) => {
   const expiryUtc = Date.UTC(year, month - 1, day);
   const now = new Date();
   const todayUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
-  return Math.ceil((expiryUtc - todayUtc) / (24 * 60 * 60 * 1000));
+  return Math.round((expiryUtc - todayUtc) / (24 * 60 * 60 * 1000));
 };
 
 export const AdminMedicinesPage = () => {
@@ -1501,6 +1533,7 @@ export const AdminMedicinesPage = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [feedback, setFeedback] = useState({ message: '', type: '' });
+  const [formErrors, setFormErrors] = useState({});
   const [form, setForm] = useState(medicineFormDefaults);
 
   const showFeedback = (message, type = 'success') => {
@@ -1531,14 +1564,51 @@ export const AdminMedicinesPage = () => {
 
   const handleSaveMedicine = async (e) => {
     e.preventDefault();
+
+    const errors = {};
+    const trimmedName = form.generic_name.trim();
+
+    if (!trimmedName || trimmedName.length < 2) {
+      errors.generic_name = 'Medicine name must contain at least 2 characters.';
+    }
+
+    if (!form.category || !form.category.trim()) {
+      errors.category = 'Please select a category.';
+    }
+
+    if (!form.unit || !form.unit.trim()) {
+      errors.unit = 'Please select a packaging unit.';
+    }
+
+    const minExpiryDate = getMinAllowedExpiryDate();
+    const isNewBatch = !editingMedicine || !form.initial_stock.id;
+    if (isNewBatch) {
+      const exp = form.initial_stock.expiry_date;
+      if (!editingMedicine && !exp) {
+        errors.expiry_date = 'Expiry date is required for initial stock.';
+      } else if (exp) {
+        const days = getDaysUntilExpiry(exp);
+        if (days === null || days < 15) {
+          errors.expiry_date = `Expiry date must be at least 15 calendar days from today (${minExpiryDate} or later).`;
+        }
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      showFeedback('Please correct the validation errors in the form.', 'danger');
+      return;
+    }
+
+    setFormErrors({});
     setSubmitting(true);
 
     // Brand Name field was removed. medicine_name is kept in sync with the
     // Medicine Name so the Doctor and Pharmacy pages still show a name.
     const payload = {
       ...form,
-      generic_name: form.generic_name.trim(),
-      medicine_name: form.generic_name.trim()
+      generic_name: trimmedName,
+      medicine_name: trimmedName
     };
 
     try {
@@ -1601,6 +1671,7 @@ export const AdminMedicinesPage = () => {
       }
       setIsModalOpen(false);
       setEditingMedicine(null);
+      setFormErrors({});
       setForm(medicineFormDefaults);
       await loadMedicines();
     } catch (err) {
@@ -1614,6 +1685,7 @@ export const AdminMedicinesPage = () => {
   const openEditMedicine = (medicine) => {
     const existingBatch = stock.find((batch) => Number(batch.medicine) === Number(medicine.id));
     setEditingMedicine(medicine);
+    setFormErrors({});
     setForm({
       generic_name: medicine.generic_name || medicine.medicine_name || '',
       category: medicine.category || '',
@@ -1926,6 +1998,7 @@ export const AdminMedicinesPage = () => {
           className="btn btn-primary"
           onClick={() => {
             setEditingMedicine(null);
+            setFormErrors({});
             setForm(medicineFormDefaults);
             setIsModalOpen(true);
           }}
@@ -1939,8 +2012,9 @@ export const AdminMedicinesPage = () => {
       )}
 
       {lowStockCount > 0 && (
-        <div className="alert alert-warning">
-          ⚠️ Low Stock Alert: {lowStockCount} {lowStockCount === 1 ? 'medicine is' : 'medicines are'} at or below the reorder level.
+        <div className="alert alert-warning" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <AlertTriangle size={16} strokeWidth={2} style={{ flexShrink: 0 }} />
+          <span>Low Stock Alert: {lowStockCount} {lowStockCount === 1 ? 'medicine is' : 'medicines are'} at or below the reorder level.</span>
         </div>
       )}
 
@@ -1958,7 +2032,7 @@ export const AdminMedicinesPage = () => {
           </div>
 
           <button className="btn btn-outline btn-sm" onClick={loadMedicines}>
-            🔄 Refresh Formulary
+            Refresh Formulary
           </button>
         </div>
       </div>
@@ -1975,6 +2049,7 @@ export const AdminMedicinesPage = () => {
         onClose={() => {
           setIsModalOpen(false);
           setEditingMedicine(null);
+          setFormErrors({});
         }}
         title={editingMedicine ? 'Edit Medicine' : 'Register Master Formulary Medicine'}
       >
@@ -1985,12 +2060,21 @@ export const AdminMedicinesPage = () => {
               type="text"
               className="form-control"
               required
+              minLength="2"
               pattern="[A-Za-z]+( [A-Za-z]+)*( ?[0-9]+)?"
               title="Medicine name must start with letters, optionally followed by numbers (for example, Paracetamol 500)."
               value={form.generic_name}
-              onChange={(e) => setForm({ ...form, generic_name: e.target.value })}
+              onChange={(e) => {
+                setForm({ ...form, generic_name: e.target.value });
+                if (formErrors.generic_name) setFormErrors((prev) => ({ ...prev, generic_name: null }));
+              }}
               placeholder="e.g. Paracetamol 500"
             />
+            {formErrors.generic_name && (
+              <span className="form-error" style={{ color: 'var(--danger)', fontSize: '0.85rem', marginTop: '4px', display: 'block' }}>
+                {formErrors.generic_name}
+              </span>
+            )}
           </div>
 
           <div className="form-group">
@@ -2008,27 +2092,54 @@ export const AdminMedicinesPage = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div className="form-group">
               <label className="form-label">Category *</label>
-              <input
-                type="text"
+              <select
                 className="form-control"
                 required
-                pattern="[A-Za-z]+( [A-Za-z]+)*"
-                title="Category must contain letters only."
                 value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
-                placeholder="e.g. Antibiotic"
-              />
+                onChange={(e) => {
+                  setForm({ ...form, category: e.target.value });
+                  if (formErrors.category) setFormErrors((prev) => ({ ...prev, category: null }));
+                }}
+              >
+                <option value="">Select category</option>
+                {medicineCategories.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+                {form.category && !medicineCategories.includes(form.category) && (
+                  <option value={form.category}>{form.category}</option>
+                )}
+              </select>
+              {formErrors.category && (
+                <span className="form-error" style={{ color: 'var(--danger)', fontSize: '0.85rem', marginTop: '4px', display: 'block' }}>
+                  {formErrors.category}
+                </span>
+              )}
             </div>
 
             <div className="form-group">
-              <label className="form-label">Packaging Unit</label>
-              <input
-                type="text"
+              <label className="form-label">Packaging Unit *</label>
+              <select
                 className="form-control"
+                required
                 value={form.unit}
-                onChange={(e) => setForm({ ...form, unit: e.target.value })}
-                placeholder="e.g. Strip (10 tabs), Bottle (100ml)"
-              />
+                onChange={(e) => {
+                  setForm({ ...form, unit: e.target.value });
+                  if (formErrors.unit) setFormErrors((prev) => ({ ...prev, unit: null }));
+                }}
+              >
+                <option value="">Select packaging unit</option>
+                {packagingUnits.map((u) => (
+                  <option key={u} value={u}>{u}</option>
+                ))}
+                {form.unit && !packagingUnits.includes(form.unit) && (
+                  <option value={form.unit}>{form.unit}</option>
+                )}
+              </select>
+              {formErrors.unit && (
+                <span className="form-error" style={{ color: 'var(--danger)', fontSize: '0.85rem', marginTop: '4px', display: 'block' }}>
+                  {formErrors.unit}
+                </span>
+              )}
             </div>
           </div>
 
@@ -2144,12 +2255,21 @@ export const AdminMedicinesPage = () => {
                 type="date"
                 className="form-control"
                 required={!editingMedicine || Boolean(form.initial_stock.id)}
+                min={(!editingMedicine || !form.initial_stock.id) ? getMinAllowedExpiryDate() : undefined}
                 value={form.initial_stock.expiry_date}
-                onChange={(event) => setForm({
-                  ...form,
-                  initial_stock: { ...form.initial_stock, expiry_date: event.target.value }
-                })}
+                onChange={(event) => {
+                  setForm({
+                    ...form,
+                    initial_stock: { ...form.initial_stock, expiry_date: event.target.value }
+                  });
+                  if (formErrors.expiry_date) setFormErrors((prev) => ({ ...prev, expiry_date: null }));
+                }}
               />
+              {formErrors.expiry_date && (
+                <span className="form-error" style={{ color: 'var(--danger)', fontSize: '0.85rem', marginTop: '4px', display: 'block' }}>
+                  {formErrors.expiry_date}
+                </span>
+              )}
             </div>
           </div>
           <div className="form-group">

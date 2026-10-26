@@ -277,7 +277,7 @@ export const DoctorPatients = () => {
               }}
               title="Patient has an active appointment and queue token issued at reception"
             >
-              🎫 {status.label}
+              {status.label}
             </span>
           );
         }
@@ -293,7 +293,7 @@ export const DoctorPatients = () => {
               }}
               title="Appointment scheduled today, but queue token not issued yet at reception"
             >
-              ⏳ {status.label}
+              {status.label}
             </span>
           );
         }
@@ -348,7 +348,7 @@ export const DoctorPatients = () => {
                 onClick={() => navigate(`/doctor/consultations?appointment=${status.appointment.id}`)}
                 title={`Start token-based consultation (${status.label})`}
               >
-                🎫 Start Consultation
+                Start Consultation
               </button>
             ) : isCompleted ? (
               // Already completed consultation today
@@ -381,7 +381,7 @@ export const DoctorPatients = () => {
                     : 'Start unscheduled consultation directly without a queue token'
                 }
               >
-                ⚡ Start Unscheduled
+                Start Unscheduled
               </button>
             )}
           </div>
@@ -444,7 +444,7 @@ export const DoctorPatients = () => {
             onClick={() => loadData(activeQuery)}
             disabled={loading}
           >
-            {loading ? 'Refreshing...' : '🔄 Refresh List'}
+            {loading ? 'Refreshing...' : 'Refresh List'}
           </button>
         </form>
       </div>
@@ -526,7 +526,7 @@ export const DoctorPatients = () => {
               lineHeight: '1.5'
             }}
           >
-            <strong>⚡ Workflow B: Unscheduled (Tokenless) Consultation</strong>
+            <strong>Workflow B: Unscheduled (Tokenless) Consultation</strong>
             <p style={{ margin: '6px 0 0 0', fontSize: '0.85rem' }}>
               Patient <strong>{unscheduledModal.patient?.first_name} {unscheduledModal.patient?.last_name}</strong> has no queue token or appointment scheduled for today. Starting this consultation will record a tokenless clinical visit and automatically generate a pending consultation invoice.
             </p>
@@ -601,7 +601,7 @@ export const DoctorPatients = () => {
               disabled={unscheduledModal.submitting}
               style={{ minWidth: '150px' }}
             >
-              {unscheduledModal.submitting ? 'Initiating...' : 'Confirm & Start 🩺'}
+              {unscheduledModal.submitting ? 'Initiating...' : 'Confirm & Start'}
             </button>
           </div>
         </form>

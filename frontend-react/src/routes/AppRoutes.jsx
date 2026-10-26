@@ -40,6 +40,7 @@ import DoctorMedicinesPage from '../pages/doctor/DoctorMedicinesPage';
 import AdminDashboard from '../pages/admin/AdminDashboard';
 import AdminUsersPage from '../pages/admin/AdminUsersPage';
 import AdminDoctorsPage from '../pages/admin/AdminDoctorsPage';
+import AdminSpecializationsPage from '../pages/admin/AdminSpecializationsPage';
 import AdminStaffPage from '../pages/admin/AdminStaffPage';
 import AdminMedicinesPage from '../pages/admin/AdminMedicinesPage';
 import AdminLabTestsPage from '../pages/admin/AdminLabTestsPage';
@@ -122,6 +123,7 @@ export const AppRoutes = () => {
         <Route index element={<AdminDashboard />} />
         <Route path="users" element={<AdminUsersPage />} />
         <Route path="doctors" element={<AdminDoctorsPage />} />
+        <Route path="specializations" element={<AdminSpecializationsPage />} />
         <Route path="staff" element={<AdminStaffPage />} />
         <Route path="medicines" element={<AdminMedicinesPage />} />
         <Route path="lab-tests" element={<AdminLabTestsPage />} />

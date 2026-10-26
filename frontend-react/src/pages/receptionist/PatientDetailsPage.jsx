@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { AlertCircle } from 'lucide-react';
 import receptionistService from '../../services/receptionistService';
 import { formatDate } from '../../utils/formatters';
 
@@ -42,7 +43,9 @@ export const PatientDetailsPage = () => {
     return (
       <div style={{ maxWidth: '600px', margin: '40px auto', textAlign: 'center' }}>
         <div className="card" style={{ padding: '40px' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '16px' }}>⚠️</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px', color: 'var(--danger)' }}>
+            <AlertCircle size={44} strokeWidth={1.8} />
+          </div>
           <h2 style={{ fontSize: '1.3rem', color: 'var(--danger)', marginBottom: '8px' }}>Record Unavailable</h2>
           <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>
             {error || `Patient #${id} could not be found in the database.`}

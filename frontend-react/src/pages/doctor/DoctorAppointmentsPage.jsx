@@ -100,8 +100,8 @@ export const DoctorAppointmentsPage = () => {
       header: 'Type',
       key: 'appointment_type',
       render: (row) => (
-        <span style={{ fontSize: '0.82rem' }}>
-          {row.appointment_type === 'WALK_IN' ? '🚶 Walk-In' : '📅 Advance'}
+        <span style={{ fontSize: '0.82rem', fontWeight: 500 }}>
+          {row.appointment_type === 'WALK_IN' ? 'Walk-In' : 'Advance'}
         </span>
       )
     },
@@ -199,7 +199,7 @@ export const DoctorAppointmentsPage = () => {
                 value={selectedStatus}
                 onChange={(e) => setSelectedStatus(e.target.value)}
               >
-                <option value="ALL">All Statuses</option>
+                <option value="ALL">All Status</option>
                 <option value="SCHEDULED">Scheduled</option>
                 <option value="CONFIRMED">Confirmed / Waiting</option>
                 <option value="IN_PROGRESS">In Progress</option>
@@ -229,7 +229,7 @@ export const DoctorAppointmentsPage = () => {
               All Dates
             </button>
             <button className="btn btn-outline btn-sm" onClick={loadAppointments}>
-              🔄 Refresh
+              Refresh
             </button>
           </div>
         </div>

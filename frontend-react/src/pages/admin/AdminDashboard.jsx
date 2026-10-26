@@ -1,5 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  UsersRound,
+  Stethoscope,
+  UserRoundCog,
+  Pill,
+  Microscope,
+  CreditCard
+} from 'lucide-react';
 import adminService from '../../services/adminService';
 import StatCard from '../../components/StatCard';
 import DataTable from '../../components/DataTable';
@@ -68,7 +76,7 @@ export const AdminDashboard = () => {
       key: 'is_active',
       render: (row) => (
         <span style={{ color: row.is_active ? 'var(--success)' : 'var(--danger)', fontWeight: 600, fontSize: '0.82rem' }}>
-          {row.is_active ? '● Active' : '○ Suspended'}
+          {row.is_active ? 'Active' : 'Suspended'}
         </span>
       )
     }
@@ -83,7 +91,7 @@ export const AdminDashboard = () => {
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
           <button className="btn btn-outline" onClick={loadStats}>
-            🔄 Refresh
+            Refresh
           </button>
           <button className="btn btn-primary" onClick={() => navigate('/admin/users')}>
             + Manage Users
@@ -100,25 +108,25 @@ export const AdminDashboard = () => {
         <StatCard
           title="Total User Accounts"
           value={stats?.total_users ?? users.length}
-          icon="👥"
+          icon={UsersRound}
           subtitle="System operators"
         />
         <StatCard
           title="Active Doctors"
           value={stats?.total_doctors ?? doctors.length}
-          icon="👨‍⚕️"
+          icon={Stethoscope}
           subtitle="Consulting physicians"
         />
         <StatCard
           title="Registered Patients"
           value={stats?.total_patients ?? '—'}
-          icon="👤"
+          icon={UsersRound}
           subtitle="Lifetime enrolled"
         />
         <StatCard
           title="Consultation Revenue"
-          value={formatCurrency(stats?.consultation_revenue ?? 0)}
-          icon="💰"
+          value={formatCurrency(stats?.consultation_revenue ?? stats?.revenue_this_month?.consultation ?? 0)}
+          icon={CreditCard}
           subtitle="Recorded receipts"
         />
       </div>
@@ -127,50 +135,60 @@ export const AdminDashboard = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '28px' }}>
         <div
           className="card"
-          style={{ cursor: 'pointer', textAlign: 'center', padding: '20px' }}
+          style={{ cursor: 'pointer', textAlign: 'center', padding: '24px 20px' }}
           onClick={() => navigate('/admin/users')}
         >
-          <div style={{ fontSize: '2rem', marginBottom: '8px' }}>👥</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: 'var(--primary)' }}>
+            <UsersRound size={28} strokeWidth={1.8} />
+          </div>
           <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Users & Roles</div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Provision accounts & credentials</div>
         </div>
 
         <div
           className="card"
-          style={{ cursor: 'pointer', textAlign: 'center', padding: '20px' }}
+          style={{ cursor: 'pointer', textAlign: 'center', padding: '24px 20px' }}
           onClick={() => navigate('/admin/doctors')}
         >
-          <div style={{ fontSize: '2rem', marginBottom: '8px' }}>👨‍⚕️</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: 'var(--primary)' }}>
+            <Stethoscope size={28} strokeWidth={1.8} />
+          </div>
           <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Doctor Directory</div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Fees, schedules & specialties</div>
         </div>
 
         <div
           className="card"
-          style={{ cursor: 'pointer', textAlign: 'center', padding: '20px' }}
+          style={{ cursor: 'pointer', textAlign: 'center', padding: '24px 20px' }}
           onClick={() => navigate('/admin/staff')}
         >
-          <div style={{ fontSize: '2rem', marginBottom: '8px' }}>👔</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: 'var(--primary)' }}>
+            <UserRoundCog size={28} strokeWidth={1.8} />
+          </div>
           <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Staff Members</div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Receptionists, techs & pharmacists</div>
         </div>
 
         <div
           className="card"
-          style={{ cursor: 'pointer', textAlign: 'center', padding: '20px' }}
+          style={{ cursor: 'pointer', textAlign: 'center', padding: '24px 20px' }}
           onClick={() => navigate('/admin/medicines')}
         >
-          <div style={{ fontSize: '2rem', marginBottom: '8px' }}>💊</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: 'var(--primary)' }}>
+            <Pill size={28} strokeWidth={1.8} />
+          </div>
           <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Medicines Master</div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Formulary drug definitions</div>
         </div>
 
         <div
           className="card"
-          style={{ cursor: 'pointer', textAlign: 'center', padding: '20px' }}
+          style={{ cursor: 'pointer', textAlign: 'center', padding: '24px 20px' }}
           onClick={() => navigate('/admin/lab-tests')}
         >
-          <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🔬</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: 'var(--primary)' }}>
+            <Microscope size={28} strokeWidth={1.8} />
+          </div>
           <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Lab Tests Master</div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Diagnostic catalog & pricing</div>
         </div>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { ShieldAlert } from 'lucide-react';
 import useAuth from '../hooks/useAuth';
 
 export const UnauthorizedPage = () => {
@@ -7,7 +8,9 @@ export const UnauthorizedPage = () => {
 
   return (
     <div style={{ textAlign: 'center', padding: '60px 24px' }}>
-      <div style={{ fontSize: '3.5rem', marginBottom: '16px' }}>🚫</div>
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px', color: 'var(--danger)' }}>
+        <ShieldAlert size={48} strokeWidth={1.5} />
+      </div>
       <h1 style={{ fontSize: '1.8rem', fontWeight: 700, color: 'var(--text-main)' }}>
         Access Restricted
       </h1>

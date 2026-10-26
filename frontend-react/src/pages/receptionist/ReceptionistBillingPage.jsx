@@ -258,7 +258,7 @@ export const ReceptionistBillingPage = () => {
               onClick={() => handleOpenReceipt(row)}
               title="View and print official tax receipt"
             >
-              🧾 Receipt
+              Receipt
             </button>
             {row.status !== 'PAID' && bal > 0 && (
               <button
@@ -283,14 +283,14 @@ export const ReceptionistBillingPage = () => {
           <p className="page-subtitle">Track consultation billing statements, record fee collections, and print receipts.</p>
         </div>
         <button className="btn btn-outline" onClick={loadInvoices} disabled={loading}>
-          {loading ? '🔄 Refreshing...' : '🔄 Refresh Invoices'}
+          {loading ? 'Refreshing...' : 'Refresh Invoices'}
         </button>
       </div>
 
       {targetAppointmentQuery && (
         <div className="alert alert-info" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
           <div>
-            💳 <strong>Appointment #{targetAppointmentQuery} Created:</strong> Please record the patient fee payment below to transition the appointment to booked/confirmed status and enable queue token issuance.
+            <strong>Appointment #{targetAppointmentQuery} Created:</strong> Please record the patient fee payment below to transition the appointment to booked/confirmed status and enable queue token issuance.
           </div>
         </div>
       )}
@@ -298,7 +298,7 @@ export const ReceptionistBillingPage = () => {
       {loadError && (
         <div className="alert alert-danger" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
           <div>
-            <strong>⚠️ Could not retrieve consultation invoices from server:</strong> {loadError}
+            <strong>Could not retrieve consultation invoices from server:</strong> {loadError}
             <div style={{ fontSize: '0.8rem', marginTop: '4px', opacity: 0.85 }}>Check the browser developer console or server logs for full details.</div>
           </div>
           <button className="btn btn-sm btn-outline" onClick={loadInvoices} style={{ borderColor: 'currentColor', color: 'inherit' }}>
@@ -487,7 +487,7 @@ export const ReceptionistBillingPage = () => {
                   className="btn btn-primary btn-sm"
                   onClick={handlePrintReceipt}
                 >
-                  🖨️ Print Receipt
+                  Print Receipt
                 </button>
               </div>
             </div>

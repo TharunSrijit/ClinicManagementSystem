@@ -377,7 +377,7 @@ export const DoctorConsultationsPage = () => {
               }}
               title="Tokenless unscheduled direct consultation"
             >
-              ⚡ Unscheduled
+              Unscheduled
             </span>
           );
         }
@@ -392,7 +392,7 @@ export const DoctorConsultationsPage = () => {
             }}
             title="Scheduled appointment with queue token"
           >
-            🎫 Token #{row.token_number || '—'}
+            Token #{row.token_number || '—'}
           </span>
         );
       }
@@ -444,7 +444,7 @@ export const DoctorConsultationsPage = () => {
           return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
               <span style={{ fontWeight: 600, color: 'var(--primary)', fontSize: '0.85rem' }}>
-                💊 {row.prescription.prescription_number || `Rx #${row.prescription.id}`}
+                {row.prescription.prescription_number || `Rx #${row.prescription.id}`}
               </span>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                 {count} medication{count === 1 ? '' : 's'}
@@ -465,7 +465,7 @@ export const DoctorConsultationsPage = () => {
             onClick={() => setViewConsultationModal({ isOpen: true, consultation: row })}
             title="View consultation notes and prescribed medications"
           >
-            👁️ Details
+            Details
           </button>
           {row.status === 'IN_PROGRESS' && (
             <button
@@ -473,7 +473,7 @@ export const DoctorConsultationsPage = () => {
               onClick={() => handleResumeConsultation(row)}
               title="Resume and complete in-progress clinical consultation"
             >
-              Resume 🩺
+              Resume Consultation
             </button>
           )}
         </div>
@@ -533,8 +533,8 @@ export const DoctorConsultationsPage = () => {
             >
               <strong>
                 {workflowType === 'UNSCHEDULED'
-                  ? '⚡ Active Unscheduled Consultation (Tokenless)'
-                  : '🎫 Active Token-Based Consultation'}
+                  ? 'Active Unscheduled Consultation (Tokenless)'
+                  : 'Active Token-Based Consultation'}
               </strong>
               <div style={{ marginTop: '4px' }}>
                 Patient: <strong>{activeConsultationData?.patient_name || `Patient #${patientId}`}</strong>{' '}
@@ -561,7 +561,7 @@ export const DoctorConsultationsPage = () => {
                   onClick={() => setWorkflowType('TOKEN_BASED')}
                 >
                   <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>
-                    🎫 Workflow A: Token-Based
+                    Workflow A: Token-Based
                   </div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
                     Scheduled appointment with a validated queue token from reception.
@@ -579,7 +579,7 @@ export const DoctorConsultationsPage = () => {
                   onClick={() => setWorkflowType('UNSCHEDULED')}
                 >
                   <div style={{ fontWeight: 600, color: '#92400e' }}>
-                    ⚡ Workflow B: Unscheduled
+                    Workflow B: Unscheduled
                   </div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
                     Direct clinical entry for registered patient without queue token.
@@ -606,14 +606,14 @@ export const DoctorConsultationsPage = () => {
                     const hasToken = Boolean(a.token_number && a.token_status !== 'CANCELLED');
                     return (
                       <option key={a.id} value={a.id} disabled={!hasToken}>
-                        {hasToken ? `🎫 Token #${a.token_number}` : '⚠️ [No Queue Token]'} — Appt #{a.id} — {a.patient_name || `Patient #${a.patient}`} ({a.appointment_date} {a.appointment_time})
+                        {hasToken ? `Token #${a.token_number}` : '[No Queue Token]'} — Appt #{a.id} — {a.patient_name || `Patient #${a.patient}`} ({a.appointment_date} {a.appointment_time})
                       </option>
                     );
                   })}
               </select>
               {appointments.filter((a) => a.status !== 'COMPLETED' && a.status !== 'CANCELLED' && a.token_number && a.token_status !== 'CANCELLED').length === 0 && (
                 <div style={{ fontSize: '0.82rem', color: '#b45309', marginTop: '6px', background: '#fef3c7', padding: '8px 12px', borderRadius: '6px' }}>
-                  ⚠️ No appointments with active queue tokens found. For walk-ins or unscheduled patients, select <strong>⚡ Workflow B: Unscheduled</strong> above.
+                  No appointments with active queue tokens found. For walk-ins or unscheduled patients, select <strong>Workflow B: Unscheduled</strong> above.
                 </div>
               )}
             </div>
@@ -702,7 +702,7 @@ export const DoctorConsultationsPage = () => {
           {/* Prescriptions Section */}
           <div style={{ marginTop: '20px', borderTop: '1px solid var(--border-subtle)', paddingTop: '16px' }}>
             <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '12px' }}>
-              💊 Prescribe Medications
+              Prescribe Medications
             </h4>
 
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 1fr auto', gap: '8px', alignItems: 'flex-end', marginBottom: '12px' }}>
@@ -808,7 +808,7 @@ export const DoctorConsultationsPage = () => {
           {/* Lab Test Order */}
           <div style={{ marginTop: '16px', borderTop: '1px solid var(--border-subtle)', paddingTop: '16px' }}>
             <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '12px' }}>
-              🧪 Order Diagnostic Lab Test (Optional)
+              Order Diagnostic Lab Test (Optional)
             </h4>
             <div className="form-group">
               <select
@@ -914,7 +914,7 @@ export const DoctorConsultationsPage = () => {
             {/* Clinical Assessment */}
             <div>
               <h4 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '8px', color: 'var(--text-main)' }}>
-                📋 Clinical Assessment & Notes
+                Clinical Assessment & Notes
               </h4>
               <div
                 style={{
@@ -965,7 +965,7 @@ export const DoctorConsultationsPage = () => {
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                 <h4 style={{ fontSize: '0.95rem', fontWeight: 600, margin: 0, color: 'var(--text-main)' }}>
-                  💊 Prescribed Medications
+                  Prescribed Medications
                 </h4>
                 {viewConsultationModal.consultation.prescription && (
                   <span

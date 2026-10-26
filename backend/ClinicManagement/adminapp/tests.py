@@ -24,6 +24,7 @@ from apibackendapp.models import (
     LabTestResult,
     StockMaster,
     StockTransaction,
+    Specialization,
     User,
 )
 
@@ -1219,4 +1220,107 @@ class AdminModuleCrudAndSafetyTests(APITestCase):
 
         resp3 = self.client.post(f'/api/admin/lab-tests/1/activate/')
         self.assertEqual(resp3.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class AdminSpecializationApiTests(APITestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username='spec_admin',
+            email='spec-admin@clinic.test',
+            password='Password123!',
+            role='ADMIN',
+        )
+        self.doctor_user = User.objects.create_user(
+            username='spec_doctor',
+            email='spec-doctor@clinic.test',
+            password='Password123!',
+            role='DOCTOR',
+        )
+        self.receptionist_user = User.objects.create_user(
+            username='spec_receptionist',
+            email='spec-rec@clinic.test',
+            password='Password123!',
+            role='RECEPTIONIST',
+        )
+        self.client.force_authenticate(user=self.admin)
+
+    def test_list_specializations_authenticated(self):
+        """Authenticated users can view specializations."""
+        self.client.force_authenticate(user=self.receptionist_user)
+        response = self.client.get('/api/admin/specializations/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsInstance(response.data, list)
+        self.assertGreater(len(response.data), 0)
+
+    def test_create_specialization_success(self):
+        """Admin can successfully create a new specialization."""
+        response = self.client.post('/api/admin/specializations/', {
+            'name': 'Gastroenterology',
+            'description': 'Digestive system specialist',
+            'is_active': True,
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['name'], 'Gastroenterology')
+        self.assertTrue(Specialization.objects.filter(name='Gastroenterology').exists())
+
+    def test_create_specialization_empty_name_rejected(self):
+        """Empty or whitespace-only name is rejected."""
+        response = self.client.post('/api/admin/specializations/', {
+            'name': '   ',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('name', response.data)
+
+    def test_create_specialization_duplicate_case_insensitive_rejected(self):
+        """Case-insensitive duplicate names are rejected."""
+        Specialization.objects.create(name='Endocrinology')
+        response = self.client.post('/api/admin/specializations/', {
+            'name': '  endocrinology  ',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('name', response.data)
+
+    def test_non_admin_cannot_create_specialization(self):
+        """Doctors and receptionists cannot create specializations."""
+        self.client.force_authenticate(user=self.doctor_user)
+        response = self.client.post('/api/admin/specializations/', {
+            'name': 'Rheumatology',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_update_specialization_renames_doctor_profile(self):
+        """Renaming a specialization propagates to doctors assigned that specialization."""
+        spec = Specialization.objects.create(name='Orthopedics')
+        doctor = DoctorProfile.objects.create(
+            user=self.doctor_user,
+            doctor_id='DOC-SPEC-1',
+            specialization='Orthopedics',
+            qualification='MBBS MS',
+            registration_number='REG-SPEC-1',
+            consultation_fee='500.00',
+        )
+        response = self.client.put(f'/api/admin/specializations/{spec.pk}/', {
+            'name': 'Orthopedic Surgery',
+            'is_active': True,
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        doctor.refresh_from_db()
+        self.assertEqual(doctor.specialization, 'Orthopedic Surgery')
+
+    def test_delete_specialization_with_doctor_soft_deactivates(self):
+        """Deleting a specialization assigned to a doctor deactivates it to protect records."""
+        spec = Specialization.objects.create(name='Pulmonology')
+        DoctorProfile.objects.create(
+            user=self.doctor_user,
+            doctor_id='DOC-SPEC-2',
+            specialization='Pulmonology',
+            qualification='MBBS MD',
+            registration_number='REG-SPEC-2',
+            consultation_fee='600.00',
+        )
+        response = self.client.delete(f'/api/admin/specializations/{spec.pk}/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        spec.refresh_from_db()
+        self.assertFalse(spec.is_active)
+
 
