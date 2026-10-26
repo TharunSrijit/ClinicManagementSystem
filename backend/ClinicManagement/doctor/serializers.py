@@ -359,6 +359,12 @@ class LabTestOrderSerializer(serializers.ModelSerializer):
     test_name = serializers.CharField(
         source='test.test_name', read_only=True
     )
+    normal_range = serializers.CharField(
+        source='test.normal_range', read_only=True
+    )
+    unit = serializers.CharField(
+        source='test.unit', read_only=True
+    )
     patient_name = serializers.CharField(
         source='patient.__str__', read_only=True
     )
@@ -371,13 +377,12 @@ class LabTestOrderSerializer(serializers.ModelSerializer):
             'patient', 'patient_name',
             'doctor',
             'consultation',
-            'test', 'test_name',
+            'test', 'test_name', 'normal_range', 'unit',
             'status',
             'ordered_date', 'sample_collected_at',
             'result',
         ]
-
-        read_only_fields = ['order_number', 'ordered_date']
-
-
-        read_only_fields = ['order_number', 'ordered_date', 'doctor', 'patient_name', 'test_name']
+        read_only_fields = [
+            'order_number', 'ordered_date', 'doctor', 'patient_name',
+            'test_name', 'normal_range', 'unit', 'status',
+        ]
