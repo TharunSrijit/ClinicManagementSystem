@@ -103,7 +103,7 @@ export const Sidebar = () => {
     <aside className="sidebar">
       <div className="sidebar-header">
         <div className="sidebar-brand-icon">
-          <Hospital size={22} strokeWidth={2} color="#ffffff" />
+          <Hospital size={22} strokeWidth={2} color="var(--primary)" />
         </div>
         <div>
           <div className="sidebar-brand-title">MedCore CMS</div>

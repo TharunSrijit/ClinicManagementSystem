@@ -1,13 +1,15 @@
 .dashboard-shell {
   display: flex;
   min-height: 100vh;
+  background-color: var(--app-bg);
 }
 
 /* Sidebar */
 .sidebar {
   width: 260px;
-  background: var(--bg-sidebar);
-  color: #f1f5f9;
+  background: var(--surface);
+  color: var(--text-primary);
+  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -15,42 +17,45 @@
 }
 
 .sidebar-header {
-  padding: 24px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 22px 20px;
+  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
 .sidebar-brand-icon {
-  font-size: 1.6rem;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--primary-light);
+  color: var(--primary);
   width: 40px;
   height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-sm);
+  border: 1px solid var(--accent);
 }
 
 .sidebar-brand-title {
   font-weight: 700;
   font-size: 1.15rem;
-  color: #ffffff;
+  color: var(--text-primary);
   letter-spacing: -0.02em;
 }
 
 .sidebar-brand-subtitle {
   font-size: 0.75rem;
-  color: #94a3b8;
+  color: var(--text-secondary);
+  font-weight: 500;
 }
 
 .sidebar-nav {
-  padding: 20px 12px;
+  padding: 18px 12px;
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  overflow-y: auto;
 }
 
 .nav-link {
@@ -59,26 +64,27 @@
   gap: 12px;
   padding: 10px 14px;
   border-radius: var(--radius-sm);
-  color: #94a3b8;
+  color: var(--text-primary);
   font-size: 0.92rem;
   font-weight: 500;
   transition: all var(--transition-fast);
 }
 
 .nav-link:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: #ffffff;
+  background: var(--surface-secondary);
+  color: var(--primary);
 }
 
 .nav-link.active {
-  background: var(--primary);
-  color: #ffffff;
+  background: var(--primary-light);
+  color: var(--primary);
   font-weight: 600;
 }
 
 .sidebar-footer {
   padding: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--border);
+  background: var(--surface);
 }
 
 .user-profile-badge {
@@ -86,38 +92,41 @@
   align-items: center;
   gap: 12px;
   padding: 8px;
+  border-radius: var(--radius-sm);
 }
 
 .user-avatar {
   width: 36px;
   height: 36px;
   border-radius: var(--radius-full);
-  background: var(--primary);
-  color: white;
+  background: var(--primary-light);
+  color: var(--primary);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
   font-size: 0.85rem;
+  border: 1px solid var(--accent);
 }
 
 .user-info-name {
   font-size: 0.88rem;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .user-info-role {
   font-size: 0.72rem;
-  color: #94a3b8;
+  color: var(--text-secondary);
   text-transform: uppercase;
+  font-weight: 600;
 }
 
 /* Topbar */
 .topbar {
-  height: 68px;
-  background: var(--bg-topbar);
-  border-bottom: 1px solid var(--border-subtle);
+  height: 64px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -140,16 +149,18 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
+  padding: 6px 14px;
   border-radius: var(--radius-sm);
   font-size: 0.85rem;
-  color: var(--text-muted);
-  border: 1px solid var(--border-subtle);
+  font-weight: 500;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  background: var(--surface);
   transition: all var(--transition-fast);
 }
 
 .btn-logout:hover {
-  background: var(--danger-light);
-  color: var(--danger);
-  border-color: var(--danger);
+  background: var(--error-bg);
+  color: var(--error-text);
+  border-color: #fca5a5;
 }

@@ -725,12 +725,12 @@ export const PharmacyPrescriptionsPage = () => {
                 padding: '12px 18px',
                 borderRadius: '8px',
                 marginBottom: '20px',
-                border: '1px solid #e2e8f0'
+                border: '1px solid var(--border)'
               }}
             >
               <div>
-                <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Total Billed Amount:</span>
-                <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0284c7' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Total Billed Amount:</span>
+                <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary)' }}>
                   ₹{billSubtotal.toFixed(2)}
                 </div>
               </div>

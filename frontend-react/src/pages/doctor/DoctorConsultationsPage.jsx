@@ -972,7 +972,7 @@ export const DoctorConsultationsPage = () => {
                     style={{
                       fontFamily: 'monospace',
                       fontWeight: 700,
-                      color: 'var(--primary, #0284c7)',
+                      color: 'var(--primary)',
                       fontSize: '0.85rem'
                     }}
                   >

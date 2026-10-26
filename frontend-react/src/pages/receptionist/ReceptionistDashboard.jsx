@@ -159,7 +159,7 @@ export const ReceptionistDashboard = () => {
         </Link>
 
         <Link to="/receptionist/patients" className="card" style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '18px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--info-light)', width: '44px', height: '44px', borderRadius: 'var(--radius-sm)', color: '#0284c7', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--info-light)', width: '44px', height: '44px', borderRadius: 'var(--radius-sm)', color: 'var(--info)', flexShrink: 0 }}>
             <UsersRound size={22} strokeWidth={1.9} />
           </div>
           <div>

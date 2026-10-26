@@ -22,8 +22,7 @@ export const Modal = ({ isOpen, onClose, title, children, maxWidth = '550px' }) 
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.55)',
-        backdropFilter: 'blur(3px)',
+        backgroundColor: 'rgba(37, 40, 64, 0.4)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -34,12 +33,12 @@ export const Modal = ({ isOpen, onClose, title, children, maxWidth = '550px' }) 
     >
       <div
         style={{
-          background: 'var(--bg-card)',
+          background: 'var(--surface)',
           borderRadius: 'var(--radius-md)',
           width: '100%',
           maxWidth,
-          boxShadow: 'var(--shadow-lg)',
-          border: '1px solid var(--border-subtle)',
+          boxShadow: 'var(--shadow-md)',
+          border: '1px solid var(--border)',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
@@ -50,20 +49,20 @@ export const Modal = ({ isOpen, onClose, title, children, maxWidth = '550px' }) 
         <div
           style={{
             padding: '18px 24px',
-            borderBottom: '1px solid var(--border-subtle)',
+            borderBottom: '1px solid var(--border)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between'
           }}
         >
-          <h3 style={{ fontSize: '1.15rem', fontWeight: 600, color: 'var(--text-main)', margin: 0 }}>
+          <h3 style={{ fontSize: '1.15rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
             {title}
           </h3>
           <button
             onClick={onClose}
             style={{
               fontSize: '1.25rem',
-              color: 'var(--text-muted)',
+              color: 'var(--text-secondary)',
               padding: '4px 8px',
               borderRadius: 'var(--radius-sm)',
               lineHeight: 1

@@ -60,7 +60,7 @@ export const PharmacyReceipt = ({ invoice, onPrint }) => {
         <div className="receipt-header">
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-              <Hospital size={24} strokeWidth={2} color="#0284c7" />
+              <Hospital size={24} strokeWidth={2} color="var(--primary)" />
               <h2 className="receipt-clinic-title">{clinicName} — Pharmacy Dept.</h2>
             </div>
             {clinicAddress && <p className="receipt-clinic-sub">{clinicAddress}</p>}
@@ -243,7 +243,7 @@ export const PharmacyReceipt = ({ invoice, onPrint }) => {
               <td colSpan={5} style={{ textAlign: 'right', fontWeight: 700 }}>
                 Total Payable:
               </td>
-              <td style={{ textAlign: 'right', fontWeight: 700, color: '#0284c7' }}>
+              <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--primary)' }}>
                 ₹{totalAmount.toFixed(2)}
               </td>
             </tr>

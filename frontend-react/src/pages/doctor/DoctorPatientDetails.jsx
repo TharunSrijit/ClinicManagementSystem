@@ -193,8 +193,8 @@ export const DoctorPatientDetails = () => {
             </h1>
             <span
               style={{
-                background: 'var(--primary-light, #e0f2fe)',
-                color: 'var(--primary, #0284c7)',
+                background: 'var(--primary-light)',
+                color: 'var(--primary)',
                 padding: '4px 12px',
                 borderRadius: '6px',
                 fontWeight: 700,

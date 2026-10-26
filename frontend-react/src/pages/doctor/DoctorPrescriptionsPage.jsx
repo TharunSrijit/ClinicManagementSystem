@@ -32,7 +32,7 @@ export const DoctorPrescriptionsPage = () => {
       header: 'Prescription #',
       key: 'prescription_number',
       render: (row) => (
-        <span style={{ fontWeight: 600, color: 'var(--primary, #0284c7)', fontFamily: 'monospace' }}>
+        <span style={{ fontWeight: 600, color: 'var(--primary)', fontFamily: 'monospace' }}>
           {row.prescription_number || `#${row.id}`}
         </span>
       )
@@ -155,7 +155,7 @@ export const DoctorPrescriptionsPage = () => {
             >
               <div>
                 <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.78rem' }}>PRESCRIPTION #</span>
-                <strong style={{ fontFamily: 'monospace', color: 'var(--primary, #0284c7)' }}>
+                <strong style={{ fontFamily: 'monospace', color: 'var(--primary)' }}>
                   {selectedRx.prescription_number || `#${selectedRx.id}`}
                 </strong>
               </div>
