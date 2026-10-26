@@ -8,6 +8,16 @@ class SchedulingValidationError(ValidationError):
     pass
 
 
+WEEKDAY_CODES = ('MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN')
+
+
+def doctor_is_available_on(doctor, date):
+    available_days = getattr(doctor, 'available_days', None)
+    if not available_days:
+        return True
+    return WEEKDAY_CODES[date.weekday()] in available_days
+
+
 def now_local():
     """
     Returns current datetime in local timezone.
@@ -104,6 +114,11 @@ def validate_appointment_booking(
         if appointment_date > today + datetime.timedelta(days=advance_days):
             raise SchedulingValidationError({"appointment_date": f"Advance appointments cannot be made more than {advance_days} days in advance."})
 
+    if not doctor_is_available_on(doctor, appointment_date):
+        raise SchedulingValidationError({
+            "appointment_date": "This doctor is not available on the selected day."
+        })
+
     # 2. Slot validation
     start, end, slot_len = get_doctor_hours(doctor)
     valid_slots = generate_doctor_slots(doctor)
@@ -174,6 +189,9 @@ def get_doctor_slots_availability(doctor, appointment_type, date):
             raise SchedulingValidationError(f"Advance appointments cannot be made more than {advance_days} days in advance.")
     else:
         raise SchedulingValidationError("Type must be WALK_IN or ADVANCE.")
+
+    if not doctor_is_available_on(doctor, date):
+        return []
 
     start, end, slot_len = get_doctor_hours(doctor)
     slots = generate_doctor_slots(doctor)

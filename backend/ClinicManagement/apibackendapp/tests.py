@@ -54,6 +54,7 @@ class ClinicAppointmentApiTests(APITestCase):
             consultation_fee=500.00,
             available_from=datetime.time(9, 0),
             available_to=datetime.time(17, 0),
+            available_days=['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'],
             slot_minutes=15,
         )
 
@@ -75,6 +76,7 @@ class ClinicAppointmentApiTests(APITestCase):
             consultation_fee=400.00,
             available_from=datetime.time(9, 0),
             available_to=datetime.time(17, 0),
+            available_days=['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'],
             slot_minutes=15,
         )
 
@@ -273,6 +275,36 @@ class ClinicAppointmentApiTests(APITestCase):
             'appointment_time': '10:07:00',  # not a 15-min boundary
         })
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_unavailable_weekday_has_no_slots_and_rejects_booking(self):
+        from apibackendapp.scheduling import (
+            SchedulingValidationError,
+            get_doctor_slots_availability,
+            validate_appointment_booking,
+        )
+
+        self.doctor1_profile.available_days = ['MON', 'TUE', 'WED', 'THU', 'FRI']
+        self.doctor1_profile.save(update_fields=['available_days'])
+        sunday = datetime.date(2026, 10, 25)
+        current_time = datetime.datetime(
+            2026, 10, 23, 8, 0, tzinfo=ZoneInfo('Asia/Kolkata')
+        )
+
+        with patch('apibackendapp.scheduling.now_local', return_value=current_time):
+            self.assertEqual(
+                get_doctor_slots_availability(
+                    self.doctor1_profile, 'ADVANCE', sunday
+                ),
+                [],
+            )
+            with self.assertRaises(SchedulingValidationError):
+                validate_appointment_booking(
+                    self.doctor1_profile,
+                    self.patient1,
+                    'ADVANCE',
+                    sunday,
+                    datetime.time(9, 0),
+                )
 
     def test_double_booking_rejected_and_cancelled_slot_freed(self):
         """Double booking doctor or patient is rejected; cancelled appointment frees slot."""
@@ -690,10 +722,11 @@ class BookingConcurrencyTests(TransactionTestCase):
             doctor_id='DOC_CONC_001',
             specialization='General',
             qualification='MBBS',
-            registration_number='REG_CONC_001',
+            registration_number='REG-001',
             consultation_fee=500.00,
             available_from=datetime.time(9, 0),
             available_to=datetime.time(17, 0),
+            available_days=['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'],
             slot_minutes=15,
         )
 

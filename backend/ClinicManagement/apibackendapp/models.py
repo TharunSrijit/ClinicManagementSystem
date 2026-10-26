@@ -1,4 +1,5 @@
 import datetime
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
@@ -8,6 +9,15 @@ from django.contrib.auth.models import AbstractUser
 # ---------------------------------------------------------------------------
 # 1. USER & ROLE PROFILES
 # ---------------------------------------------------------------------------
+
+def default_doctor_available_days():
+    return ['MON', 'TUE', 'WED', 'THU', 'FRI']
+
+
+def validate_date_of_joining_not_future(value):
+    if value > timezone.localdate():
+        raise ValidationError('Date of joining cannot be in the future.')
+
 
 class User(AbstractUser):
     ROLE_CHOICES = [
@@ -41,6 +51,12 @@ class ReceptionistProfile(models.Model):
 
     employee_id = models.CharField(max_length=30, unique=True)
     phone = models.CharField(max_length=15)
+    qualification = models.CharField(max_length=150, blank=True, default='')
+    date_of_joining = models.DateField(
+        null=True,
+        blank=True,
+        validators=[validate_date_of_joining_not_future],
+    )
 
     def __str__(self):
         return self.user.get_full_name() or self.user.username
@@ -56,6 +72,11 @@ class DoctorProfile(models.Model):
     doctor_id = models.CharField(max_length=30, unique=True)
     specialization = models.CharField(max_length=100)
     qualification = models.CharField(max_length=150)
+    date_of_joining = models.DateField(
+        null=True,
+        blank=True,
+        validators=[validate_date_of_joining_not_future],
+    )
     registration_number = models.CharField(
         max_length=50,
         unique=True
@@ -67,6 +88,7 @@ class DoctorProfile(models.Model):
     )
     available_from = models.TimeField(null=True, blank=True)
     available_to = models.TimeField(null=True, blank=True)
+    available_days = models.JSONField(default=default_doctor_available_days)
     slot_minutes = models.PositiveSmallIntegerField(default=15)
 
     def __str__(self):
@@ -83,6 +105,11 @@ class LabTechnicianProfile(models.Model):
     employee_id = models.CharField(max_length=30, unique=True)
     qualification = models.CharField(max_length=150)
     phone = models.CharField(max_length=15)
+    date_of_joining = models.DateField(
+        null=True,
+        blank=True,
+        validators=[validate_date_of_joining_not_future],
+    )
 
     def __str__(self):
         return self.user.get_full_name() or self.user.username
@@ -98,6 +125,11 @@ class PharmacistProfile(models.Model):
     employee_id = models.CharField(max_length=30, unique=True)
     qualification = models.CharField(max_length=150)
     phone = models.CharField(max_length=15)
+    date_of_joining = models.DateField(
+        null=True,
+        blank=True,
+        validators=[validate_date_of_joining_not_future],
+    )
 
     def __str__(self):
         return self.user.get_full_name() or self.user.username
@@ -494,7 +526,8 @@ class MasterDosage(models.Model):
 class MasterMedicine(models.Model):
 
     medicine_name = models.CharField(
-        max_length=150
+        max_length=150,
+        blank=True
     )
 
     generic_name = models.CharField(
@@ -516,6 +549,8 @@ class MasterMedicine(models.Model):
         max_length=30,
         default='Tablet'
     )
+
+    reorder_level = models.PositiveIntegerField(default=10)
 
     description = models.TextField(
         blank=True
@@ -617,6 +652,11 @@ class MasterLabTest(models.Model):
 
     test_name = models.CharField(
         max_length=150
+    )
+
+    category = models.CharField(
+        max_length=100,
+        blank=True
     )
 
     description = models.TextField(

@@ -3,6 +3,23 @@ import pharmacyService from '../../services/pharmacyService';
 import DataTable from '../../components/DataTable';
 import { formatDate } from '../../utils/formatters';
 
+const getLocalDateString = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getDaysUntilExpiry = (expiryDate) => {
+  if (!expiryDate) return null;
+  const [year, month, day] = expiryDate.split('-').map(Number);
+  const expiryUtc = Date.UTC(year, month - 1, day);
+  const [todayYear, todayMonth, todayDay] = getLocalDateString().split('-').map(Number);
+  const todayUtc = Date.UTC(todayYear, todayMonth - 1, todayDay);
+  return Math.ceil((expiryUtc - todayUtc) / (24 * 60 * 60 * 1000));
+};
+
 export const PharmacyStockPage = () => {
   const [stock, setStock] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -94,11 +111,25 @@ export const PharmacyStockPage = () => {
       key: 'expiry_date',
       render: (row) => {
         const exp = row.expiry_date;
-        const isExpired = exp && new Date(exp) < new Date();
+        const daysUntilExpiry = getDaysUntilExpiry(exp);
+        const isExpired = daysUntilExpiry !== null && daysUntilExpiry <= 0;
+        const expiresSoon = daysUntilExpiry !== null && daysUntilExpiry > 0 && daysUntilExpiry <= 20;
         return (
-          <span style={{ color: isExpired ? 'var(--danger)' : 'inherit', fontWeight: isExpired ? 600 : 'normal' }}>
-            {formatDate(exp)} {isExpired && '⚠️ Expired'}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+            <span style={{ color: isExpired ? 'var(--danger)' : 'inherit', fontWeight: isExpired ? 600 : 'normal' }}>
+              {formatDate(exp)}
+            </span>
+            {isExpired && (
+              <span style={{ color: 'var(--danger)', background: 'var(--danger-light)', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, fontSize: '0.8rem' }}>
+                Expired
+              </span>
+            )}
+            {expiresSoon && (
+              <span style={{ color: 'var(--warning)', background: 'var(--warning-light)', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, fontSize: '0.8rem' }}>
+                Expires in {daysUntilExpiry} {daysUntilExpiry === 1 ? 'day' : 'days'}
+              </span>
+            )}
+          </div>
         );
       }
     },
@@ -106,6 +137,15 @@ export const PharmacyStockPage = () => {
       header: 'Stock Status',
       key: 'status',
       render: (row) => {
+        const daysUntilExpiry = getDaysUntilExpiry(row.expiry_date);
+        if (daysUntilExpiry !== null && daysUntilExpiry <= 0) {
+          return (
+            <span style={{ color: 'var(--danger)', background: 'var(--danger-light)', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, fontSize: '0.8rem' }}>
+              Expired
+            </span>
+          );
+        }
+
         const qty = Number(row.quantity || 0);
         const reorder = Number(row.reorder_level || 10);
 

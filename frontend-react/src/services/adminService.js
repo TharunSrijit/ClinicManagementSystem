@@ -13,12 +13,40 @@ export const adminService = {
     return apiClient.post('/admin/users/', userData);
   },
 
+  createStaffProfile(staffData) {
+    return apiClient.post('/admin/users/create_staff/', staffData);
+  },
+
+  updateStaffProfile(userId, data) {
+    return apiClient.patch(`/admin/users/${userId}/staff-profile/`, data);
+  },
+
+  deleteStaffProfile(userId) {
+    return apiClient.delete(`/admin/users/${userId}/staff-profile/`);
+  },
+
+  setUserActive(userId, active) {
+    return apiClient.post(`/admin/users/${userId}/${active ? 'activate' : 'deactivate'}/`);
+  },
+
   getDoctors() {
     return apiClient.list('/admin/doctors/');
   },
 
   createDoctor(doctorData) {
     return apiClient.post('/admin/doctors/', doctorData);
+  },
+
+  updateDoctor(doctorId, doctorData) {
+    return apiClient.patch(`/admin/doctors/${doctorId}/`, doctorData);
+  },
+
+  deleteDoctor(doctorId) {
+    return apiClient.delete(`/admin/doctors/${doctorId}/`);
+  },
+
+  setDoctorActive(userId, active) {
+    return apiClient.post(`/admin/users/${userId}/${active ? 'activate' : 'deactivate'}/`);
   },
 
   getReceptionists() {
@@ -61,6 +89,14 @@ export const adminService = {
     return apiClient.post('/admin/medicines/', medicineData);
   },
 
+  updateMedicine(medicineId, medicineData) {
+    return apiClient.patch(`/admin/medicines/${medicineId}/`, medicineData);
+  },
+
+  deleteMedicine(medicineId) {
+    return apiClient.delete(`/admin/medicines/${medicineId}/`);
+  },
+
   getLabTests() {
     return apiClient.list('/admin/lab-tests/');
   },
@@ -69,12 +105,32 @@ export const adminService = {
     return apiClient.post('/admin/lab-tests/', labTestData);
   },
 
+  updateLabTest(labTestId, labTestData) {
+    return apiClient.patch(`/admin/lab-tests/${labTestId}/`, labTestData);
+  },
+
+  deleteLabTest(labTestId) {
+    return apiClient.delete(`/admin/lab-tests/${labTestId}/`);
+  },
+
   getPriceList() {
     return apiClient.list('/admin/price-list/');
   },
 
   getStock() {
     return apiClient.list('/admin/stock/');
+  },
+
+  createStock(stockData) {
+    return apiClient.post('/admin/stock/', stockData);
+  },
+
+  updateStock(stockId, stockData) {
+    return apiClient.patch(`/admin/stock/${stockId}/`, stockData);
+  },
+
+  deleteStock(stockId) {
+    return apiClient.delete(`/admin/stock/${stockId}/`);
   },
 
   getStockTransactions() {

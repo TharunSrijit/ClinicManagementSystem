@@ -1,6 +1,8 @@
 from datetime import date as date_cls
 
-from django.db.models import Q, Sum
+from django.db import transaction
+from django.db.models import Q
+from django.db.models.deletion import ProtectedError
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -17,6 +19,8 @@ from apibackendapp.models import (
     MasterDosage,
     MasterMedicine,
     MasterLabTest,
+    PrescriptionItem,
+    DispenseItem,
     PriceList,
     StockMaster,
     StockTransaction,
@@ -45,7 +49,11 @@ from apibackendapp.serializers import (
 )
 
 from .permissions import IsAdminRole
-from .serializers import AdminStaffCreateSerializer, DashboardStatsSerializer
+from .serializers import (
+    AdminDoctorProfileSerializer,
+    AdminStaffCreateSerializer,
+    DashboardStatsSerializer,
+)
 
 
 LOW_STOCK_THRESHOLD = 10
@@ -127,6 +135,78 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         user.save(update_fields=['is_active'])
         return Response(self.get_serializer(user).data)
 
+    @action(detail=True, methods=['patch', 'delete'], url_path='staff-profile')
+    def staff_profile(self, request, pk=None):
+        user = self.get_object()
+        profile_config = {
+            'RECEPTIONIST': (
+                'receptionist_profile',
+                ReceptionistProfileSerializer,
+            ),
+            'DOCTOR': (
+                'doctor_profile',
+                AdminDoctorProfileSerializer,
+            ),
+            'LAB_TECHNICIAN': (
+                'lab_technician_profile',
+                LabTechnicianProfileSerializer,
+            ),
+            'PHARMACIST': (
+                'pharmacist_profile',
+                PharmacistProfileSerializer,
+            ),
+        }
+        if user.role not in profile_config:
+            return Response(
+                {'detail': 'This account does not have a staff profile.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        related_name, profile_serializer_class = profile_config[user.role]
+        try:
+            profile = getattr(user, related_name)
+        except (
+            ReceptionistProfile.DoesNotExist,
+            DoctorProfile.DoesNotExist,
+            LabTechnicianProfile.DoesNotExist,
+            PharmacistProfile.DoesNotExist,
+        ):
+            return Response(
+                {'detail': 'This user does not have a staff profile.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if request.method == 'DELETE':
+            try:
+                profile.delete()
+            except ProtectedError:
+                return Response(
+                    {'detail': 'This staff profile is linked to existing records and cannot be deleted.'},
+                    status=status.HTTP_409_CONFLICT,
+                )
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        user_serializer = UserSerializer(
+            user,
+            data=request.data.get('user', {}),
+            partial=True,
+        )
+        profile_serializer = profile_serializer_class(
+            profile,
+            data=request.data.get('profile', {}),
+            partial=True,
+        )
+        user_serializer.is_valid(raise_exception=True)
+        profile_serializer.is_valid(raise_exception=True)
+
+        with transaction.atomic():
+            user_serializer.save()
+            profile_serializer.save()
+
+        return Response({
+            'user': user_serializer.data,
+            'profile': profile_serializer.data,
+        })
+
 
 # ============================================================================
 # STAFF PROFILES (admin manages ALL of them, not just their own)
@@ -139,7 +219,7 @@ class AdminReceptionistProfileViewSet(viewsets.ModelViewSet):
 
 
 class AdminDoctorProfileViewSet(viewsets.ModelViewSet):
-    serializer_class = DoctorProfileSerializer
+    serializer_class = AdminDoctorProfileSerializer
     permission_classes = [IsAdminRole]
     queryset = DoctorProfile.objects.all().select_related('user')
 
@@ -149,6 +229,22 @@ class AdminDoctorProfileViewSet(viewsets.ModelViewSet):
         if specialization:
             queryset = queryset.filter(specialization__icontains=specialization)
         return queryset
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        try:
+            self.perform_destroy(instance)
+        except ProtectedError:
+            return Response(
+                {
+                    'detail': (
+                        'This doctor profile is linked to appointments or medical '
+                        'records and cannot be deleted. Deactivate the account instead.'
+                    )
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class AdminLabTechnicianProfileViewSet(viewsets.ModelViewSet):
@@ -228,7 +324,7 @@ class AdminMasterMedicineViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdminRole]
 
     def get_queryset(self):
-        queryset = MasterMedicine.objects.all()
+        queryset = MasterMedicine.objects.prefetch_related('stock')
         name = self.request.query_params.get('name')
         active = self.request.query_params.get('active')
         if name:
@@ -236,6 +332,31 @@ class AdminMasterMedicineViewSet(viewsets.ModelViewSet):
         if active is not None:
             queryset = queryset.filter(is_active=active.lower() == 'true')
         return queryset
+
+    def destroy(self, request, *args, **kwargs):
+        try:
+            with transaction.atomic():
+                instance = self.get_queryset().select_for_update().get(pk=self.kwargs['pk'])
+                self.check_object_permissions(request, instance)
+
+                has_prescriptions = PrescriptionItem.objects.filter(medicine=instance).exists()
+                has_dispensing_history = DispenseItem.objects.filter(medicine=instance).exists()
+                if has_prescriptions or has_dispensing_history:
+                    return Response(
+                        {'detail': 'This medicine is linked to prescription or dispensing history and cannot be deleted.'},
+                        status=status.HTTP_409_CONFLICT,
+                    )
+
+                StockTransaction.objects.filter(stock__medicine=instance).delete()
+                StockMaster.objects.filter(medicine=instance).delete()
+                PriceList.objects.filter(medicine=instance).delete()
+                instance.delete()
+        except ProtectedError:
+            return Response(
+                {'detail': 'This medicine has linked clinical records and cannot be deleted.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class AdminMasterLabTestViewSet(viewsets.ModelViewSet):
@@ -251,6 +372,17 @@ class AdminMasterLabTestViewSet(viewsets.ModelViewSet):
         if active is not None:
             queryset = queryset.filter(is_active=active.lower() == 'true')
         return queryset
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        try:
+            self.perform_destroy(instance)
+        except ProtectedError:
+            return Response(
+                {'detail': 'This lab test has clinical records and cannot be deleted. Deactivate it instead.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class AdminPriceListViewSet(viewsets.ModelViewSet):
@@ -273,6 +405,17 @@ class AdminStockMasterViewSet(viewsets.ModelViewSet):
         if medicine:
             queryset = queryset.filter(medicine_id=medicine)
         return queryset
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        try:
+            self.perform_destroy(instance)
+        except ProtectedError:
+            return Response(
+                {'detail': 'This stock batch has transaction history and cannot be deleted.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=False, methods=['get'])
     def low_stock(self, request):

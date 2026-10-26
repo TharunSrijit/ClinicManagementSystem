@@ -25,7 +25,7 @@ class LabTechnicianProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model  = LabTechnicianProfile
-        fields = ['id', 'user', 'full_name', 'email', 'employee_id', 'qualification', 'phone']
+        fields = ['id', 'user', 'full_name', 'email', 'employee_id', 'qualification', 'phone', 'date_of_joining']
         read_only_fields = ['employee_id']
 
 
@@ -52,7 +52,7 @@ class MasterLabTestSerializer(serializers.ModelSerializer):
     class Meta:
         model  = MasterLabTest
         fields = [
-            'id', 'test_code', 'test_name', 'description',
+            'id', 'test_code', 'test_name', 'category', 'description',
             'normal_range', 'unit', 'price', 'is_active',
         ]
         read_only_fields = fields
