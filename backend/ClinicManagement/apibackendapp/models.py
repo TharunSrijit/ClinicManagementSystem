@@ -770,17 +770,23 @@ class MasterLabTest(models.Model):
 
 class LabTestOrder(models.Model):
 
+    # Workflow:
+    # ORDERED -> PAYMENT_PENDING -> PAID -> SAMPLE_COLLECTED -> PROCESSING -> COMPLETED
+    # (CANCELLED is allowed only before any payment is received)
     STATUS_CHOICES = [
-        ('ORDERED', 'Ordered'),
+        ('ORDERED', 'Requested by Doctor'),
+        ('PAYMENT_PENDING', 'Awaiting Payment'),
+        ('PAID', 'Paid - Ready for Sample'),
         ('SAMPLE_COLLECTED', 'Sample Collected'),
         ('PROCESSING', 'Processing'),
-        ('COMPLETED', 'Completed'),
+        ('COMPLETED', 'Completed - Sent to Doctor'),
         ('CANCELLED', 'Cancelled'),
     ]
 
     order_number = models.CharField(
         max_length=30,
-        unique=True
+        unique=True,
+        blank=True
     )
 
     patient = models.ForeignKey(
@@ -823,6 +829,28 @@ class LabTestOrder(models.Model):
         null=True,
         blank=True
     )
+
+    completed_at = models.DateTimeField(
+        null=True,
+        blank=True
+    )
+
+    def save(self, *args, **kwargs):
+        # order_number was never generated before, so every order after the
+        # first one failed with a UNIQUE constraint error.
+        if not self.order_number:
+            self.order_number = LabTestOrder.generate_order_number()
+        super().save(*args, **kwargs)
+
+    @staticmethod
+    def generate_order_number():
+        last = LabTestOrder.objects.order_by('-id').first()
+        next_number = (last.id + 1) if last else 1
+        candidate = f"LAB{next_number:05d}"
+        while LabTestOrder.objects.filter(order_number=candidate).exists():
+            next_number += 1
+            candidate = f"LAB{next_number:05d}"
+        return candidate
 
     def __str__(self):
         return self.order_number

@@ -341,7 +341,7 @@ input, select, textarea {
 .page-title {
   font-size: 1.6rem;
   font-weight: 700;
-  color: var(text-main);
+  color: var(--text-main);
 }
 
 .page-subtitle {
@@ -360,7 +360,7 @@ input, select, textarea {
 
 .card {
   background: var(--bg-card);
-  border: 1px solid var(border-subtle);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   padding: 20px;
   box-shadow: var(--shadow-card);
@@ -369,7 +369,7 @@ input, select, textarea {
 
 .card:hover {
   transform: translateY(-2px);
-  box-shadow: var(shadow-md);
+  box-shadow: var(--shadow-md);
 }
 
 /* Badges */
@@ -377,7 +377,7 @@ input, select, textarea {
   display: inline-flex;
   align-items: center;
   padding: 3px 10px;
-  border-radius: var(radius-full);
+  border-radius: var(--radius-full);
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -399,29 +399,29 @@ input, select, textarea {
   padding: 9px 18px;
   font-size: 0.9rem;
   font-weight: 600;
-  border-radius: var(radius-sm);
-  transition: all var(transition-fast);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
 }
 
 .btn-primary {
-  background: var(primary);
+  background: var(--primary);
   color: white;
 }
 .btn-primary:hover {
-  background: var(primary-hover);
+  background: var(--primary-hover);
 }
 
 .btn-outline {
-  border: 1px solid var(border-subtle);
+  border: 1px solid var(--border-subtle);
   color: var(--text-main);
   background: white;
 }
 .btn-outline:hover {
-  background: var(bg-hover);
+  background: var(--bg-hover);
 }
 
 .btn-danger {
-  background: var(danger);
+  background: var(--danger);
   color: white;
 }
 .btn-danger:hover {
@@ -432,9 +432,9 @@ input, select, textarea {
 .table-responsive {
   overflow-x: auto;
   background: white;
-  border-radius: var(radius-md);
-  border: 1px solid var(border-subtle);
-  box-shadow: var(shadow-sm);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-sm);
 }
 
 .table {
@@ -448,13 +448,13 @@ input, select, textarea {
   background: #f8fafc;
   padding: 12px 16px;
   font-weight: 600;
-  color: var(text-muted);
-  border-bottom: 1px solid var(border-subtle);
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .table td {
   padding: 14px 16px;
-  border-bottom: 1px solid var(border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
   color: var(--text-main);
 }
 
@@ -482,29 +482,29 @@ input, select, textarea {
 .form-control, .form-select {
   width: 100%;
   padding: 9px 12px;
-  border: 1px solid var(border-subtle);
-  border-radius: var(radius-sm);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
   background-color: #ffffff;
   color: var(--text-main);
-  transition: border-color var(transition-fast), box-shadow var(--transition-fast);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
   outline: none;
 }
 
 .form-control:focus, .form-select:focus {
-  border-color: var(primary);
-  box-shadow: 0 0 0 3px var(primary-light);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-light);
 }
 
 .form-control:disabled, .form-select:disabled {
   background-color: #f1f5f9;
   cursor: not-allowed;
-  color: var(text-muted);
+  color: var(--text-muted);
 }
 
 /* Alerts */
 .alert {
   padding: 12px 16px;
-  border-radius: var(radius-sm);
+  border-radius: var(--radius-sm);
   margin-bottom: 20px;
   font-size: 0.9rem;
   display: flex;
@@ -514,25 +514,25 @@ input, select, textarea {
 }
 
 .alert-success {
-  background: var(success-light);
+  background: var(--success-light);
   color: #14532d;
   border-color: #bbf7d0;
 }
 
 .alert-danger {
-  background: var(danger-light);
+  background: var(--danger-light);
   color: #7f1d1d;
   border-color: #fecaca;
 }
 
 .alert-info {
-  background: var(info-light);
+  background: var(--info-light);
   color: #1e3a8a;
   border-color: #bfdbfe;
 }
 
 .alert-warning {
-  background: var(warning-light);
+  background: var(--warning-light);
   color: #78350f;
   border-color: #fde68a;
 }
@@ -565,10 +565,10 @@ input, select, textarea {
    (used by Medical Registration # in AdminDoctorsPage.jsx)
    ============================================================ */
 .input-with-error {
-  border: 1px solid var(border-subtle);
-  border-radius: var(radius-sm);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
   background: #ffffff;
-  transition: border-color var(transition-fast), box-shadow var(transition-fast);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .input-with-error .form-control {
@@ -578,17 +578,17 @@ input, select, textarea {
 }
 
 .input-with-error:focus-within {
-  border-color: var(primary);
-  box-shadow: 0 0 0 3px var(primary-light);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-light);
 }
 
 .input-with-error.has-error {
-  border-color: var(danger);
+  border-color: var(--danger);
 }
 
 .input-with-error.has-error:focus-within {
-  border-color: var(danger);
-  box-shadow: 0 0 0 3px var(danger-light);
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px var(--danger-light);
 }
 
 .inside-error {
@@ -596,19 +596,19 @@ input, select, textarea {
   padding: 0 12px 8px;
   font-size: 0.75rem;
   line-height: 1.3;
-  color: var(danger);
+  color: var(--danger);
 }
 
 /* Existing classes used by Specialization / Qualification fields */
 .form-control.is-invalid {
-  border-color: var(danger);
+  border-color: var(--danger);
 }
 
 .field-error {
   display: block;
   margin-top: 4px;
   font-size: 0.75rem;
-  color: var(danger);
+  color: var(--danger);
 }  
 
 /* Printable Receipt Styles */
@@ -622,7 +622,7 @@ input, select, textarea {
 .receipt-card {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: var(radius-md, 8px);
+  border-radius: var(--radius-md, 8px);
   padding: 28px 32px;
   max-width: 760px;
   margin: 0 auto;

@@ -29,6 +29,10 @@ export const adminService = {
     return apiClient.post(`/admin/users/${userId}/${active ? 'activate' : 'deactivate'}/`);
   },
 
+  createStaff(staffData) {
+    return apiClient.post('/admin/users/create_staff/', staffData);
+  },
+
   getDoctors() {
     return apiClient.list('/admin/doctors/');
   },

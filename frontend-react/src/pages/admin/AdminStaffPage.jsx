@@ -31,6 +31,18 @@ export const AdminStaffPage = () => {
     qualification: '',
     date_of_joining: getTodayDate()
   });
+  const [isLabModalOpen, setIsLabModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [labForm, setLabForm] = useState({
+    username: '',
+    password: '',
+    first_name: '',
+    last_name: '',
+    email: '',
+    employee_id: '',
+    qualification: '',
+    phone: ''
+  });
   const [feedback, setFeedback] = useState({ message: '', type: '' });
 
   const loadStaff = useCallback(async () => {
@@ -200,6 +212,47 @@ export const AdminStaffPage = () => {
     }
   };
 
+  const handleRegisterLabTechnician = async (event) => {
+    event.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      await adminService.createStaff({
+        role: 'LAB_TECHNICIAN',
+        username: labForm.username,
+        password: labForm.password,
+        first_name: labForm.first_name,
+        last_name: labForm.last_name,
+        email: labForm.email,
+        phone: labForm.phone,
+        profile: {
+          employee_id: labForm.employee_id,
+          qualification: labForm.qualification,
+          phone: labForm.phone
+        }
+      });
+      setLabForm({
+        username: '',
+        password: '',
+        first_name: '',
+        last_name: '',
+        email: '',
+        employee_id: '',
+        qualification: '',
+        phone: ''
+      });
+      setIsLabModalOpen(false);
+      setFeedback({ message: 'Lab technician registered successfully.', type: 'success' });
+      setActiveTab('labTechs');
+      await loadStaff();
+    } catch (err) {
+      console.error('Failed to register lab technician:', err);
+      setFeedback({ message: err.message || 'Could not register lab technician.', type: 'danger' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const columns = [
     {
       header: 'Staff ID',
@@ -345,6 +398,11 @@ export const AdminStaffPage = () => {
               + Add Staff Member
             </button>
           )}
+        </div>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button className="btn btn-primary" onClick={() => setIsLabModalOpen(true)}>
+            + Register Lab Technician
+          </button>
         </div>
       </div>
 
@@ -552,6 +610,98 @@ export const AdminStaffPage = () => {
           </div>
         </form>
         )}
+      </Modal>
+
+      <Modal
+        isOpen={isLabModalOpen}
+        onClose={() => setIsLabModalOpen(false)}
+        title="Register Lab Technician"
+      >
+        <form onSubmit={handleRegisterLabTechnician}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div className="form-group">
+              <label className="form-label">Username *</label>
+              <input
+                className="form-control"
+                required
+                value={labForm.username}
+                onChange={(event) => setLabForm({ ...labForm, username: event.target.value })}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Initial Password *</label>
+              <input
+                className="form-control"
+                type="password"
+                minLength={8}
+                required
+                value={labForm.password}
+                onChange={(event) => setLabForm({ ...labForm, password: event.target.value })}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">First Name</label>
+              <input
+                className="form-control"
+                value={labForm.first_name}
+                onChange={(event) => setLabForm({ ...labForm, first_name: event.target.value })}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Last Name</label>
+              <input
+                className="form-control"
+                value={labForm.last_name}
+                onChange={(event) => setLabForm({ ...labForm, last_name: event.target.value })}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Email Address *</label>
+              <input
+                className="form-control"
+                type="email"
+                required
+                value={labForm.email}
+                onChange={(event) => setLabForm({ ...labForm, email: event.target.value })}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Phone *</label>
+              <input
+                className="form-control"
+                required
+                value={labForm.phone}
+                onChange={(event) => setLabForm({ ...labForm, phone: event.target.value })}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Employee ID *</label>
+              <input
+                className="form-control"
+                required
+                value={labForm.employee_id}
+                onChange={(event) => setLabForm({ ...labForm, employee_id: event.target.value })}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Qualification *</label>
+              <input
+                className="form-control"
+                required
+                value={labForm.qualification}
+                onChange={(event) => setLabForm({ ...labForm, qualification: event.target.value })}
+              />
+            </div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
+            <button type="button" className="btn btn-outline" onClick={() => setIsLabModalOpen(false)}>
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+              {isSubmitting ? 'Registering...' : 'Register Lab Technician'}
+            </button>
+          </div>
+        </form>
       </Modal>
     </div>
   );

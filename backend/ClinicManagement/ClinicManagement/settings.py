@@ -25,7 +25,8 @@ load_dotenv(BASE_DIR / '.env', override=True)
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY', '')
+# Fallback is intentionally non-empty so local development works even without a .env file.
+SECRET_KEY = os.environ.get('SECRET_KEY') or 'django-insecure-dev-secret-key-change-me'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'False').lower() in ('true', '1', 'yes')
@@ -93,16 +94,25 @@ WSGI_APPLICATION = 'ClinicManagement.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': os.environ.get('DB_ENGINE', 'django.db.backends.mysql'),
-        'NAME': os.environ.get('DB_NAME', 'ClinicDB'),
-        'USER': os.environ.get('DB_USER', 'root'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-        'HOST': os.environ.get('DB_HOST', 'localhost'),
-        'PORT': int(os.environ.get('DB_PORT', '3306')),
+_db_engine = os.environ.get('DB_ENGINE', '').strip()
+if _db_engine:
+    DATABASES = {
+        'default': {
+            'ENGINE': _db_engine,
+            'NAME': os.environ.get('DB_NAME', 'ClinicDB'),
+            'USER': os.environ.get('DB_USER', 'root'),
+            'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+            'HOST': os.environ.get('DB_HOST', 'localhost'),
+            'PORT': int(os.environ.get('DB_PORT', '3306')),
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation
