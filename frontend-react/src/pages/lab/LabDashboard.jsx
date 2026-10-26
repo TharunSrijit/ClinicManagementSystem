@@ -25,24 +25,46 @@ export const LabDashboard = () => {
   const [feedback, setFeedback] = useState({ message: '', type: '' });
 
   const loadLabData = useCallback(async () => {
-    try {
-      const [summary, recentOrders] = await Promise.all([
-        labService.getSummary(),
-        labService.getLabOrders()
-      ]);
+    const [summaryResult, ordersResult] = await Promise.allSettled([
+      labService.getSummary(),
+      labService.getLabOrders()
+    ]);
+
+    const errors = [];
+
+    if (summaryResult.status === 'fulfilled') {
+      const summary = summaryResult.value;
       setCounts({ ...EMPTY_COUNTS, ...summary.by_status });
       setTotal(summary.total || 0);
+    } else {
+      console.error('Failed to load lab summary:', summaryResult.reason);
+      const message = summaryResult.reason instanceof Error
+        ? summaryResult.reason.message
+        : String(summaryResult.reason);
+      errors.push(`Dashboard statistics could not be loaded: ${message}`);
+    }
+
+    if (ordersResult.status === 'fulfilled') {
+      const recentOrders = ordersResult.value;
       setOrders(recentOrders.slice(0, 8));
-      setFeedback({ message: '', type: '' });
-    } catch (err) {
-      console.error('Failed to load lab dashboard:', err);
+    } else {
+      console.error('Failed to load lab orders:', ordersResult.reason);
+      const message = ordersResult.reason instanceof Error
+        ? ordersResult.reason.message
+        : String(ordersResult.reason);
+      errors.push(`Lab requests could not be loaded: ${message}`);
+    }
+
+    if (errors.length) {
       setFeedback({
-        message: err.message || 'Could not load laboratory dashboard data.',
+        message: errors.join(' '),
         type: 'danger'
       });
-    } finally {
-      setLoading(false);
+    } else {
+      setFeedback({ message: '', type: '' });
     }
+
+    setLoading(false);
   }, []);
 
   useEffect(() => {
