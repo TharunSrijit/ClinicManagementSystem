@@ -36,6 +36,8 @@ export const AdminUsersPage = () => {
   // In-flight action tracking
   const [actionId, setActionId] = useState(null);
   const [feedback, setFeedback] = useState({ message: '', type: '' });
+  const [formErrors, setFormErrors] = useState({});
+  const [editFormErrors, setEditFormErrors] = useState({});
 
   const [form, setForm] = useState({
     username: '',
@@ -70,6 +72,11 @@ export const AdminUsersPage = () => {
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
+    if (!form.password || form.password.length < 8) {
+      setFormErrors({ password: 'Password must be at least 8 characters long.' });
+      return;
+    }
+    setFormErrors({});
     setSubmitting(true);
     try {
       await adminService.createUser(form);
@@ -86,6 +93,10 @@ export const AdminUsersPage = () => {
       await loadUsers();
     } catch (err) {
       console.error('Failed to create user:', err);
+      if (err.data && err.data.password) {
+        const msg = Array.isArray(err.data.password) ? err.data.password[0] : err.data.password;
+        setFormErrors((prev) => ({ ...prev, password: msg }));
+      }
       showFeedback(err.message || 'User creation failed.', 'danger');
     } finally {
       setSubmitting(false);
@@ -94,6 +105,7 @@ export const AdminUsersPage = () => {
 
   const openEditUser = (user) => {
     setEditingUser(user);
+    setEditFormErrors({});
     setEditForm({
       username: user.username || '',
       email: user.email || '',
@@ -109,6 +121,11 @@ export const AdminUsersPage = () => {
   const handleUpdateUser = async (e) => {
     e.preventDefault();
     if (!editingUser) return;
+    if (editForm.password && editForm.password.length < 8) {
+      setEditFormErrors({ password: 'Password must be at least 8 characters long.' });
+      return;
+    }
+    setEditFormErrors({});
     setSubmitting(true);
     try {
       const payload = {
@@ -119,8 +136,8 @@ export const AdminUsersPage = () => {
         last_name: editForm.last_name.trim(),
         phone: editForm.phone.trim() || null
       };
-      if (editForm.password && editForm.password.trim()) {
-        payload.password = editForm.password.trim();
+      if (editForm.password) {
+        payload.password = editForm.password;
       }
       await adminService.updateUser(editingUser.id, payload);
       showFeedback(`Account '${payload.username}' updated successfully!`);
@@ -129,6 +146,10 @@ export const AdminUsersPage = () => {
       await loadUsers();
     } catch (err) {
       console.error('Failed to update user:', err);
+      if (err.data && err.data.password) {
+        const msg = Array.isArray(err.data.password) ? err.data.password[0] : err.data.password;
+        setEditFormErrors((prev) => ({ ...prev, password: msg }));
+      }
       showFeedback(err.message || 'Failed to update user account.', 'danger');
     } finally {
       setSubmitting(false);
@@ -403,10 +424,30 @@ export const AdminUsersPage = () => {
               type="password"
               className="form-control"
               required
+              minLength={8}
               value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              placeholder="Enter secure password"
+              onChange={(e) => {
+                setForm({ ...form, password: e.target.value });
+                if (formErrors.password) {
+                  setFormErrors((prev) => ({
+                    ...prev,
+                    password: e.target.value.length < 8 ? 'Password must be at least 8 characters long.' : ''
+                  }));
+                }
+              }}
+              onBlur={(e) => {
+                if (e.target.value && e.target.value.length < 8) {
+                  setFormErrors((prev) => ({ ...prev, password: 'Password must be at least 8 characters long.' }));
+                }
+              }}
+              style={formErrors.password ? { borderColor: 'var(--danger)' } : {}}
+              placeholder="Enter secure password (min. 8 characters)"
             />
+            {formErrors.password && (
+              <div style={{ color: 'var(--danger)', fontSize: '0.82rem', marginTop: '4px' }}>
+                {formErrors.password}
+              </div>
+            )}
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
@@ -528,10 +569,30 @@ export const AdminUsersPage = () => {
             <input
               type="password"
               className="form-control"
+              minLength={8}
               value={editForm.password}
-              onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
-              placeholder="Leave blank to keep existing password"
+              onChange={(e) => {
+                setEditForm({ ...editForm, password: e.target.value });
+                if (editFormErrors.password) {
+                  setEditFormErrors((prev) => ({
+                    ...prev,
+                    password: (e.target.value && e.target.value.length < 8) ? 'Password must be at least 8 characters long.' : ''
+                  }));
+                }
+              }}
+              onBlur={(e) => {
+                if (e.target.value && e.target.value.length < 8) {
+                  setEditFormErrors((prev) => ({ ...prev, password: 'Password must be at least 8 characters long.' }));
+                }
+              }}
+              style={editFormErrors.password ? { borderColor: 'var(--danger)' } : {}}
+              placeholder="Leave blank to keep existing password (min. 8 characters if changing)"
             />
+            {editFormErrors.password && (
+              <div style={{ color: 'var(--danger)', fontSize: '0.82rem', marginTop: '4px' }}>
+                {editFormErrors.password}
+              </div>
+            )}
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>

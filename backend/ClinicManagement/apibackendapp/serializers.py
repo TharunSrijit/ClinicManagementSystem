@@ -205,6 +205,11 @@ class UserSerializer(serializers.ModelSerializer):
     def validate_phone(self, value):
         return validate_staff_contact_number(value)
 
+    def validate_password(self, value):
+        if value is not None and len(value) < 8:
+            raise serializers.ValidationError("Password must be at least 8 characters long.")
+        return value
+
     def create(self, validated_data):
         password = validated_data.pop('password', None)
         email = validated_data.get('email')
@@ -335,6 +340,8 @@ class PharmacistProfileSerializer(serializers.ModelSerializer):
 # Used by: adminapp, receptionist
 
 class PatientSerializer(serializers.ModelSerializer):
+    first_name = serializers.CharField(max_length=50, required=True, allow_blank=True)
+    last_name = serializers.CharField(max_length=50, required=True, allow_blank=True)
     is_existing = serializers.SerializerMethodField()
 
     def get_is_existing(self, obj):
@@ -351,6 +358,26 @@ class PatientSerializer(serializers.ModelSerializer):
             'created_at', 'is_existing',
         ]
         read_only_fields = ['patient_id', 'created_at', 'is_existing']
+
+    def validate_first_name(self, value):
+        trimmed = (value or '').strip()
+        if len(trimmed) < 2:
+            raise serializers.ValidationError("Name must contain at least 2 characters.")
+        return value
+
+    def validate_last_name(self, value):
+        trimmed = (value or '').strip()
+        if len(trimmed) < 2:
+            raise serializers.ValidationError("Name must contain at least 2 characters.")
+        return value
+
+    def validate_date_of_birth(self, value):
+        if value:
+            from django.utils import timezone
+            today = timezone.localdate()
+            if value > today:
+                raise serializers.ValidationError("Date of birth cannot be in the future.")
+        return value
 
 
 class MedicalHistorySerializer(serializers.ModelSerializer):

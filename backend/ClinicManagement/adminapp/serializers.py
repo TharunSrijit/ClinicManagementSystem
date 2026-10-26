@@ -93,6 +93,11 @@ class AdminStaffCreateSerializer(serializers.Serializer):
             return None
         return value
 
+    def validate_password(self, value):
+        if value is not None and len(value) < 8:
+            raise serializers.ValidationError("Password must be at least 8 characters long.")
+        return value
+
     def validate(self, attrs):
         role = attrs['role']
         profile = attrs.get('profile') or {}
@@ -168,6 +173,8 @@ class AdminStaffCreateSerializer(serializers.Serializer):
                 account_errors['username'] = 'This field is required for a new account.'
             if not attrs.get('password'):
                 account_errors['password'] = 'This field is required for a new account.'
+            elif len(attrs['password']) < 8:
+                account_errors['password'] = 'Password must be at least 8 characters long.'
             if account_errors:
                 raise serializers.ValidationError(account_errors)
 

@@ -1,3 +1,4 @@
+import datetime
 from datetime import timedelta
 
 from django.utils import timezone
@@ -1322,5 +1323,265 @@ class AdminSpecializationApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         spec.refresh_from_db()
         self.assertFalse(spec.is_active)
+
+
+class AdminPasswordValidationTests(APITestCase):
+    """
+    Tests minimum password length (at least 8 characters) in Admin module.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        cls.admin_user = User.objects.create_superuser(
+            username='pwd_admin',
+            email='pwd_admin@clinic.com',
+            password='AdminPassword123!',
+            role='ADMIN',
+        )
+
+    def setUp(self):
+        self.client.force_authenticate(user=self.admin_user)
+
+    def test_create_user_short_password_rejected(self):
+        """Passwords shorter than 8 characters must be rejected."""
+        response = self.client.post('/api/admin/users/', {
+            'username': 'shortuser',
+            'email': 'short@example.com',
+            'password': 'short1',  # 6 chars
+            'role': 'RECEPTIONIST',
+            'first_name': 'Short',
+            'last_name': 'User',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('password', response.data)
+        self.assertIn('Password must be at least 8 characters long.', str(response.data['password']))
+
+    def test_create_user_seven_char_password_rejected(self):
+        """A 7-character password must be rejected."""
+        response = self.client.post('/api/admin/users/', {
+            'username': 'sevenuser',
+            'email': 'seven@example.com',
+            'password': 'Seven12',  # 7 chars
+            'role': 'RECEPTIONIST',
+            'first_name': 'Seven',
+            'last_name': 'User',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('password', response.data)
+
+    def test_create_user_eight_char_password_accepted(self):
+        """An 8-character password must be accepted."""
+        response = self.client.post('/api/admin/users/', {
+            'username': 'eightuser',
+            'email': 'eight@example.com',
+            'password': 'Eight123',  # 8 chars
+            'role': 'RECEPTIONIST',
+            'first_name': 'Eight',
+            'last_name': 'User',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        user = User.objects.get(username='eightuser')
+        self.assertTrue(user.check_password('Eight123'))
+
+    def test_update_user_short_password_rejected(self):
+        """Updating a user password to shorter than 8 characters must be rejected."""
+        user = User.objects.create_user(
+            username='upduser',
+            email='upd@example.com',
+            password='InitialPassword123!',
+            role='RECEPTIONIST',
+            first_name='Upd',
+            last_name='User',
+        )
+        response = self.client.patch(f'/api/admin/users/{user.id}/', {
+            'password': '1234567',  # 7 chars
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('password', response.data)
+        # Original password remains intact
+        user.refresh_from_db()
+        self.assertTrue(user.check_password('InitialPassword123!'))
+
+    def test_create_staff_short_password_rejected(self):
+        """Creating staff with < 8 char password must be rejected."""
+        response = self.client.post('/api/admin/users/create_staff/', {
+            'role': 'PHARMACIST',
+            'username': 'pharmshort',
+            'password': 'short1',
+            'first_name': 'Short',
+            'last_name': 'Staff',
+            'profile': {
+                'qualification': 'B.Pharm',
+                'phone': '9876543210',
+            }
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('password', response.data)
+
+
+class PatientRegistrationValidationTests(APITestCase):
+    """
+    Tests patient name length (>= 2 chars trimmed) and DOB (not in future).
+    """
+    @classmethod
+    def setUpTestData(cls):
+        cls.rec_user = User.objects.create_user(
+            username='rec_validator',
+            email='rec_val@clinic.com',
+            password='RecPassword123!',
+            role='RECEPTIONIST',
+        )
+        ReceptionistProfile.objects.create(
+            user=cls.rec_user,
+            employee_id='REC_VAL_01',
+            phone='9876500099',
+        )
+
+    def setUp(self):
+        self.client.force_authenticate(user=self.rec_user)
+
+    def test_empty_first_name_rejected(self):
+        """Empty first name must be rejected."""
+        response = self.client.post('/api/receptionist/patients/', {
+            'first_name': '',
+            'last_name': 'Kumar',
+            'date_of_birth': '1995-05-15',
+            'gender': 'MALE',
+            'phone': '9876543211',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('first_name', response.data)
+
+    def test_whitespace_only_name_rejected(self):
+        """Whitespace-only name must be rejected."""
+        response = self.client.post('/api/receptionist/patients/', {
+            'first_name': '    ',
+            'last_name': 'Kumar',
+            'date_of_birth': '1995-05-15',
+            'gender': 'MALE',
+            'phone': '9876543211',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('first_name', response.data)
+        self.assertIn('Name must contain at least 2 characters.', str(response.data['first_name']))
+
+    def test_one_character_name_rejected(self):
+        """One-character name must be rejected."""
+        response = self.client.post('/api/receptionist/patients/', {
+            'first_name': 'A',
+            'last_name': 'Kumar',
+            'date_of_birth': '1995-05-15',
+            'gender': 'MALE',
+            'phone': '9876543211',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('first_name', response.data)
+        self.assertIn('Name must contain at least 2 characters.', str(response.data['first_name']))
+
+    def test_two_character_name_accepted(self):
+        """Two-character name is accepted by the minimum-length validator."""
+        response = self.client.post('/api/receptionist/patients/', {
+            'first_name': 'Jo',
+            'last_name': 'Wu',
+            'date_of_birth': '1995-05-15',
+            'gender': 'MALE',
+            'phone': '9876543212',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_name_with_leading_trailing_spaces_validated_using_trimmed_value(self):
+        """Name with spaces is validated against trimmed length."""
+        # ' A ' trimmed is 'A' (length 1) -> rejected
+        response = self.client.post('/api/receptionist/patients/', {
+            'first_name': '  A  ',
+            'last_name': 'Kumar',
+            'date_of_birth': '1995-05-15',
+            'gender': 'MALE',
+            'phone': '9876543213',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('first_name', response.data)
+
+        # ' Al ' trimmed is 'Al' (length 2) -> accepted
+        response2 = self.client.post('/api/receptionist/patients/', {
+            'first_name': '  Al  ',
+            'last_name': 'Kumar',
+            'date_of_birth': '1995-05-15',
+            'gender': 'MALE',
+            'phone': '9876543214',
+        }, format='json')
+        self.assertEqual(response2.status_code, status.HTTP_201_CREATED)
+
+    def test_names_with_spaces_hyphens_apostrophes_and_non_english_characters(self):
+        """Legitimate names with hyphens, apostrophes, and non-English chars remain supported."""
+        response = self.client.post('/api/receptionist/patients/', {
+            'first_name': 'Jean-Luc',
+            'last_name': "O'Connor",
+            'date_of_birth': '1990-01-01',
+            'gender': 'MALE',
+            'phone': '9876543215',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        response2 = self.client.post('/api/receptionist/patients/', {
+            'first_name': 'Renée',
+            'last_name': 'Müller',
+            'date_of_birth': '1988-08-08',
+            'gender': 'FEMALE',
+            'phone': '9876543216',
+        }, format='json')
+        self.assertEqual(response2.status_code, status.HTTP_201_CREATED)
+
+    def test_date_of_birth_yesterday_and_today_accepted(self):
+        """DOB yesterday and today are accepted."""
+        from django.utils import timezone
+        today = timezone.localdate()
+        yesterday = today - datetime.timedelta(days=1)
+
+        res_yesterday = self.client.post('/api/receptionist/patients/', {
+            'first_name': 'Baby',
+            'last_name': 'One',
+            'date_of_birth': str(yesterday),
+            'gender': 'MALE',
+            'phone': '9876543217',
+        }, format='json')
+        self.assertEqual(res_yesterday.status_code, status.HTTP_201_CREATED)
+
+        res_today = self.client.post('/api/receptionist/patients/', {
+            'first_name': 'Baby',
+            'last_name': 'Two',
+            'date_of_birth': str(today),
+            'gender': 'FEMALE',
+            'phone': '9876543218',
+        }, format='json')
+        self.assertEqual(res_today.status_code, status.HTTP_201_CREATED)
+
+    def test_date_of_birth_future_rejected(self):
+        """DOB tomorrow or any future date is rejected."""
+        from django.utils import timezone
+        tomorrow = timezone.localdate() + datetime.timedelta(days=1)
+
+        response = self.client.post('/api/receptionist/patients/', {
+            'first_name': 'Future',
+            'last_name': 'Baby',
+            'date_of_birth': str(tomorrow),
+            'gender': 'MALE',
+            'phone': '9876543219',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('date_of_birth', response.data)
+        self.assertIn('Date of birth cannot be in the future.', str(response.data['date_of_birth']))
+
+    def test_invalid_date_format_rejected(self):
+        """An invalid date format must be rejected."""
+        response = self.client.post('/api/receptionist/patients/', {
+            'first_name': 'Invalid',
+            'last_name': 'Date',
+            'date_of_birth': 'not-a-date',
+            'gender': 'MALE',
+            'phone': '9876543220',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('date_of_birth', response.data)
+
 
 

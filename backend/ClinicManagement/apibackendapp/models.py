@@ -218,6 +218,17 @@ class Patient(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def clean(self):
+        super().clean()
+        if self.first_name and len(self.first_name.strip()) < 2:
+            raise ValidationError({'first_name': 'Name must contain at least 2 characters.'})
+        if self.last_name and len(self.last_name.strip()) < 2:
+            raise ValidationError({'last_name': 'Name must contain at least 2 characters.'})
+        if self.date_of_birth:
+            today = timezone.localdate()
+            if self.date_of_birth > today:
+                raise ValidationError({'date_of_birth': 'Date of birth cannot be in the future.'})
+
     def __str__(self):
         return f"{self.patient_id} - {self.first_name} {self.last_name}"
 
