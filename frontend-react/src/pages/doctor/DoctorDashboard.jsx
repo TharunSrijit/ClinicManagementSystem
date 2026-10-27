@@ -59,6 +59,8 @@ export const DoctorDashboard = () => {
     {
       header: 'Token #',
       key: 'token_number',
+      headerStyle: { width: '12%' },
+      cellStyle: { width: '12%' },
       render: (row) => (
         <span style={{ fontWeight: 700, color: 'var(--primary)', background: 'var(--primary-light)', padding: '2px 8px', borderRadius: '4px' }}>
           #{row.token_number || row.id}
@@ -68,16 +70,22 @@ export const DoctorDashboard = () => {
     {
       header: 'Time',
       key: 'appointment_time',
+      headerStyle: { width: '13%' },
+      cellStyle: { width: '13%' },
       render: (row) => <span>{formatTime(row.appointment_time)}</span>
     },
     {
       header: 'Patient',
       key: 'patient_name',
+      headerStyle: { width: '24%' },
+      cellStyle: { width: '24%' },
       render: (row) => <span style={{ fontWeight: 600 }}>{row.patient_name || `Patient #${row.patient}`}</span>
     },
     {
       header: 'Type',
       key: 'appointment_type',
+      headerStyle: { width: '13%' },
+      cellStyle: { width: '13%' },
       render: (row) => (
         <span style={{ fontSize: '0.82rem', fontWeight: 500 }}>
           {row.appointment_type === 'WALK_IN' ? 'Walk-In' : 'Advance'}
@@ -87,24 +95,16 @@ export const DoctorDashboard = () => {
     {
       header: 'Reason',
       key: 'reason',
+      headerStyle: { width: '24%' },
+      cellStyle: { width: '24%' },
       render: (row) => <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{row.reason || 'Checkup'}</span>
     },
     {
       header: 'Status',
       key: 'status',
+      headerStyle: { width: '14%' },
+      cellStyle: { width: '14%' },
       render: (row) => <Badge status={row.status} />
-    },
-    {
-      header: 'Action',
-      key: 'action',
-      render: (row) => (
-        <button
-          className="btn btn-primary btn-sm"
-          onClick={() => navigate(`/doctor/consultations?appointment=${row.id}`)}
-        >
-          Consult Now
-        </button>
-      )
     }
   ];
 

@@ -13,7 +13,6 @@ export const DoctorAppointmentsPage = () => {
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [selectedStatus, setSelectedStatus] = useState('ALL');
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(null);
   const [feedback, setFeedback] = useState({ message: '', type: '' });
 
   const showFeedback = (message, type = 'success') => {
@@ -41,23 +40,12 @@ export const DoctorAppointmentsPage = () => {
     loadAppointments();
   }, [loadAppointments]);
 
-  const handleComplete = async (apptId) => {
-    setActionLoading(apptId);
-    try {
-      await doctorService.completeAppointment(apptId);
-      showFeedback('Appointment marked as COMPLETED.');
-      await loadAppointments();
-    } catch (err) {
-      showFeedback(`Could not complete appointment: ${err.message}`, 'danger');
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
   const columns = [
     {
       header: 'ID / Token',
       key: 'id',
+      headerStyle: { width: '12%' },
+      cellStyle: { width: '12%' },
       render: (row) => (
         <div>
           <span style={{ fontWeight: 600 }}>#{row.id}</span>
@@ -72,6 +60,8 @@ export const DoctorAppointmentsPage = () => {
     {
       header: 'Time & Date',
       key: 'appointment_time',
+      headerStyle: { width: '17%' },
+      cellStyle: { width: '17%' },
       render: (row) => (
         <div>
           <div style={{ fontWeight: 600 }}>{formatTime(row.appointment_time)}</div>
@@ -82,6 +72,8 @@ export const DoctorAppointmentsPage = () => {
     {
       header: 'Patient Name',
       key: 'patient_name',
+      headerStyle: { width: '23%' },
+      cellStyle: { width: '23%' },
       render: (row) => (
         <div>
           <span
@@ -99,6 +91,8 @@ export const DoctorAppointmentsPage = () => {
     {
       header: 'Type',
       key: 'appointment_type',
+      headerStyle: { width: '12%' },
+      cellStyle: { width: '12%' },
       render: (row) => (
         <span style={{ fontSize: '0.82rem', fontWeight: 500 }}>
           {row.appointment_type === 'WALK_IN' ? 'Walk-In' : 'Advance'}
@@ -108,52 +102,16 @@ export const DoctorAppointmentsPage = () => {
     {
       header: 'Reason',
       key: 'reason',
+      headerStyle: { width: '22%' },
+      cellStyle: { width: '22%' },
       render: (row) => <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{row.reason || 'General'}</span>
     },
     {
       header: 'Status',
       key: 'status',
+      headerStyle: { width: '14%' },
+      cellStyle: { width: '14%' },
       render: (row) => <Badge status={row.status} />
-    },
-    {
-      header: 'Actions',
-      key: 'actions',
-      render: (row) => {
-        const isCompleted = row.status === 'COMPLETED';
-        const isCancelled = row.status === 'CANCELLED';
-
-        return (
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {!isCompleted && !isCancelled && (
-              <>
-                <button
-                  className="btn btn-primary btn-sm"
-                  onClick={() => navigate(`/doctor/consultations?appointment=${row.id}`)}
-                >
-                  Consult
-                </button>
-                <button
-                  className="btn btn-outline btn-sm"
-                  onClick={() => handleComplete(row.id)}
-                  disabled={actionLoading === row.id}
-                >
-                  {actionLoading === row.id ? 'Saving...' : 'Complete'}
-                </button>
-              </>
-            )}
-            {isCompleted && (
-              <span style={{ color: 'var(--success)', fontWeight: 600, fontSize: '0.85rem' }}>
-                ✓ Completed
-              </span>
-            )}
-            {isCancelled && (
-              <span style={{ color: 'var(--danger)', fontSize: '0.85rem' }}>
-                Cancelled
-              </span>
-            )}
-          </div>
-        );
-      }
     }
   ];
 
@@ -164,12 +122,6 @@ export const DoctorAppointmentsPage = () => {
           <h1 className="page-title">My Appointments</h1>
           <p className="page-subtitle">Assigned patient appointments filtered securely to your doctor profile.</p>
         </div>
-        <button
-          className="btn btn-primary"
-          onClick={() => navigate('/doctor/consultations')}
-        >
-          + Record Consultation
-        </button>
       </div>
 
       {feedback.message && (
