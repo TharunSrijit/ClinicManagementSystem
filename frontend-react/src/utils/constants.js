@@ -24,7 +24,7 @@ export const APPOINTMENT_STATUSES = {
 
 export const TOKEN_STATUSES = {
   WAITING: 'Waiting',
-  IN_CONSULTATION: 'In Consultation',
+  CALLED: 'In Consultation',
   COMPLETED: 'Completed',
   CANCELLED: 'Cancelled'
 };

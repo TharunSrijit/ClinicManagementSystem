@@ -20,6 +20,7 @@ from apibackendapp.models import (
     LabTestResult,
     Patient,
     MedicalHistory,
+    Token,
 )
 
 from .serializers import (
@@ -163,16 +164,34 @@ class DoctorAppointmentViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=['post'])
     def complete(self, request, pk=None):
         """POST /appointments/{id}/complete/ — complete appointment from CONFIRMED."""
-        appointment = self.get_object()
         from apibackendapp.scheduling import validate_status_transition, SchedulingValidationError
-        try:
-            validate_status_transition(appointment.status, 'COMPLETED', request.user.role)
-        except SchedulingValidationError as e:
-            msg = e.detail if hasattr(e, 'detail') else str(e)
-            return Response({'detail': msg}, status=status.HTTP_400_BAD_REQUEST)
 
-        appointment.status = 'COMPLETED'
-        appointment.save(update_fields=['status'])
+        # Keep the existing doctor-scoped lookup and object permission checks,
+        # then lock the appointment while related workflow statuses are synced.
+        appointment = self.get_object()
+        with transaction.atomic():
+            appointment = Appointment.objects.select_for_update().get(pk=appointment.pk)
+            try:
+                validate_status_transition(appointment.status, 'COMPLETED', request.user.role)
+            except SchedulingValidationError as e:
+                msg = e.detail if hasattr(e, 'detail') else str(e)
+                return Response({'detail': msg}, status=status.HTTP_400_BAD_REQUEST)
+
+            appointment.status = 'COMPLETED'
+            appointment.save(update_fields=['status'])
+
+            consultation = Consultation.objects.select_for_update().filter(
+                appointment=appointment
+            ).first()
+            if consultation and consultation.status != 'COMPLETED':
+                consultation.status = 'COMPLETED'
+                consultation.save(update_fields=['status'])
+
+            token = Token.objects.select_for_update().filter(appointment=appointment).first()
+            if token and token.status != 'COMPLETED':
+                token.status = 'COMPLETED'
+                token.save(update_fields=['status'])
+
         return Response(self.get_serializer(appointment).data)
 
 

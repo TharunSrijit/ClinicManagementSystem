@@ -197,6 +197,135 @@ class DoctorConsultationWorkflowTests(APITestCase):
         self.assertEqual(resp3.data['status'], 'COMPLETED')
         self.assertEqual(resp3.data['visit_type'], 'TOKEN_BASED')
 
+    def test_complete_appointment_completes_consultation_and_token(self):
+        appointment = Appointment.objects.create(
+            patient=self.patient1,
+            doctor=self.doctor_profile,
+            receptionist=self.receptionist_profile,
+            appointment_type='WALK_IN',
+            appointment_date=timezone.localdate(),
+            appointment_time=datetime.time(10, 45),
+            status='CONFIRMED',
+        )
+        token = Token.objects.create(
+            appointment=appointment,
+            token_number=21,
+            token_date=timezone.localdate(),
+            status='CALLED',
+        )
+        consultation = Consultation.objects.create(
+            appointment=appointment,
+            doctor=self.doctor_profile,
+            patient=self.patient1,
+            visit_type='TOKEN_BASED',
+            status='IN_PROGRESS',
+            diagnosis='Migraine',
+        )
+
+        response = self.client.post(f'/api/doctor/appointments/{appointment.id}/complete/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        appointment.refresh_from_db()
+        consultation.refresh_from_db()
+        token.refresh_from_db()
+        self.assertEqual(appointment.status, 'COMPLETED')
+        self.assertEqual(consultation.status, 'COMPLETED')
+        self.assertEqual(token.status, 'COMPLETED')
+
+        receptionist_client = APIClient()
+        receptionist_client.force_authenticate(user=self.receptionist_user)
+        queue_response = receptionist_client.get(
+            '/api/receptionist/tokens/',
+            {'date': timezone.localdate().isoformat()},
+        )
+        self.assertEqual(queue_response.status_code, status.HTTP_200_OK)
+        queue = queue_response.data if isinstance(queue_response.data, list) else queue_response.data['results']
+        queue_token = next(row for row in queue if row['id'] == token.id)
+        self.assertEqual(queue_token['status'], 'COMPLETED')
+        self.assertNotEqual(queue_token['status'], 'CALLED')
+
+    def test_complete_appointment_without_token_completes_linked_consultation(self):
+        appointment = Appointment.objects.create(
+            patient=self.patient1,
+            doctor=self.doctor_profile,
+            receptionist=self.receptionist_profile,
+            appointment_type='WALK_IN',
+            appointment_date=timezone.localdate(),
+            appointment_time=datetime.time(11, 0),
+            status='CONFIRMED',
+        )
+        consultation = Consultation.objects.create(
+            appointment=appointment,
+            doctor=self.doctor_profile,
+            patient=self.patient1,
+            visit_type='TOKEN_BASED',
+            status='IN_PROGRESS',
+            diagnosis='Back pain',
+        )
+
+        response = self.client.post(f'/api/doctor/appointments/{appointment.id}/complete/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        appointment.refresh_from_db()
+        consultation.refresh_from_db()
+        self.assertEqual(appointment.status, 'COMPLETED')
+        self.assertEqual(consultation.status, 'COMPLETED')
+        self.assertFalse(Token.objects.filter(appointment=appointment).exists())
+
+    def test_invalid_appointment_completion_does_not_update_related_statuses(self):
+        appointment = Appointment.objects.create(
+            patient=self.patient1,
+            doctor=self.doctor_profile,
+            receptionist=self.receptionist_profile,
+            appointment_type='WALK_IN',
+            appointment_date=timezone.localdate(),
+            appointment_time=datetime.time(11, 15),
+            status='BOOKED',
+        )
+        token = Token.objects.create(
+            appointment=appointment,
+            token_number=22,
+            token_date=timezone.localdate(),
+            status='CALLED',
+        )
+        consultation = Consultation.objects.create(
+            appointment=appointment,
+            doctor=self.doctor_profile,
+            patient=self.patient1,
+            visit_type='TOKEN_BASED',
+            status='IN_PROGRESS',
+            diagnosis='Cough',
+        )
+
+        response = self.client.post(f'/api/doctor/appointments/{appointment.id}/complete/')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        appointment.refresh_from_db()
+        consultation.refresh_from_db()
+        token.refresh_from_db()
+        self.assertEqual(appointment.status, 'BOOKED')
+        self.assertEqual(consultation.status, 'IN_PROGRESS')
+        self.assertEqual(token.status, 'CALLED')
+
+    def test_doctor_cannot_complete_another_doctors_appointment(self):
+        appointment = Appointment.objects.create(
+            patient=self.patient1,
+            doctor=self.doctor_profile,
+            receptionist=self.receptionist_profile,
+            appointment_type='WALK_IN',
+            appointment_date=timezone.localdate(),
+            appointment_time=datetime.time(11, 30),
+            status='CONFIRMED',
+        )
+        other_doctor_client = APIClient()
+        other_doctor_client.force_authenticate(user=self.other_doctor_user)
+
+        response = other_doctor_client.post(f'/api/doctor/appointments/{appointment.id}/complete/')
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        appointment.refresh_from_db()
+        self.assertEqual(appointment.status, 'CONFIRMED')
+
     def test_prescription_creation_without_doctor_in_payload_succeeds(self):
         """PrescriptionSerializer has doctor in read_only_fields; doctor is populated from auth user."""
         appt = Appointment.objects.create(
