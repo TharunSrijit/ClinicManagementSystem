@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import doctorService from '../../services/doctorService';
 import DataTable from '../../components/DataTable';
 import Modal from '../../components/Modal';
-import { formatDate } from '../../utils/formatters';
+import { formatDate, formatTime } from '../../utils/formatters';
 
 // Helper to extract clear backend validation error messages
 const extractErrorMessage = (err, fallback = 'Consultation submission failed.') => {
@@ -26,6 +26,7 @@ export const DoctorConsultationsPage = () => {
   const preselectedConsultId = searchParams.get('consultation') || '';
   const preselectedApptId = searchParams.get('appointment') || '';
   const preselectedPatientId = searchParams.get('patient') || '';
+  const preselectedWorkflow = searchParams.get('workflow') || '';
 
   const [consultations, setConsultations] = useState([]);
   const [appointments, setAppointments] = useState([]);
@@ -36,13 +37,11 @@ export const DoctorConsultationsPage = () => {
   const [loading, setLoading] = useState(true);
 
   // Modal State
-  const [isModalOpen, setIsModalOpen] = useState(
-    Boolean(preselectedConsultId || preselectedApptId || preselectedPatientId)
-  );
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Workflow: 'TOKEN_BASED' or 'UNSCHEDULED'
   const [workflowType, setWorkflowType] = useState(
-    preselectedConsultId ? 'UNSCHEDULED' : preselectedApptId ? 'TOKEN_BASED' : 'TOKEN_BASED'
+    'TOKEN_BASED'
   );
 
   // Active existing consultation ID (if resuming/completing an in-progress consultation)
@@ -72,6 +71,7 @@ export const DoctorConsultationsPage = () => {
 
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState({ message: '', type: '' });
+  const loadSequence = useRef(0);
 
   const showFeedback = (message, type = 'success') => {
     setFeedback({ message, type });
@@ -79,6 +79,7 @@ export const DoctorConsultationsPage = () => {
   };
 
   const loadData = useCallback(async () => {
+    const requestSequence = ++loadSequence.current;
     setLoading(true);
     try {
       const [consults, appts, pts, meds, dsgs, tests] = await Promise.all([
@@ -89,6 +90,8 @@ export const DoctorConsultationsPage = () => {
         doctorService.getDosages().catch(() => []),
         doctorService.getLabTests().catch(() => [])
       ]);
+      if (requestSequence !== loadSequence.current) return;
+
       setConsultations(Array.isArray(consults) ? consults : []);
       setAppointments(Array.isArray(appts) ? appts : []);
       setPatients(Array.isArray(pts) ? pts : []);
@@ -100,11 +103,13 @@ export const DoctorConsultationsPage = () => {
       if (preselectedConsultId) {
         try {
           const consultObj = await doctorService.getConsultation(preselectedConsultId);
+          if (requestSequence !== loadSequence.current) return;
           if (consultObj) {
             setActiveConsultationId(consultObj.id);
             setActiveConsultationData(consultObj);
             setWorkflowType(consultObj.visit_type || 'UNSCHEDULED');
             setPatientId(String(consultObj.patient));
+            setSelectedApptId(String(consultObj.appointment?.id || consultObj.appointment || ''));
             setVisitReason(consultObj.visit_reason || '');
             setSymptoms(consultObj.symptoms || consultObj.visit_reason || '');
             setDiagnosis(consultObj.diagnosis || '');
@@ -113,7 +118,9 @@ export const DoctorConsultationsPage = () => {
             setIsModalOpen(true);
           }
         } catch (e) {
+          if (requestSequence !== loadSequence.current) return;
           console.warn('Could not fetch preselected consultation:', e);
+          showFeedback('Could not load the selected consultation.', 'danger');
         }
       } else if (preselectedApptId && Array.isArray(appts)) {
         // Preselected appointment
@@ -124,7 +131,7 @@ export const DoctorConsultationsPage = () => {
           setSymptoms(found.reason || '');
 
           // Check if appointment has a genuinely issued, active token
-          if (found.token_number && found.token_status !== 'CANCELLED') {
+          if (preselectedWorkflow === 'TOKEN_BASED' || (found.token_number && found.token_status !== 'CANCELLED')) {
             setWorkflowType('TOKEN_BASED');
           } else {
             // Patient has appointment but no active token issued at reception
@@ -136,15 +143,45 @@ export const DoctorConsultationsPage = () => {
             );
           }
           setIsModalOpen(true);
+        } else {
+          showFeedback('Could not find the selected appointment. Please refresh the queue and try again.', 'danger');
         }
+      } else if (preselectedPatientId) {
+        setPatientId(preselectedPatientId);
+        setWorkflowType('TOKEN_BASED');
+        setIsModalOpen(true);
       }
     } catch (err) {
+      if (requestSequence !== loadSequence.current) return;
       console.error('Failed to load consultation records:', err);
       showFeedback('Could not load clinical consultation data.', 'danger');
     } finally {
-      setLoading(false);
+      if (requestSequence === loadSequence.current) setLoading(false);
     }
-  }, [preselectedConsultId, preselectedApptId]);
+  }, [preselectedConsultId, preselectedApptId, preselectedPatientId, preselectedWorkflow]);
+
+  useEffect(() => {
+    setIsModalOpen(false);
+    setWorkflowType('TOKEN_BASED');
+    setActiveConsultationId('');
+    setActiveConsultationData(null);
+    setSelectedApptId('');
+    setPatientId('');
+    setVisitReason('');
+    setSymptoms('');
+    setDiagnosis('');
+    setClinicalNotes('');
+    setTreatmentPlan('');
+    setPrescribedItems([]);
+    setCurMedId('');
+    setCurDosageId('');
+    setCurQty(1);
+    setCurDuration('5 days');
+    setCurFrequency('Twice daily');
+    setCurInstructions('Take after meals');
+    setSelectedLabTestId('');
+    setViewConsultationModal({ isOpen: false, consultation: null });
+  }, [preselectedConsultId, preselectedApptId, preselectedPatientId, preselectedWorkflow]);
 
   useEffect(() => {
     loadData();
@@ -152,6 +189,20 @@ export const DoctorConsultationsPage = () => {
 
   const handleApptSelect = (apptId) => {
     setSelectedApptId(apptId);
+    setActiveConsultationId('');
+    setActiveConsultationData(null);
+    setVisitReason('');
+    setDiagnosis('');
+    setClinicalNotes('');
+    setTreatmentPlan('');
+    setPrescribedItems([]);
+    setCurMedId('');
+    setCurDosageId('');
+    setCurQty(1);
+    setCurDuration('5 days');
+    setCurFrequency('Twice daily');
+    setCurInstructions('Take after meals');
+    setSelectedLabTestId('');
     const found = appointments.find((a) => String(a.id) === String(apptId));
     if (found) {
       setPatientId(String(found.patient?.id || found.patient));
@@ -184,9 +235,19 @@ export const DoctorConsultationsPage = () => {
     setTreatmentPlan('');
     setPrescribedItems([]);
     setSelectedLabTestId('');
+    setCurMedId('');
+    setCurDosageId('');
+    setCurQty(1);
+    setCurDuration('5 days');
+    setCurFrequency('Twice daily');
+    setCurInstructions('Take after meals');
     setWorkflowType('TOKEN_BASED');
     setIsModalOpen(true);
   };
+
+  const selectedAppointment = appointments.find(
+    (appointment) => String(appointment.id) === String(selectedApptId)
+  );
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
@@ -246,10 +307,16 @@ export const DoctorConsultationsPage = () => {
 
     setSubmitting(true);
     try {
-      let finalConsultationId = activeConsultationId;
+      const existingAppointmentConsultation = workflowType === 'TOKEN_BASED' && selectedApptId
+        ? consultations.find((consultation) =>
+          String(consultation.appointment?.id || consultation.appointment) === String(selectedApptId)
+        )
+        : null;
+      const consultationToUpdateId = activeConsultationId || existingAppointmentConsultation?.id;
+      let finalConsultationId = consultationToUpdateId;
 
-      if (activeConsultationId) {
-        // 1A. Update existing active unscheduled consultation
+      if (consultationToUpdateId) {
+        // Update an existing consultation after a partial save or when resuming it.
         const updatePayload = {
           diagnosis: diagnosis.trim(),
           symptoms: symptoms.trim() || 'General presentation',
@@ -257,8 +324,10 @@ export const DoctorConsultationsPage = () => {
           treatment_plan: treatmentPlan.trim(),
           status: 'COMPLETED'
         };
-        const updated = await doctorService.updateConsultation(activeConsultationId, updatePayload);
+        const updated = await doctorService.updateConsultation(consultationToUpdateId, updatePayload);
         finalConsultationId = updated.id;
+        setActiveConsultationId(updated.id);
+        setActiveConsultationData(updated);
       } else if (workflowType === 'UNSCHEDULED') {
         // 1B. Create new unscheduled consultation
         const consultData = {
@@ -273,6 +342,9 @@ export const DoctorConsultationsPage = () => {
         };
         const res = await doctorService.createConsultation(consultData);
         finalConsultationId = res.id;
+        setActiveConsultationId(res.id);
+        setActiveConsultationData(res);
+        setConsultations((current) => [res, ...current]);
       } else {
         // 1C. Create token-based consultation
         const consultData = {
@@ -287,42 +359,54 @@ export const DoctorConsultationsPage = () => {
         };
         const res = await doctorService.createConsultation(consultData);
         finalConsultationId = res.id;
+        setActiveConsultationId(res.id);
+        setActiveConsultationData(res);
+        setConsultations((current) => [res, ...current]);
+      }
 
-        // Mark appointment completed
-        await doctorService.completeAppointment(selectedApptId).catch(() => { });
+      // Keep completion errors visible so a failed status update is not
+      // reported as a successful consultation workflow.
+      if (workflowType === 'TOKEN_BASED') {
+        const appointmentId = selectedApptId || activeConsultationData?.appointment?.id || activeConsultationData?.appointment;
+        if (appointmentId) {
+          await doctorService.completeAppointment(appointmentId);
+        }
       }
 
       // 2. Prescriptions
       if (prescribedItems.length > 0 && finalConsultationId) {
-        const rxRes = await doctorService.createPrescription({
-          consultation: finalConsultationId,
-          patient: Number(patientId),
-          notes: clinicalNotes || 'Prescribed during consultation',
-          items: prescribedItems
-        });
+        const existingPrescriptions = await doctorService.getPrescriptions({ consultation: finalConsultationId });
+        const hasPrescription = existingPrescriptions.some(
+          (prescription) => String(prescription.consultation) === String(finalConsultationId)
+        );
 
-        if (rxRes?.id) {
-          for (const item of prescribedItems) {
-            await doctorService.createPrescriptionItem({
-              prescription: rxRes.id,
-              medicine: item.medicine,
-              dosage: item.dosage,
-              quantity: item.quantity,
-              frequency: item.frequency,
-              duration: item.duration,
-              instructions: item.instructions
-            }).catch(() => { });
-          }
+        if (!hasPrescription) {
+          await doctorService.createPrescription({
+            consultation: finalConsultationId,
+            patient: Number(patientId),
+            notes: clinicalNotes || 'Prescribed during consultation',
+            items: prescribedItems
+          });
         }
       }
 
       // 3. Lab Test Order
       if (selectedLabTestId && finalConsultationId) {
-        await doctorService.createLabOrder({
-          consultation: finalConsultationId,
-          patient: Number(patientId),
-          test: Number(selectedLabTestId)
+        const existingLabOrders = await doctorService.getLabOrders(patientId);
+        const hasMatchingLabOrder = existingLabOrders.some((order) => {
+          const consultationId = order.consultation?.id || order.consultation;
+          const testId = order.test?.id || order.test;
+          return String(consultationId) === String(finalConsultationId) &&
+            String(testId) === String(selectedLabTestId);
         });
+
+        if (!hasMatchingLabOrder) {
+          await doctorService.createLabOrder({
+            consultation: finalConsultationId,
+            patient: Number(patientId),
+            test: Number(selectedLabTestId)
+          });
+        }
       }
 
       showFeedback(
@@ -334,7 +418,10 @@ export const DoctorConsultationsPage = () => {
       await loadData();
     } catch (err) {
       console.error('Failed to submit consultation:', err);
-      const errMsg = extractErrorMessage(err, 'Consultation submission failed.');
+      const errMsg = extractErrorMessage(
+        err,
+        'Consultation submission did not finish. Retry to continue the saved consultation without creating a duplicate.'
+      );
       showFeedback(errMsg, 'danger');
     } finally {
       setSubmitting(false);
@@ -616,6 +703,26 @@ export const DoctorConsultationsPage = () => {
                   No appointments with active queue tokens found. For walk-ins or unscheduled patients, select <strong>Workflow B: Unscheduled</strong> above.
                 </div>
               )}
+            </div>
+          )}
+
+          {workflowType === 'TOKEN_BASED' && selectedAppointment && (
+            <div
+              className="card"
+              style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 20px', marginBottom: '16px', padding: '12px 16px' }}
+            >
+              <span>
+                Patient: <strong>{selectedAppointment.patient_name || `Patient #${selectedAppointment.patient}`}</strong>
+              </span>
+              <span>
+                Token: <strong>#{selectedAppointment.token_number || '—'}</strong>
+              </span>
+              <span>
+                Appointment: <strong>#{selectedAppointment.id}</strong>
+              </span>
+              <span>
+                {formatDate(selectedAppointment.appointment_date)} at {formatTime(selectedAppointment.appointment_time)}
+              </span>
             </div>
           )}
 

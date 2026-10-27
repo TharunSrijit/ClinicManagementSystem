@@ -43,7 +43,7 @@ export const ReceptionistDashboard = () => {
     loadDashboardData();
   }, [loadDashboardData]);
 
-  const activeTokens = tokens.filter(t => ['WAITING', 'IN_CONSULTATION'].includes(String(t.status).toUpperCase())).length;
+  const activeTokens = tokens.filter(t => ['WAITING', 'CALLED'].includes(String(t.status).toUpperCase())).length;
 
   const recentApptColumns = [
     {

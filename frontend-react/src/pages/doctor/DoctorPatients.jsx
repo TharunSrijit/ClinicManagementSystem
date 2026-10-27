@@ -345,7 +345,7 @@ export const DoctorPatients = () => {
               // Workflow A: Token-Based Consultation (only when valid token genuinely exists)
               <button
                 className="btn btn-primary btn-sm"
-                onClick={() => navigate(`/doctor/consultations?appointment=${status.appointment.id}`)}
+                onClick={() => navigate(`/doctor/consultations?appointment=${status.appointment.id}&workflow=TOKEN_BASED`)}
                 title={`Start token-based consultation (${status.label})`}
               >
                 Start Consultation

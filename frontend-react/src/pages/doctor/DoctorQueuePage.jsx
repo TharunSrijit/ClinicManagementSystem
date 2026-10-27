@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Target } from 'lucide-react';
 import doctorService from '../../services/doctorService';
@@ -29,6 +29,7 @@ export const DoctorQueuePage = () => {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
   const [feedback, setFeedback] = useState({ message: '', type: '' });
+  const startingAppointments = useRef(new Set());
 
   const showFeedback = (message, type = 'success') => {
     setFeedback({ message, type });
@@ -151,16 +152,18 @@ export const DoctorQueuePage = () => {
   }, [appointments, currentTimeStr]);
 
   const handleStartConsultation = async (appointmentId) => {
+    if (startingAppointments.current.has(appointmentId)) return;
+    startingAppointments.current.add(appointmentId);
     setActionLoading(appointmentId);
     try {
       await doctorService.startConsultation(appointmentId);
       showFeedback('Consultation started! Opening consultation record...');
-      await loadQueue();
-      navigate(`/doctor/consultations?appointment=${appointmentId}`);
+      navigate(`/doctor/consultations?appointment=${appointmentId}&workflow=TOKEN_BASED`);
     } catch (err) {
       console.error('Failed to start consultation:', err);
       showFeedback(`Failed to start consultation: ${extractErrorMessage(err)}`, 'danger');
     } finally {
+      startingAppointments.current.delete(appointmentId);
       setActionLoading(null);
     }
   };
@@ -271,7 +274,7 @@ export const DoctorQueuePage = () => {
           return (
             <button
               className="btn btn-outline btn-sm"
-              onClick={() => navigate(`/doctor/consultations?appointment=${row.id}`)}
+              onClick={() => navigate(`/doctor/consultations?appointment=${row.id}&workflow=TOKEN_BASED`)}
               title="Continue active consultation"
             >
               Continue Consultation

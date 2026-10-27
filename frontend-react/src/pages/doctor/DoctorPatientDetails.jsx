@@ -91,7 +91,7 @@ export const DoctorPatientDetails = () => {
       todayAppt.token_number &&
       todayAppt.token_status !== 'CANCELLED'
     ) {
-      navigate(`/doctor/consultations?appointment=${todayAppt.id}`);
+      navigate(`/doctor/consultations?appointment=${todayAppt.id}&workflow=TOKEN_BASED`);
       return;
     }
 
@@ -231,7 +231,7 @@ export const DoctorPatientDetails = () => {
           todayAppt.token_status !== 'CANCELLED' ? (
             <button
               className="btn btn-primary"
-              onClick={() => navigate(`/doctor/consultations?appointment=${todayAppt.id}`)}
+              onClick={() => navigate(`/doctor/consultations?appointment=${todayAppt.id}&workflow=TOKEN_BASED`)}
               title={`Start token-based consultation (Token #${todayAppt.token_number})`}
             >
               Start Consultation
