@@ -4,9 +4,7 @@ import {
   ClipboardList,
   Pill,
   AlertTriangle,
-  ReceiptText,
-  History,
-  Package
+  ReceiptText
 } from 'lucide-react';
 import pharmacyService from '../../services/pharmacyService';
 import StatCard from '../../components/StatCard';
@@ -145,57 +143,6 @@ export const PharmacyDashboard = () => {
           icon={ReceiptText}
           subtitle="Total statements"
         />
-      </div>
-
-      {/* Quick Access Action Shortcuts */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '28px' }}>
-        <div
-          className="card"
-          style={{ cursor: 'pointer', textAlign: 'center', padding: '24px 20px' }}
-          onClick={() => navigate('/pharmacy/prescriptions')}
-        >
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: 'var(--primary)' }}>
-            <ClipboardList size={28} strokeWidth={1.8} />
-          </div>
-          <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Prescriptions Queue</div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Dispense patient drugs</div>
-        </div>
-
-        <div
-          className="card"
-          style={{ cursor: 'pointer', textAlign: 'center', padding: '24px 20px' }}
-          onClick={() => navigate('/pharmacy/dispenses')}
-        >
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: 'var(--primary)' }}>
-            <History size={28} strokeWidth={1.8} />
-          </div>
-          <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Dispense History</div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Fulfilled batches & logs</div>
-        </div>
-
-        <div
-          className="card"
-          style={{ cursor: 'pointer', textAlign: 'center', padding: '24px 20px' }}
-          onClick={() => navigate('/pharmacy/stock')}
-        >
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: 'var(--primary)' }}>
-            <Package size={28} strokeWidth={1.8} />
-          </div>
-          <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Medicine Stock</div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Inventory quantities & expiry</div>
-        </div>
-
-        <div
-          className="card"
-          style={{ cursor: 'pointer', textAlign: 'center', padding: '24px 20px' }}
-          onClick={() => navigate('/pharmacy/billing')}
-        >
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: 'var(--primary)' }}>
-            <ReceiptText size={28} strokeWidth={1.8} />
-          </div>
-          <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Pharmacy Billing</div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Pharmacy statements & receipts</div>
-        </div>
       </div>
 
       {/* Pending Prescriptions Queue */}

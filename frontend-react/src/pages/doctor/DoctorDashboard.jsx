@@ -6,8 +6,7 @@ import {
   CheckCircle2,
   Stethoscope,
   UsersRound,
-  TestTube,
-  ListOrdered
+  TestTube
 } from 'lucide-react';
 import doctorService from '../../services/doctorService';
 import StatCard from '../../components/StatCard';
@@ -177,57 +176,6 @@ export const DoctorDashboard = () => {
           icon={TestTube}
           subtitle="Pending results"
         />
-      </div>
-
-      {/* Quick Access Action Shortcuts */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '28px' }}>
-        <div
-          className="card"
-          style={{ cursor: 'pointer', textAlign: 'center', padding: '24px 20px' }}
-          onClick={() => navigate('/doctor/appointments')}
-        >
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: 'var(--primary)' }}>
-            <CalendarDays size={28} strokeWidth={1.8} />
-          </div>
-          <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>My Appointments</div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Full appointment calendar</div>
-        </div>
-
-        <div
-          className="card"
-          style={{ cursor: 'pointer', textAlign: 'center', padding: '24px 20px' }}
-          onClick={() => navigate('/doctor/queue')}
-        >
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: 'var(--primary)' }}>
-            <ListOrdered size={28} strokeWidth={1.8} />
-          </div>
-          <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Today's Queue</div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Manage patient queue tokens</div>
-        </div>
-
-        <div
-          className="card"
-          style={{ cursor: 'pointer', textAlign: 'center', padding: '24px 20px' }}
-          onClick={() => navigate('/doctor/consultations')}
-        >
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: 'var(--primary)' }}>
-            <Stethoscope size={28} strokeWidth={1.8} />
-          </div>
-          <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Consultations</div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Clinical history & diagnoses</div>
-        </div>
-
-        <div
-          className="card"
-          style={{ cursor: 'pointer', textAlign: 'center', padding: '24px 20px' }}
-          onClick={() => navigate('/doctor/lab-orders')}
-        >
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: 'var(--primary)' }}>
-            <TestTube size={28} strokeWidth={1.8} />
-          </div>
-          <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Lab Orders</div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Investigative test requests</div>
-        </div>
       </div>
 
       {/* Today's Waiting Queue */}

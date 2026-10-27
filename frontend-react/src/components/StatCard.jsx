@@ -21,17 +21,17 @@ export const StatCard = ({ title, value, subtitle, icon, trend, color = 'primary
         </div>
         {Icon && (
           <div style={{
-            width: '44px',
-            height: '44px',
-            borderRadius: 'var(--radius-md)',
-            background: 'var(--bg-hover)',
+            width: '42px',
+            height: '42px',
+            borderRadius: 'var(--radius-sm)',
+            background: 'var(--primary-light)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             color: 'var(--primary)',
             flexShrink: 0
           }}>
-            <Icon size={24} strokeWidth={1.9} aria-hidden="true" />
+            <Icon size={22} strokeWidth={1.9} aria-hidden="true" />
           </div>
         )}
       </div>
