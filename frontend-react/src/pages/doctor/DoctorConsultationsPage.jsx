@@ -215,11 +215,20 @@ export const DoctorConsultationsPage = () => {
     setActiveConsultationData(consult);
     setWorkflowType(consult.visit_type || 'UNSCHEDULED');
     setPatientId(String(consult.patient));
+    setSelectedApptId(String(consult.appointment?.id || consult.appointment || ''));
     setVisitReason(consult.visit_reason || '');
     setSymptoms(consult.symptoms || consult.visit_reason || '');
     setDiagnosis(consult.diagnosis || '');
     setClinicalNotes(consult.clinical_notes || '');
     setTreatmentPlan(consult.treatment_plan || '');
+    setPrescribedItems([]);
+    setCurMedId('');
+    setCurDosageId('');
+    setCurQty(1);
+    setCurDuration('5 days');
+    setCurFrequency('Twice daily');
+    setCurInstructions('Take after meals');
+    setSelectedLabTestId('');
     setIsModalOpen(true);
   };
 
@@ -253,6 +262,22 @@ export const DoctorConsultationsPage = () => {
     setIsModalOpen(false);
     setActiveConsultationId('');
     setActiveConsultationData(null);
+    setSelectedApptId('');
+    setPatientId('');
+    setVisitReason('');
+    setSymptoms('');
+    setDiagnosis('');
+    setClinicalNotes('');
+    setTreatmentPlan('');
+    setPrescribedItems([]);
+    setCurMedId('');
+    setCurDosageId('');
+    setCurQty(1);
+    setCurDuration('5 days');
+    setCurFrequency('Twice daily');
+    setCurInstructions('Take after meals');
+    setSelectedLabTestId('');
+    setWorkflowType('TOKEN_BASED');
     setSearchParams({});
   };
 
